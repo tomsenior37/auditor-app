@@ -1,0 +1,7 @@
+node_modules/
+photos/
+inspections.json
+archive.json
+emailConfig.json
+*.log
+.DS_Store

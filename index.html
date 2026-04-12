@@ -1,0 +1,2937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="theme-color" content="#0d0d0d">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Auditor</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0d0d;
+      --surface: #1a1a1a;
+      --border: #2a2a2a;
+      --accent: #e05c3a;
+      --accent-dim: #b8432a;
+      --text: #e8e8e8;
+      --text-dim: #888;
+      --pass: #3aad5c;
+      --fail: #e05c3a;
+      --na: #6b7280;
+      --yes: #3aad5c;
+      --no: #e05c3a;
+      --radius: 10px;
+    }
+
+    html, body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 16px;
+      min-height: 100vh;
+      overscroll-behavior: none;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    header .back-btn {
+      background: none;
+      border: none;
+      color: var(--accent);
+      font-size: 24px;
+      cursor: pointer;
+      padding: 0 4px;
+      display: none;
+    }
+    header .back-btn.visible { display: block; }
+    header h1 {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text);
+      flex: 1;
+    }
+    header .std-ref {
+      font-size: 11px;
+      color: var(--text-dim);
+      text-align: right;
+      line-height: 1.3;
+    }
+
+    /* ── Screen containers ── */
+    .screen { display: none; flex-direction: column; min-height: calc(100vh - 57px); }
+    .screen.active { display: flex; }
+
+    /* ── Home screen ── */
+    #home-screen {
+      padding: 20px 16px;
+      gap: 16px;
+    }
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 12px;
+      text-align: center;
+    }
+    .stat-card .num {
+      font-size: 32px;
+      font-weight: 800;
+      line-height: 1;
+    }
+    .stat-card .label {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-top: 4px;
+    }
+    .stat-card.total .num { color: var(--text); }
+    .stat-card.pass .num  { color: var(--pass); }
+    .stat-card.fail .num  { color: var(--fail); }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      padding: 18px 24px;
+      font-size: 18px;
+      font-weight: 700;
+      cursor: pointer;
+      width: 100%;
+      text-align: center;
+      transition: background 0.15s;
+      touch-action: manipulation;
+    }
+    .btn-primary:active { background: var(--accent-dim); }
+
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 20px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      text-align: center;
+      transition: background 0.15s;
+      touch-action: manipulation;
+    }
+    .btn-secondary:active { background: #222; }
+
+    .home-footer {
+      margin-top: auto;
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 11px;
+      padding: 16px 0;
+      line-height: 1.6;
+    }
+
+    /* ── Form screen ── */
+    #form-screen {
+      padding: 0;
+    }
+    .form-body {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .field-group label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .field-group input,
+    .field-group textarea,
+    .field-group select {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      padding: 14px;
+      font-size: 16px;
+      width: 100%;
+      outline: none;
+      font-family: inherit;
+    }
+    .field-group input:focus,
+    .field-group textarea:focus,
+    .field-group select:focus {
+      border-color: var(--accent);
+    }
+    .field-group input.big {
+      font-size: 22px;
+      font-weight: 700;
+      padding: 16px;
+    }
+    .field-group textarea { resize: vertical; min-height: 80px; }
+
+    /* ── Checklist ── */
+    .section-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      padding: 4px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .question-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      transition: border-color 0.2s;
+    }
+    .question-card.answered-yes  { border-color: var(--yes); }
+    .question-card.answered-no   { border-color: var(--no); }
+    .question-card.answered-na   { border-color: var(--na); }
+
+    .q-text {
+      font-size: 15px;
+      line-height: 1.4;
+      display: flex;
+      gap: 10px;
+    }
+    .q-num {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent);
+      min-width: 22px;
+      padding-top: 1px;
+    }
+
+    .q-btns {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+    }
+    .q-btn {
+      background: var(--bg);
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-dim);
+      font-size: 15px;
+      font-weight: 700;
+      padding: 12px 6px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+      touch-action: manipulation;
+    }
+    .q-btn:active { opacity: 0.7; }
+    .q-btn.yes.selected { background: var(--yes); border-color: var(--yes); color: #fff; }
+    .q-btn.no.selected  { background: var(--no);  border-color: var(--no);  color: #fff; }
+    .q-btn.na.selected  { background: var(--na);  border-color: var(--na);  color: #fff; }
+    .q-btn.yes:not(.selected):hover { border-color: var(--yes); color: var(--yes); }
+    .q-btn.no:not(.selected):hover  { border-color: var(--no);  color: var(--no); }
+    .q-btn.na:not(.selected):hover  { border-color: var(--na);  color: var(--na); }
+
+    /* ── Photo ── */
+    .photo-area {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .photo-btn {
+      background: var(--surface);
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-dim);
+      padding: 20px;
+      text-align: center;
+      cursor: pointer;
+      font-size: 15px;
+      transition: border-color 0.2s;
+    }
+    .photo-btn:active { border-color: var(--accent); }
+    .photo-btn .icon { font-size: 28px; display: block; margin-bottom: 6px; }
+    #photo-input { display: none; }
+    #photo-preview {
+      display: none;
+      width: 100%;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      max-height: 220px;
+      object-fit: cover;
+    }
+
+    /* ── Result banner ── */
+    #result-banner {
+      display: none;
+      border-radius: var(--radius);
+      padding: 18px;
+      text-align: center;
+      font-size: 22px;
+      font-weight: 800;
+    }
+    #result-banner.pass { background: rgba(58,173,92,0.15); border: 2px solid var(--pass); color: var(--pass); }
+    #result-banner.fail { background: rgba(224,92,58,0.15); border: 2px solid var(--fail); color: var(--fail); }
+
+    .submit-row { display: flex; flex-direction: column; gap: 10px; padding-bottom: 32px; }
+
+    /* ── Records screen ── */
+    #records-screen {
+      padding: 0;
+    }
+    .records-body {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .record-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      cursor: pointer;
+    }
+    .record-header {
+      padding: 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .record-badge {
+      font-size: 13px;
+      font-weight: 800;
+      padding: 5px 10px;
+      border-radius: 6px;
+      flex-shrink: 0;
+    }
+    .record-badge.pass { background: rgba(58,173,92,0.2); color: var(--pass); border: 1px solid var(--pass); }
+    .record-badge.fail { background: rgba(224,92,58,0.2); color: var(--fail); border: 1px solid var(--fail); }
+    .record-badge.wr-raised { background: rgba(255,152,0,0.2); color: #ff9800; border: 1px solid #ff9800; }
+    .record-badge.serviceable { background: rgba(58,173,92,0.2); color: var(--pass); border: 1px solid var(--pass); }
+
+    .record-meta {
+      flex: 1;
+      min-width: 0;
+    }
+    .record-guard-id {
+      font-size: 16px;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .record-time {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+    .record-chevron {
+      color: var(--text-dim);
+      font-size: 18px;
+      transition: transform 0.2s;
+      flex-shrink: 0;
+    }
+    .record-card.expanded .record-chevron { transform: rotate(90deg); }
+
+    .record-detail {
+      display: none;
+      padding: 0 14px 14px;
+      border-top: 1px solid var(--border);
+    }
+    .record-card.expanded .record-detail { display: block; }
+
+    .detail-row {
+      display: flex;
+      font-size: 14px;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--border);
+      gap: 8px;
+    }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-label { color: var(--text-dim); min-width: 100px; flex-shrink: 0; }
+    .detail-value { color: var(--text); word-break: break-word; }
+
+    .detail-answers {
+      margin-top: 8px;
+    }
+    .detail-answer-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 5px 0;
+      font-size: 13px;
+      border-bottom: 1px solid var(--border);
+    }
+    .detail-answer-row:last-child { border-bottom: none; }
+    .answer-chip {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 4px;
+      flex-shrink: 0;
+      min-width: 36px;
+      text-align: center;
+    }
+    .answer-chip.yes { background: rgba(58,173,92,0.2);  color: var(--pass); }
+    .answer-chip.no  { background: rgba(224,92,58,0.2); color: var(--fail); }
+    .answer-chip.na  { background: rgba(107,114,128,0.2); color: var(--na); }
+
+    .record-photo {
+      margin-top: 10px;
+      width: 100%;
+      max-height: 200px;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+
+    /* ── Finding panel (per-question NO panel) ── */
+    .finding-panel {
+      background: rgba(224,92,58,0.07);
+      border: 1px solid rgba(224,92,58,0.3);
+      border-radius: 8px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 4px;
+    }
+    .finding-panel textarea {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      padding: 10px 12px;
+      font-size: 15px;
+      font-family: inherit;
+      resize: vertical;
+      min-height: 70px;
+      width: 100%;
+      outline: none;
+    }
+    .finding-panel textarea:focus { border-color: var(--no); }
+    .finding-photo-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .finding-photo-label {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      padding: 10px 14px;
+      font-size: 14px;
+      cursor: pointer;
+      white-space: nowrap;
+      touch-action: manipulation;
+    }
+    .finding-photo-label:active { border-color: var(--accent); }
+    .finding-photo-input { display: none; }
+    .finding-photo-thumb {
+      width: 64px;
+      height: 64px;
+      object-fit: cover;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    /* finding detail in records */
+    .finding-detail {
+      margin-top: 6px;
+      padding: 8px 10px;
+      background: rgba(224,92,58,0.07);
+      border: 1px solid rgba(224,92,58,0.25);
+      border-radius: 6px;
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+    .finding-detail-photo {
+      margin-top: 6px;
+      width: 80px;
+      height: 80px;
+      object-fit: cover;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+
+    .std-ref-note {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 10px;
+      font-style: italic;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-dim);
+      font-size: 15px;
+    }
+    .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+
+    /* ── Confirm / Warning Modal ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      pointer-events: auto;
+      touch-action: auto;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px 20px;
+      max-width: 360px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .modal-message {
+      font-size: 15px;
+      line-height: 1.5;
+      color: var(--text);
+    }
+    .modal-btns {
+      display: flex;
+      gap: 10px;
+    }
+    .modal-btn-cancel {
+      flex: 1;
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 13px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .modal-btn-delete {
+      flex: 1;
+      background: var(--fail);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      padding: 13px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .modal-btn-ok {
+      flex: 1;
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 13px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .modal-btn-archive {
+      flex: 1;
+      background: #4a6fa5;
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      padding: 13px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    /* ── Results screen ── */
+    .results-body {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .results-toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 0 4px;
+    }
+    .results-toggle-label {
+      font-size: 13px;
+      color: var(--text-dim);
+      cursor: pointer;
+    }
+    .toggle-switch {
+      position: relative;
+      width: 40px;
+      height: 22px;
+      flex-shrink: 0;
+    }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider {
+      position: absolute;
+      inset: 0;
+      background: #333;
+      border-radius: 22px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .toggle-slider::before {
+      content: '';
+      position: absolute;
+      width: 16px; height: 16px;
+      left: 3px; top: 3px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform 0.2s;
+    }
+    .toggle-switch input:checked + .toggle-slider { background: var(--accent); }
+    .toggle-switch input:checked + .toggle-slider::before { transform: translateX(18px); }
+
+    .location-block {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .location-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 15px;
+    }
+    .location-header .loc-chevron {
+      color: var(--text-dim);
+      font-size: 18px;
+      transition: transform 0.2s;
+    }
+    .location-block.expanded .loc-chevron { transform: rotate(90deg); }
+    .location-content { display: none; padding: 0 10px 10px; }
+    .location-block.expanded .location-content { display: block; }
+
+    .machine-block {
+      margin-top: 8px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .machine-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+      background: rgba(255,255,255,0.03);
+    }
+    .machine-content { display: none; padding: 6px 8px 8px; }
+    .machine-block.expanded .machine-content { display: block; }
+
+    .guard-result-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 4px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+    }
+    .guard-result-row:last-child { border-bottom: none; }
+    .guard-result-id {
+      font-family: monospace;
+      font-size: 14px;
+    }
+    .guard-result-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .guard-result-date {
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+    .guard-history-list {
+      display: none;
+      padding: 4px 8px 8px;
+      border-top: 1px solid var(--border);
+      margin-top: 4px;
+    }
+    .guard-history-list.open { display: block; }
+    .history-entry {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 4px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      cursor: pointer;
+    }
+    .history-entry:last-child { border-bottom: none; }
+    .history-entry-meta {
+      flex: 1;
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+
+    /* ── Archive screen ── */
+    .archive-body {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .archive-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .archive-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .archive-guard-id {
+      font-family: monospace;
+      font-size: 16px;
+      font-weight: 700;
+    }
+    .archive-meta {
+      font-size: 12px;
+      color: var(--text-dim);
+      line-height: 1.6;
+    }
+    .btn-restore {
+      background: #4a6fa5;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #333;
+      color: var(--text);
+      padding: 12px 20px;
+      border-radius: 24px;
+      font-size: 14px;
+      z-index: 999;
+      transition: transform 0.3s;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* ── Spinner ── */
+    .spinner {
+      display: inline-block;
+      width: 18px; height: 18px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Setup divider ── */
+    .setup-divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 8px 0;
+    }
+
+    /* ── Inline add-new ── */
+    .inline-add {
+      display: flex;
+      gap: 8px;
+      margin-top: 6px;
+      align-items: center;
+    }
+    .inline-add input {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: var(--text);
+      padding: 10px 14px;
+      font-size: 15px;
+      outline: none;
+      font-family: inherit;
+    }
+    .inline-add .inline-add-btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .inline-add .inline-cancel-btn {
+      background: var(--surface);
+      color: var(--text-dim);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 12px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <button class="back-btn" id="back-btn" onclick="goHome()">&#8592;</button>
+  <h1 id="header-title">Auditor</h1>
+  <div class="std-ref">AS/NZS 4024.1601:2014<br>Safety of Machinery</div>
+</header>
+
+<!-- ══════════════ HOME SCREEN ══════════════ -->
+<div class="screen active" id="home-screen">
+  <div style="padding:16px; display:flex; flex-direction:column; gap:14px; flex:1;">
+
+    <!-- Template selector -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;">
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--accent);letter-spacing:0.5px;margin-bottom:8px;">Active Template</div>
+      <select id="dashboard-template" onchange="onDashboardTemplateChange()" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:11px;border-radius:10px;font-size:15px;font-family:inherit;outline:none;">
+        <option value="">— Select template —</option>
+      </select>
+    </div>
+
+    <!-- Stats -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div onclick="showRecordsFiltered('PASS')" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;cursor:pointer;active:opacity:0.8;">
+        <div style="font-size:26px;font-weight:700;color:var(--pass);" id="stat-pass">0</div>
+        <div style="font-size:12px;color:var(--dim);">Passed</div>
+      </div>
+      <div onclick="showRecordsFiltered('FAIL')" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;cursor:pointer;">
+        <div style="font-size:26px;font-weight:700;color:var(--fail);" id="stat-fail">0</div>
+        <div style="font-size:12px;color:var(--dim);">Failed</div>
+      </div>
+      <div onclick="showRecordsFiltered('WR_RAISED')" style="background:var(--surface);border:1px solid #ff9800;border-radius:10px;padding:12px;text-align:center;cursor:pointer;">
+        <div style="font-size:26px;font-weight:700;color:#ff9800;" id="stat-wr">0</div>
+        <div style="font-size:12px;color:var(--dim);">WR Raised</div>
+      </div>
+      <div onclick="showRecordsFiltered('SERVICEABLE')" style="background:var(--surface);border:1px solid var(--pass);border-radius:10px;padding:12px;text-align:center;cursor:pointer;">
+        <div style="font-size:26px;font-weight:700;color:var(--pass);" id="stat-rect">0</div>
+        <div style="font-size:12px;color:var(--dim);">Rectified</div>
+      </div>
+    </div>
+
+    <!-- Recent inspections for this template -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;">
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--accent);letter-spacing:0.5px;margin-bottom:10px;">Recent Audits</div>
+      <div id="dashboard-recent"></div>
+    </div>
+
+    <button class="btn-primary" onclick="showForm()">＋ New Audit</button>
+
+    <!-- Template result buttons (generated dynamically) -->
+    <div id="template-result-buttons"></div>
+
+    <div style="display:flex;gap:10px;">
+      <a href="/api/export/csv" style="text-decoration:none;flex:1;">
+        <button class="btn-secondary" style="width:100%;">⬇ Export CSV</button>
+      </a>
+      <a href="/api/report/all" target="_blank" style="text-decoration:none;flex:1;">
+        <button class="btn-secondary" style="width:100%;">📄 PDF</button>
+      </a>
+    </div>
+    <button class="btn-secondary" onclick="showSetup()">⚙️ Locations &amp; Equipment</button>
+    <button class="btn-secondary" onclick="showTemplates()">📋 Audit Templates</button>
+    <button class="btn-secondary" style="font-size:14px;padding:10px 16px;" onclick="showArchive()">🗄️ Archive</button>
+  </div>
+</div>
+
+<!-- ══════════════ TEMPLATES SCREEN ══════════════ -->
+<div class="screen" id="templates-screen">
+  <div class="form-body">
+    <div style="font-size:13px;color:var(--text-dim);margin-bottom:16px;">Templates define the questions for each type of audit. The Machine Guard Audit template is pre-loaded. Add more below.</div>
+
+    <div id="template-list-body" style="margin-bottom:24px;"></div>
+
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;">
+      <div style="font-weight:700;font-size:15px;margin-bottom:14px;color:var(--accent);">+ Create New Template</div>
+      <div class="field-group">
+        <label>Template Name *</label>
+        <input type="text" id="new-tpl-name" placeholder="e.g. Fire Extinguisher Inspection">
+      </div>
+
+      <div class="field-group">
+        <label>Component Type (optional)</label>
+        <input type="text" id="new-tpl-comp-type" placeholder="e.g. Extinguisher, Guard, Gearbox">
+        <div style="font-size:12px;color:var(--text-dim);margin-top:4px;">If set, audits will require selecting a specific component (auto-named)</div>
+      </div>
+      <div class="field-group">
+        <label>Questions * (one per line)</label>
+        <textarea id="new-tpl-questions" style="min-height:180px;" placeholder="Extinguisher is present and accessible&#10;Pressure gauge is in green zone&#10;Pin and tamper seal intact&#10;No visible damage or corrosion&#10;Inspection tag is current"></textarea>
+      </div>
+      <button class="btn-primary" onclick="saveNewTemplate()" style="width:100%;">Save Template</button>
+    </div>
+
+    <button class="btn-secondary" onclick="goHome()" style="margin-top:16px;width:100%;">&#8592; Back</button>
+  </div>
+</div>
+
+<!-- ══════════════ FORM SCREEN ══════════════ -->
+<div class="screen" id="form-screen">
+  <div class="form-body">
+
+    <div class="field-group">
+      <label>Audit Template</label>
+      <select id="f-template" onchange="selectTemplateForForm(this.value)">
+        <option value="">— Select template —</option>
+      </select>
+      <div id="selected-template-name" style="font-size:12px;color:var(--text-dim);margin-top:4px;"></div>
+    </div>
+
+    <div class="field-group">
+      <label>Location</label>
+      <select id="f-location" onchange="onLocationChange()">
+        <option value="">— Select location —</option>
+      </select>
+      <div class="inline-add" id="f-location-inline" style="display:none;">
+        <input type="text" id="f-location-inline-input" placeholder="New location name...">
+        <button class="inline-add-btn" onclick="inlineAddLocation()">Add</button>
+        <button class="inline-cancel-btn" onclick="cancelInline('f-location')">✕</button>
+      </div>
+    </div>
+
+    <div class="field-group">
+      <label>Machine / Description</label>
+      <select id="f-machine" onchange="onMachineChange()">
+        <option value="">— Select machine —</option>
+      </select>
+      <div class="inline-add" id="f-machine-inline" style="display:none;">
+        <input type="text" id="f-machine-inline-input" placeholder="New machine name...">
+        <button class="inline-add-btn" onclick="inlineAddMachine()">Add</button>
+        <button class="inline-cancel-btn" onclick="cancelInline('f-machine')">✕</button>
+      </div>
+    </div>
+
+    <div class="field-group">
+      <label id="guard-id-label">Guard ID</label>
+      <select id="f-guardId" onchange="onGuardChange()">
+        <option value="">— Select machine first —</option>
+      </select>
+      <div class="inline-add" id="f-guardId-inline" style="display:none;">
+        <input type="text" id="f-guardId-inline-input" placeholder="Auto-generated" readonly style="background:#111;color:var(--text-dim);">
+        <button class="inline-add-btn" onclick="inlineAddGuard()">Add</button>
+        <button class="inline-cancel-btn" onclick="cancelInline('f-guardId')">✕</button>
+      </div>
+    </div>
+
+    <!-- Guard Reference Photo -->
+    <div class="section-title">Guard Reference Photo (optional)</div>
+    <div class="photo-area">
+      <label class="photo-btn" for="photo-input">
+        <span class="icon">📷</span>
+        Tap to capture or select photo of guard
+      </label>
+      <input type="file" id="photo-input" accept="image/*" capture="environment">
+      <img id="photo-preview" alt="Photo preview">
+    </div>
+
+    <!-- Checklist -->
+    <div class="section-title">Inspection Checklist</div>
+    <div id="checklist-container"></div>
+
+    <!-- Notes -->
+    <div class="field-group">
+      <label>Notes</label>
+      <textarea id="f-notes" placeholder="Observations, defect descriptions, follow-up actions…"></textarea>
+    </div>
+
+    <!-- Inspector (select, near bottom) -->
+    <div class="field-group">
+      <label>Inspector</label>
+      <select id="f-inspector">
+        <option value="">— Select inspector —</option>
+      </select>
+    </div>
+
+    <!-- Signature -->
+    <div class="field-group">
+      <label>Signature</label>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <button type="button" onclick="openSigOverlay()"
+          style="background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:14px 20px;font-size:15px;font-weight:600;cursor:pointer;flex:1;">&#9998; Sign here</button>
+        <button type="button" onclick="clearSignature()"
+          style="background:var(--surface);color:var(--fail);border:1px solid var(--border);border-radius:10px;padding:14px 16px;font-size:15px;cursor:pointer;">&#x2715;</button>
+      </div>
+      <span id="sig-status" style="color:#666;font-size:13px;margin-top:6px;display:block;">No signature yet</span>
+      <img id="sig-preview" src="" alt="Signature preview" style="display:none;max-width:100%;border-radius:8px;border:1px solid var(--border);margin-top:8px;">
+    </div>
+
+    <!-- Result banner -->
+    <div id="result-banner"></div>
+
+    <!-- Submit -->
+    <div class="submit-row">
+      <button class="btn-primary" id="submit-btn" onclick="submitInspection()">Check &amp; Submit</button>
+      <button class="btn-secondary" onclick="goHome()">Cancel</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════ RECORDS SCREEN ══════════════ -->
+<div class="screen" id="records-screen">
+  <div class="records-body">
+    <!-- Filters -->
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">
+      <select id="filter-location" onchange="renderRecords()" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:10px;font-size:14px;font-family:inherit;">
+        <option value="">All Locations</option>
+      </select>
+      <select id="filter-equipment" onchange="renderRecords()" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:10px;font-size:14px;font-family:inherit;">
+        <option value="">All Equipment</option>
+      </select>
+      <select id="filter-result" onchange="renderRecords()" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:10px;font-size:14px;font-family:inherit;">
+        <option value="">All Results</option>
+        <option value="PASS">PASS only</option>
+        <option value="FAIL">FAIL only</option>
+        <option value="WR_RAISED">WR Raised only</option>
+        <option value="SERVICEABLE">Rectified only</option>
+      </select>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <label class="toggle-switch">
+          <input type="checkbox" id="records-show-archived" onchange="renderRecords()">
+          <span class="toggle-slider"></span>
+        </label>
+        <span class="results-toggle-label" onclick="document.getElementById('records-show-archived').click()">Show archived</span>
+      </div>
+    </div>
+  </div>
+  <div class="records-body" id="records-body" style="padding-top:0;"></div>
+</div>
+
+<!-- ══════════════ RESULTS SCREEN ══════════════ -->
+<div class="screen" id="results-screen">
+  <div class="results-body">
+    <div class="results-toggle-row">
+      <label class="toggle-switch">
+        <input type="checkbox" id="results-show-archived" onchange="renderResults()">
+        <span class="toggle-slider"></span>
+      </label>
+      <span class="results-toggle-label" onclick="document.getElementById('results-show-archived').click()">Show archived</span>
+    </div>
+  </div>
+  <div class="results-body" id="results-body" style="padding-top:0;"></div>
+</div>
+
+<!-- ══════════════ ARCHIVE SCREEN ══════════════ -->
+<div class="screen" id="archive-screen">
+  <div class="archive-body" id="archive-body"></div>
+</div>
+
+<!-- ══════════════ SETUP SCREEN ══════════════ -->
+<div class="screen" id="setup-screen">
+
+  <!-- PANEL 1: Locations list + Inspectors -->
+  <div id="setup-locations-panel" style="padding:16px;display:flex;flex-direction:column;gap:12px;">
+    <div class="section-title">📍 Locations</div>
+    <div id="location-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+    <div style="display:flex;gap:8px;margin-top:4px;">
+      <input type="text" id="new-location" placeholder="New location name..." style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:13px;font-size:15px;outline:none;font-family:inherit;">
+      <button onclick="addLocation()" style="background:var(--accent);color:#fff;border:none;border-radius:var(--radius);padding:13px 18px;font-size:15px;font-weight:700;cursor:pointer;white-space:nowrap;">Add</button>
+    </div>
+
+    <hr class="setup-divider" style="margin-top:8px;">
+
+    <div class="section-title">👷 Inspectors</div>
+    <div id="inspector-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+    <div style="display:flex;gap:8px;margin-top:4px;">
+      <input type="text" id="new-inspector" placeholder="New inspector name..." style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:13px;font-size:15px;outline:none;font-family:inherit;">
+      <button onclick="addInspector()" style="background:var(--accent);color:#fff;border:none;border-radius:var(--radius);padding:13px 18px;font-size:15px;font-weight:700;cursor:pointer;white-space:nowrap;">Add</button>
+    </div>
+
+    <hr class="setup-divider" style="margin-top:8px;">
+
+    <!-- PLANNERS -->
+    <div class="section-title">📅 Planners</div>
+    <div id="planner-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px;">
+      <input type="text" id="new-planner-name" placeholder="Planner name..." style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:13px;font-size:15px;outline:none;font-family:inherit;width:100%;">
+      <div style="display:flex;gap:8px;">
+        <input type="email" id="new-planner-email" placeholder="Email address..." style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:13px;font-size:15px;outline:none;font-family:inherit;">
+        <button onclick="addPlanner()" style="background:var(--accent);color:#fff;border:none;border-radius:var(--radius);padding:13px 18px;font-size:15px;font-weight:700;cursor:pointer;white-space:nowrap;">Add</button>
+      </div>
+    </div>
+
+    <hr class="setup-divider" style="margin-top:8px;">
+
+    <!-- EMAIL SERVER -->
+    <div class="section-title">📧 Email Server (SMTP)</div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <input type="text" id="smtp-host" placeholder="SMTP Host (e.g. smtp.gmail.com)" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:13px;font-size:15px;outline:none;font-family:inherit;width:100%;">
+      <div style="display:flex;gap:8px;">
+        <input type="number" id="smtp-port" placeholder="Port (587)" style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:13px;font-size:15px;outline:none;font-family:inherit;">
+        <label style="display:flex;align-items:center;gap:8px;font-size:14px;padding:0 8px;cursor:pointer;">
+          <input type="checkbox" id="smtp-secure" style="width:auto;"> SSL/TLS
+        </label>
+      </div>
+      <input type="text" id="smtp-user" placeholder="Username / Email" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:13px;font-size:15px;outline:none;font-family:inherit;width:100%;">
+      <input type="password" id="smtp-password" placeholder="Password / App password" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:13px;font-size:15px;outline:none;font-family:inherit;width:100%;">
+      <input type="text" id="smtp-from-name" placeholder="From name (e.g. Auditor App)" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:13px;font-size:15px;outline:none;font-family:inherit;width:100%;">
+      <input type="email" id="smtp-from-email" placeholder="From email address" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:13px;font-size:15px;outline:none;font-family:inherit;width:100%;">
+      <input type="text" id="smtp-external-url" placeholder="External URL (e.g. http://tomsenior9999.ddns.net:3103)" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:13px;font-size:15px;outline:none;font-family:inherit;width:100%;">
+      <div style="font-size:12px;color:var(--text-dim);">Used in emails so planners can click to raise a work request</div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="saveEmailConfig()" style="flex:1;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);padding:13px;font-size:15px;font-weight:700;cursor:pointer;">Save Config</button>
+        <button onclick="testEmailConfig()" style="flex:1;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:var(--radius);padding:13px;font-size:15px;font-weight:600;cursor:pointer;">Test Connection</button>
+      </div>
+      <div id="smtp-status" style="font-size:13px;color:var(--text-dim);"></div>
+    </div>
+  </div>
+
+  <!-- PANEL 2: Machines for a location -->
+  <div id="setup-machines-panel" style="display:none;padding:16px;flex-direction:column;gap:12px;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
+      <button onclick="showSetupLocations()" style="background:none;border:none;color:var(--accent);font-size:22px;cursor:pointer;padding:0;">&#8592;</button>
+      <div class="section-title" style="border:none;padding:0;" id="machine-panel-location-name"></div>
+    </div>
+    <div id="machine-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+    <div style="display:flex;gap:8px;margin-top:4px;">
+      <input type="text" id="new-machine" placeholder="New machine name..." style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:13px;font-size:15px;outline:none;font-family:inherit;">
+      <button onclick="addMachine()" style="background:var(--accent);color:#fff;border:none;border-radius:var(--radius);padding:13px 18px;font-size:15px;font-weight:700;cursor:pointer;white-space:nowrap;">Add</button>
+    </div>
+  </div>
+
+  <!-- PANEL 3: Guards for a machine -->
+  <div id="setup-guards-panel" style="display:none;padding:16px;flex-direction:column;gap:12px;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
+      <button onclick="backToMachines()" style="background:none;border:none;color:var(--accent);font-size:22px;cursor:pointer;padding:0;">&#8592;</button>
+      <div class="section-title" style="border:none;padding:0;" id="guard-panel-machine-name"></div>
+    </div>
+    <div id="guard-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+    <div style="margin-top:4px;">
+      <button onclick="addGuard()" style="background:var(--accent);color:#fff;border:none;border-radius:var(--radius);padding:14px 20px;font-size:15px;font-weight:700;cursor:pointer;width:100%;">&#43; Add Next Guard ID</button>
+      <div id="next-guard-preview" style="color:var(--text-dim);font-size:13px;text-align:center;margin-top:6px;"></div>
+    </div>
+    <input type="text" id="new-guard" style="display:none;">
+  </div>
+
+</div>
+
+<!-- ══════════════ SIGNATURE OVERLAY ══════════════ -->
+<div id="sig-overlay" style="display:none;position:fixed;inset:0;background:#000;z-index:999;flex-direction:column;overflow:hidden;touch-action:none;">
+  <div style="background:var(--surface);border-bottom:1px solid var(--border);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+    <span style="font-weight:700;font-size:16px;">&#9998; Sign below</span>
+    <div style="display:flex;gap:10px;">
+      <button onclick="clearSigOverlay()" style="background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 16px;font-size:14px;font-weight:600;cursor:pointer;">Clear</button>
+      <button onclick="confirmSignature()" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 20px;font-size:14px;font-weight:700;cursor:pointer;">Done &#10003;</button>
+    </div>
+  </div>
+  <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:16px;">
+    <canvas id="sig-canvas" style="background:#111;border:1px solid #2a2a2a;border-radius:12px;touch-action:none;cursor:crosshair;max-width:600px;width:100%;display:block;"></canvas>
+  </div>
+  <div style="padding:12px 16px;text-align:center;color:var(--text-dim);font-size:13px;flex-shrink:0;">Sign with your finger — tap Done when finished</div>
+</div>
+
+<!-- SEND TO PLANNER AFTER FAIL MODAL -->
+<div id="send-planner-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;align-items:center;justify-content:center;padding:20px;pointer-events:auto;touch-action:auto;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px 20px;max-width:420px;width:100%;display:flex;flex-direction:column;gap:14px;">
+    <div style="font-size:18px;font-weight:700;color:var(--fail);">&#x274C; Inspection Failed</div>
+    <div style="font-size:14px;color:var(--text-dim);">Send the report to a planner now to raise a work request?</div>
+    <select id="send-planner-select" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:12px;border-radius:10px;font-size:15px;font-family:inherit;width:100%;"></select>
+    <div style="display:flex;gap:8px;">
+      <button onclick="skipSendPlanner()" style="flex:1;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:13px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;">Skip</button>
+      <button onclick="doSendPlannerNow()" style="flex:1;background:var(--accent);color:#fff;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;">&#128231; Send Report</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ CONFIRM MODAL ══════════════ -->
+<div class="modal-overlay" id="confirm-modal">
+  <div class="modal-card">
+    <div class="modal-message" id="confirm-modal-message"></div>
+    <div class="modal-btns">
+      <button class="modal-btn-cancel" onclick="closeConfirmModal()">Cancel</button>
+      <button class="modal-btn-delete" id="confirm-modal-delete-btn" onclick="executeConfirm()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ WARNING MODAL ══════════════ -->
+<div class="modal-overlay" id="warning-modal">
+  <div class="modal-card">
+    <div class="modal-message" id="warning-modal-message"></div>
+    <div class="modal-btns">
+      <button class="modal-btn-cancel" onclick="closeWarningModal()">Cancel</button>
+      <button class="modal-btn-archive" id="warning-modal-archive-btn" onclick="executeArchiveFromWarning()">Archive</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── Questions ──────────────────────────────────────────────
+// Templates state
+let templates = [];
+let selectedTemplate = null;
+
+// QUESTIONS is now dynamic — built from selectedTemplate
+let QUESTIONS = [];
+
+async function loadTemplates() {
+  try {
+    const r = await fetch('/api/templates');
+    const d = await r.json();
+    templates = d.templates || [];
+    renderTemplateList();
+    populateTemplateDropdown();
+    populateDashboardTemplateDropdown();
+    renderTemplateButtons();
+    // Auto-select first template
+    if (templates.length && !selectedTemplate) {
+      selectedTemplate = templates[0];
+      QUESTIONS = selectedTemplate.questions.map(q => q.text);
+      updateTemplateLabel();
+    }
+    refreshDashboard();
+  } catch(e) { console.error('loadTemplates', e); }
+}
+
+function updateTemplateLabel() {
+  const el = document.getElementById('selected-template-name');
+  if (el && selectedTemplate) el.textContent = selectedTemplate.name;
+  // Update guard label if template has component type
+  const guardLabel = document.getElementById('guard-id-label');
+  if (guardLabel && selectedTemplate?.componentType) guardLabel.textContent = selectedTemplate.componentType + ' ID';
+  else if (guardLabel) guardLabel.textContent = 'Component ID';
+}
+
+function selectTemplateForForm(tplId) {
+  const tpl = templates.find(t => t.id === tplId);
+  if (!tpl) return;
+  selectedTemplate = tpl;
+  QUESTIONS = tpl.questions.map(q => q.text);
+  updateTemplateLabel();
+  buildChecklist();
+  resetFormAnswers();
+}
+
+function showTemplates() {
+  switchScreen('templates-screen', 'Audit Templates');
+  renderTemplateList();
+}
+
+function renderTemplateList() {
+  const el = document.getElementById('template-list-body');
+  if (!el) return;
+  if (!templates.length) { el.innerHTML = '<div style="color:var(--text-dim);padding:16px;">No templates yet.</div>'; return; }
+  el.innerHTML = templates.map(t => `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <div style="font-weight:700;font-size:16px;">${escHtml(t.name)}</div>
+
+          <div style="font-size:13px;color:var(--text-dim);margin-top:4px;">${t.questions.length} questions${t.requiresComponent ? ' &nbsp;·&nbsp; 🔐 Component: <strong style="color:var(--accent);">' + escHtml(t.componentType) + '</strong>' : ''}</div>
+        </div>
+        <button onclick="deleteTemplate('${t.id}')" style="background:none;border:none;color:var(--fail);font-size:20px;cursor:pointer;padding:4px;">🗑</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function saveNewTemplate() {
+  const name = document.getElementById('new-tpl-name').value.trim();
+  const standard = document.getElementById('new-tpl-standard').value.trim();
+  const compType = document.getElementById('new-tpl-comp-type').value.trim();
+  const requiresComponent = !!compType;
+  const questionsRaw = document.getElementById('new-tpl-questions').value.trim();
+  if (!name || !questionsRaw) return toast('Name and questions required');
+  const questions = questionsRaw.split('\n').filter(l => l.trim()).map((text, i) => ({
+    id: 'q' + (i + 1),
+    text: text.trim(),
+    type: 'yesno',
+    allowNA: false
+  }));
+  const r = await fetch('/api/templates', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, standard, requiresComponent, componentType: compType, questions }) });
+  const d = await r.json();
+  if (d.success) { await loadTemplates(); toast('Template saved ✅'); document.getElementById('new-tpl-name').value = ''; document.getElementById('new-tpl-standard').value = ''; document.getElementById('new-tpl-comp-type').value = ''; document.getElementById('new-tpl-questions').value = ''; }
+}
+
+async function deleteTemplate(id) {
+  showConfirmModal('Delete this template?', async () => {
+    await fetch('/api/templates/' + id, { method: 'DELETE' });
+    await loadTemplates();
+    toast('Template deleted');
+  });
+}
+
+function escHtml(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// State
+let answers = {};
+let findings = {}; // { "q3": { comment: "", photo: null } }
+let uploadedPhoto = null;
+let resultComputed = null;
+let inspections = [];
+
+// Signature state
+let hasSig = false;
+let sigDrawing = false;
+let sigLastX = 0, sigLastY = 0;
+
+// ── Init ───────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  loadTemplates().then(() => buildChecklist());
+  loadStats();
+  loadLists();
+  loadPlanners();
+
+  document.getElementById('new-location').addEventListener('keydown', e => { if (e.key === 'Enter') addLocation(); });
+  document.getElementById('new-machine').addEventListener('keydown', e => { if (e.key === 'Enter') addMachine(); });
+  document.getElementById('new-inspector').addEventListener('keydown', e => { if (e.key === 'Enter') addInspector(); });
+  document.getElementById('new-guard').addEventListener('keydown', e => { if (e.key === 'Enter') addGuard(); });
+
+  // Inline add-new Enter key support
+  document.getElementById('f-location-inline-input').addEventListener('keydown', e => { if (e.key === 'Enter') inlineAddLocation(); });
+  document.getElementById('f-machine-inline-input').addEventListener('keydown', e => { if (e.key === 'Enter') inlineAddMachine(); });
+  document.getElementById('f-guardId-inline-input').addEventListener('keydown', e => { if (e.key === 'Enter') inlineAddGuard(); });
+
+  // Photo input
+  document.getElementById('photo-input').addEventListener('change', handlePhotoSelect);
+
+  // Signature canvas setup
+  initSignatureCanvas();
+});
+
+// ── Signature overlay ──────────────────────────────────────
+let overlayHasSig = false;
+let sigDataUrl = null;
+
+function initSignatureCanvas() { /* canvas lives in overlay now */ }
+
+function openSigOverlay() {
+  const overlay = document.getElementById('sig-overlay');
+  overlay.style.display = 'flex';
+  // Lock scroll cross-platform (works on Android Chrome + iOS Safari)
+  window.__scrollY = window.scrollY;
+  document.body.style.overflow = 'hidden';
+  document.body.style.position = 'fixed';
+  document.body.style.top = `-${window.__scrollY}px`;
+  document.body.style.left = '0';
+  document.body.style.right = '0';
+  overlayHasSig = false;
+  // Block all touch scroll on the overlay
+  overlay.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+
+  const c = document.getElementById('sig-canvas');
+  const area = c.parentElement;
+  c.width  = Math.min(area.clientWidth  - 32, 600);
+  c.height = Math.max(area.clientHeight - 32, 220);
+
+  const cx = c.getContext('2d');
+  cx.clearRect(0, 0, c.width, c.height);
+  cx.strokeStyle = '#e8e8e8';
+  cx.lineWidth   = 2.5;
+  cx.lineCap     = 'round';
+  cx.lineJoin    = 'round';
+
+  if (hasSig && sigDataUrl) {
+    const img = new Image();
+    img.onload = () => cx.drawImage(img, 0, 0, c.width, c.height);
+    img.src = sigDataUrl;
+    overlayHasSig = true;
+  }
+
+  // Clone to remove old listeners
+  const nc = c.cloneNode(false);
+  c.parentNode.replaceChild(nc, c);
+  const canvas = document.getElementById('sig-canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.strokeStyle = '#e8e8e8'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  if (hasSig && sigDataUrl) {
+    const i2 = new Image();
+    i2.onload = () => ctx.drawImage(i2, 0, 0, canvas.width, canvas.height);
+    i2.src = sigDataUrl;
+  }
+
+  let drawing = false, lx = 0, ly = 0;
+  function pt(e) {
+    const r = canvas.getBoundingClientRect();
+    return { x: (e.clientX - r.left) * (canvas.width / r.width), y: (e.clientY - r.top) * (canvas.height / r.height) };
+  }
+  canvas.addEventListener('pointerdown', e => {
+    e.preventDefault(); canvas.setPointerCapture(e.pointerId);
+    const p = pt(e); drawing = true; lx = p.x; ly = p.y;
+    ctx.beginPath(); ctx.arc(p.x, p.y, 1, 0, Math.PI * 2); ctx.fillStyle = '#e8e8e8'; ctx.fill();
+  });
+  canvas.addEventListener('pointermove', e => {
+    e.preventDefault(); if (!drawing) return;
+    const p = pt(e); ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(p.x, p.y); ctx.stroke();
+    lx = p.x; ly = p.y; overlayHasSig = true;
+  });
+  canvas.addEventListener('pointerup',     e => { e.preventDefault(); drawing = false; });
+  canvas.addEventListener('pointercancel', e => { e.preventDefault(); drawing = false; });
+}
+
+function clearSigOverlay() {
+  const c = document.getElementById('sig-canvas');
+  c.getContext('2d').clearRect(0, 0, c.width, c.height);
+  overlayHasSig = false;
+}
+
+function confirmSignature() {
+  if (overlayHasSig) {
+    hasSig = true;
+    sigDataUrl = document.getElementById('sig-canvas').toDataURL('image/png');
+    document.getElementById('sig-status').textContent = '✅ Signed';
+    const prev = document.getElementById('sig-preview');
+    prev.src = sigDataUrl; prev.style.display = 'block';
+  }
+  document.getElementById('sig-overlay').style.display = 'none';
+  document.body.style.overflow = '';
+  document.body.style.position = '';
+  document.body.style.top = '';
+  document.body.style.left = '';
+  document.body.style.right = '';
+  window.scrollTo(0, window.__scrollY || 0);
+}
+
+function clearSignature() {
+  hasSig = false; sigDataUrl = null; overlayHasSig = false;
+  document.getElementById('sig-status').textContent = 'No signature yet';
+  const prev = document.getElementById('sig-preview');
+  prev.src = ''; prev.style.display = 'none';
+}
+
+function captureSignature(inspectorName) {
+  if (!hasSig || !sigDataUrl) return null;
+  // Draw timestamp onto a temp canvas over the captured sig
+  const img = new Image();
+  const tempCanvas = document.createElement('canvas');
+  img.onload = () => {
+    tempCanvas.width = img.width; tempCanvas.height = img.height;
+    const ctx = tempCanvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' });
+    const timeStr = now.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', hour12: false });
+    ctx.font = '11px sans-serif'; ctx.fillStyle = '#666';
+    ctx.fillText(`${inspectorName || 'Inspector'} · ${dateStr} ${timeStr}`, 8, tempCanvas.height - 8);
+    sigDataUrl = tempCanvas.toDataURL('image/png');
+  };
+  img.src = sigDataUrl;
+  return sigDataUrl;
+}
+
+// ── Build checklist ────────────────────────────────────────
+function buildChecklist() {
+  const container = document.getElementById('checklist-container');
+  container.innerHTML = '';
+  QUESTIONS.forEach((q, i) => {
+    const n = i + 1;
+    const card = document.createElement('div');
+    card.className = 'question-card';
+    card.id = `qcard-${n}`;
+    card.innerHTML = `
+      <div class="q-text">
+        <span class="q-num">${n}.</span>
+        <span>${q}</span>
+      </div>
+      <div class="q-btns">
+        <button class="q-btn yes" data-q="${n}" data-val="yes" onclick="setAnswer(${n},'yes')">YES</button>
+        <button class="q-btn no"  data-q="${n}" data-val="no"  onclick="setAnswer(${n},'no')">NO</button>
+        <button class="q-btn na"  data-q="${n}" data-val="na"  onclick="setAnswer(${n},'na')">N/A</button>
+      </div>
+      <div class="finding-panel" id="finding-panel-${n}" style="display:none;">
+        <textarea id="finding-comment-${n}" placeholder="Describe the issue..." oninput="onFindingComment(${n})"></textarea>
+        <div class="finding-photo-row">
+          <label class="finding-photo-label" for="finding-photo-${n}">📷 Add photo</label>
+          <input type="file" class="finding-photo-input" id="finding-photo-${n}" accept="image/*" capture="environment" data-q="${n}">
+          <img id="finding-photo-preview-${n}" class="finding-photo-thumb" style="display:none;" alt="">
+        </div>
+      </div>
+    `;
+    container.appendChild(card);
+    // Attach photo change listener
+    card.querySelector(`#finding-photo-${n}`).addEventListener('change', handleFindingPhotoSelect);
+  });
+}
+
+function setAnswer(n, val) {
+  answers[`q${n}`] = val === 'yes' ? true : (val === 'no' ? false : 'na');
+  const card = document.getElementById(`qcard-${n}`);
+  card.querySelectorAll('.q-btn').forEach(btn => {
+    btn.classList.remove('selected');
+    if (btn.dataset.val === val) btn.classList.add('selected');
+  });
+  card.classList.remove('answered-yes', 'answered-no', 'answered-na');
+  card.classList.add(`answered-${val}`);
+  // Show/hide finding panel
+  const panel = document.getElementById(`finding-panel-${n}`);
+  if (panel) panel.style.display = val === 'no' ? 'flex' : 'none';
+  document.getElementById('result-banner').style.display = 'none';
+  resultComputed = null;
+}
+
+function onFindingComment(n) {
+  const key = `q${n}`;
+  if (!findings[key]) findings[key] = { comment: '', photo: null };
+  findings[key].comment = document.getElementById(`finding-comment-${n}`).value;
+}
+
+async function handleFindingPhotoSelect(e) {
+  const n = e.target.dataset.q;
+  const file = e.target.files[0];
+  if (!file) return;
+  const preview = document.getElementById(`finding-photo-preview-${n}`);
+  preview.src = URL.createObjectURL(file);
+  preview.style.display = 'block';
+  try {
+    const fd = new FormData();
+    fd.append('photo', file);
+    const res = await fetch('/api/photo', { method: 'POST', body: fd });
+    const data = await res.json();
+    const key = `q${n}`;
+    if (!findings[key]) findings[key] = { comment: '', photo: null };
+    findings[key].photo = data.filename;
+    toast('Finding photo uploaded ✓');
+  } catch (err) {
+    toast('Finding photo upload failed');
+  }
+}
+
+// ── Photo ──────────────────────────────────────────────────
+async function handlePhotoSelect(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const preview = document.getElementById('photo-preview');
+  preview.src = URL.createObjectURL(file);
+  preview.style.display = 'block';
+  try {
+    const fd = new FormData();
+    fd.append('photo', file);
+    const res = await fetch('/api/photo', { method: 'POST', body: fd });
+    const data = await res.json();
+    uploadedPhoto = data.filename;
+    toast('Photo uploaded ✓');
+  } catch (err) {
+    toast('Photo upload failed — will save without photo');
+    uploadedPhoto = null;
+  }
+}
+
+// ── Compute result ─────────────────────────────────────────
+function computeResult() {
+  for (let i = 1; i <= QUESTIONS.length; i++) {
+    if (answers[`q${i}`] === false) return 'FAIL';
+  }
+  const answered = Object.keys(answers).length;
+  if (answered === 0) return null;
+  return 'PASS';
+}
+
+function resetFormAnswers() {
+  answers = {};
+  findings = {};
+  resultComputed = null;
+  const banner = document.getElementById('result-banner');
+  if (banner) banner.style.display = 'none';
+}
+
+// ── Submit ─────────────────────────────────────────────────
+async function submitInspection() {
+  const inspector = document.getElementById('f-inspector').value.trim();
+  const guardId   = document.getElementById('f-guardId').value.trim();
+  const location  = document.getElementById('f-location').value.trim();
+  const machine   = document.getElementById('f-machine').value.trim();
+
+  if (!location || location === '__add_new__')  return toast('⚠ Location is required');
+  if (!machine  || machine === '__add_new__')   return toast('⚠ Machine name is required');
+  if (!inspector) return toast('⚠ Inspector is required');
+  // Guard ID only required if template has component
+  if (selectedTemplate?.requiresComponent && (!guardId || guardId === '__add_new__')) return toast('⚠ ' + (selectedTemplate.componentType || 'Component') + ' ID is required');
+
+  const unanswered = [];
+  for (let i = 1; i <= QUESTIONS.length; i++) {
+    if (answers[`q${i}`] === undefined) unanswered.push(i);
+  }
+  if (unanswered.length > 0) {
+    return toast(`⚠ Answer questions: ${unanswered.join(', ')}`);
+  }
+
+  const result = computeResult();
+  resultComputed = result;
+
+  const banner = document.getElementById('result-banner');
+  banner.className = result === 'PASS' ? 'pass' : 'fail';
+  banner.textContent = result === 'PASS' ? '✅ PASS — Guard compliant' : '❌ FAIL — Action required';
+  banner.style.display = 'block';
+  banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+  await new Promise(r => setTimeout(r, 600));
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Saving…';
+
+  // Capture signature (stamps timestamp on canvas)
+  const signature = captureSignature(inspector);
+
+  // Save last inspector
+  localStorage.setItem('inspector_name', inspector);
+
+  try {
+    // Collect any finding comments not yet in state
+    QUESTIONS.forEach((_, i) => {
+      const n = i + 1;
+      const key = `q${n}`;
+      const commentEl = document.getElementById(`finding-comment-${n}`);
+      if (commentEl && answers[key] === false) {
+        if (!findings[key]) findings[key] = { comment: '', photo: null };
+        findings[key].comment = commentEl.value;
+      }
+    });
+    const payload = {
+      templateId: selectedTemplate?.id || null,
+      templateName: selectedTemplate?.name || null,
+      guardId, componentId: guardId, location, machine, inspector,
+      answers,
+      findings,
+      notes: document.getElementById('f-notes').value.trim(),
+      photo: uploadedPhoto,
+      signature,
+      result
+    };
+    const res = await fetch('/api/inspection', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error('Server error');
+    const saved = await res.json();
+    await loadStats();
+    if (result === 'FAIL' && planners.length) {
+      // Show send-to-planner prompt for failed inspections
+      showSendPlannerModal(saved.id || null);
+    } else {
+      toast(result === 'PASS' ? '✅ Inspection saved — PASS' : '❌ Inspection saved — FAIL');
+      setTimeout(() => goHome(), 1200);
+    }
+  } catch (err) {
+    toast('Error saving inspection');
+    btn.disabled = false;
+    btn.textContent = 'Check & Submit';
+  }
+}
+
+// ── Navigation ─────────────────────────────────────────────
+function populateTemplateDropdown() {
+  const sel = document.getElementById('f-template');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— Select template —</option>' +
+    templates.map(t => `<option value="${t.id}" ${selectedTemplate && selectedTemplate.id === t.id ? 'selected' : ''}>${t.name}</option>`).join('');
+}
+
+function showForm() {
+  populateTemplateDropdown();
+  updateTemplateLabel();
+  populateLocationDropdown();
+  populateInspectorDropdown();
+  document.getElementById('f-location').value = '';
+  updateMachineDropdown();
+  updateGuardDropdown();
+  document.getElementById('f-notes').value = '';
+  document.getElementById('photo-preview').style.display = 'none';
+  document.getElementById('photo-input').value = '';
+  document.getElementById('result-banner').style.display = 'none';
+  document.getElementById('submit-btn').disabled = false;
+  document.getElementById('submit-btn').textContent = 'Check & Submit';
+  answers = {};
+  findings = {};
+  uploadedPhoto = null;
+  resultComputed = null;
+  buildChecklist(); // also resets all finding panels
+  clearSignature();
+
+  // Pre-select last inspector
+  const savedInspector = localStorage.getItem('inspector_name');
+  if (savedInspector) {
+    const sel = document.getElementById('f-inspector');
+    const opt = Array.from(sel.options).find(o => o.value === savedInspector);
+    if (opt) sel.value = savedInspector;
+  }
+
+  switchScreen('form-screen', 'New Inspection');
+}
+
+function showRecords(title) {
+  switchScreen('records-screen', title || 'Audit Results');
+  renderRecords();
+}
+
+function showRecordsFiltered(filterValue) {
+  const titles = { 'PASS': 'Passed', 'FAIL': 'Failed', 'WR_RAISED': 'WR Raised', 'SERVICEABLE': 'Rectified' };
+  switchScreen('records-screen', titles[filterValue] || 'Audit Results');
+  // Set the filter dropdown
+  const sel = document.getElementById('filter-result');
+  if (sel) sel.value = filterValue;
+  renderRecords();
+}
+
+function showResults() {
+  renderResults();
+  switchScreen('results-screen', 'Results by Location');
+}
+
+function showArchive() {
+  renderArchive();
+  switchScreen('archive-screen', '🗄️ Archive');
+}
+
+let _recordsTemplateId = null;
+
+function renderTemplateButtons() {
+  const el = document.getElementById('template-result-buttons');
+  if (!el) return;
+  if (!templates.length) { el.innerHTML = ''; return; }
+  el.innerHTML = templates.map(t => `
+    <button class="btn-secondary" style="width:100%;text-align:left;display:flex;justify-content:space-between;align-items:center;" onclick="showRecordsForTemplate('${t.id}')">
+      <span>📋 ${escHtml(t.name)}</span>
+      <span style="font-size:12px;color:var(--text-dim);">View results ›</span>
+    </button>
+  `).join('');
+}
+
+function showRecordsForTemplate(tplId) {
+  _recordsTemplateId = tplId;
+  const tpl = templates.find(t => t.id === tplId);
+  showRecords(tpl ? tpl.name : 'Audit Results');
+}
+
+function populateDashboardTemplateDropdown() {
+  const sel = document.getElementById('dashboard-template');
+  if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— Select template —</option>' +
+    templates.map(t => `<option value="${t.id}" ${t.id === cur ? 'selected' : ''}>${t.name}</option>`).join('');
+  // Auto-select if only one or if selectedTemplate set
+  if (!cur && selectedTemplate) sel.value = selectedTemplate.id;
+  else if (!cur && templates.length === 1) sel.value = templates[0].id;
+}
+
+function onDashboardTemplateChange() {
+  const tplId = document.getElementById('dashboard-template').value;
+  const tpl = templates.find(t => t.id === tplId);
+  if (tpl) { selectedTemplate = tpl; QUESTIONS = tpl.questions.map(q => q.text); }
+  refreshDashboard();
+}
+
+async function refreshDashboard() {
+  try {
+    const res = await fetch('/api/inspections');
+    inspections = await res.json();
+    const tplId = document.getElementById('dashboard-template')?.value;
+    const filtered = tplId ? inspections.filter(r => r.templateId === tplId) : inspections;
+    const setEl = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
+    setEl('stat-pass', filtered.filter(r => r.result === 'PASS' && !r.status).length);
+    setEl('stat-fail', filtered.filter(r => r.result === 'FAIL' && !r.status).length);
+    setEl('stat-wr', filtered.filter(r => r.status === 'WR_RAISED').length);
+    setEl('stat-rect', filtered.filter(r => r.status === 'SERVICEABLE').length);
+    // Recent 5
+    const recent = [...filtered].slice(0, 5);
+    const el = document.getElementById('dashboard-recent');
+    if (!el) return;
+    if (!recent.length) { el.innerHTML = '<div style="color:var(--text-dim);font-size:14px;">No audits yet for this template.</div>'; return; }
+    el.innerHTML = recent.map(r => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+        <div>
+          <div style="font-weight:600;font-size:14px;">${escHtml(r.guardId || r.machine)}</div>
+          <div style="font-size:12px;color:var(--text-dim);">${escHtml(r.location)} / ${escHtml(r.machine)} · ${new Date(r.timestamp).toLocaleDateString()}</div>
+        </div>
+        <span style="font-weight:700;color:${r.result === 'PASS' ? 'var(--pass)' : 'var(--fail)'};font-size:13px;">${r.result}</span>
+      </div>
+    `).join('');
+  } catch(e) { console.error(e); }
+}
+
+function goHome() {
+  switchScreen('home-screen', 'Auditor');
+  populateDashboardTemplateDropdown();
+  refreshDashboard();
+}
+
+function switchScreen(id, title) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.getElementById('header-title').textContent = title;
+  const backBtn = document.getElementById('back-btn');
+  if (id === 'home-screen') {
+    backBtn.classList.remove('visible');
+  } else {
+    backBtn.classList.add('visible');
+  }
+  window.scrollTo(0, 0);
+}
+
+// ── Records ────────────────────────────────────────────────
+async function renderRecords() {
+  const body = document.getElementById('records-body');
+  body.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-dim)">Loading…</div>';
+  try {
+    const res = await fetch('/api/inspections');
+    inspections = await res.json();
+  } catch {
+    body.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div>Could not load records</div>';
+    return;
+  }
+
+  const showArchived = document.getElementById('records-show-archived')?.checked;
+  let filtered = showArchived ? inspections : inspections.filter(r => !r.archived);
+
+  // Template filter
+  if (_recordsTemplateId) filtered = filtered.filter(r => r.templateId === _recordsTemplateId);
+
+  // Populate location/equipment filters from current data
+  const locs = [...new Set(filtered.map(r => r.location).filter(Boolean))].sort();
+  const equips = [...new Set(filtered.map(r => r.machine).filter(Boolean))].sort();
+  const locSel = document.getElementById('filter-location');
+  const equSel = document.getElementById('filter-equipment');
+  const curLoc = locSel?.value; const curEqu = equSel?.value;
+  if (locSel) locSel.innerHTML = '<option value="">All Locations</option>' + locs.map(l => `<option value="${escHtml(l)}" ${l===curLoc?'selected':''}>${escHtml(l)}</option>`).join('');
+  if (equSel) equSel.innerHTML = '<option value="">All Equipment</option>' + equips.map(e => `<option value="${escHtml(e)}" ${e===curEqu?'selected':''}>${escHtml(e)}</option>`).join('');
+
+  // Apply filters
+  const filterLoc = document.getElementById('filter-location')?.value;
+  const filterEqu = document.getElementById('filter-equipment')?.value;
+  const filterRes = document.getElementById('filter-result')?.value;
+  if (filterLoc) filtered = filtered.filter(r => r.location === filterLoc);
+  if (filterEqu) filtered = filtered.filter(r => r.machine === filterEqu);
+  if (filterRes === 'WR_RAISED') filtered = filtered.filter(r => r.status === 'WR_RAISED');
+  else if (filterRes === 'SERVICEABLE') filtered = filtered.filter(r => r.status === 'SERVICEABLE');
+  else if (filterRes) filtered = filtered.filter(r => r.result === filterRes && !r.status);
+
+  if (!filtered.length) {
+    body.innerHTML = '<div class="empty-state"><div class="icon">📋</div>No inspections yet.<br>Tap New Inspection to get started.</div>';
+    return;
+  }
+
+  body.innerHTML = '';
+  filtered.forEach(rec => {
+    const card = document.createElement('div');
+    card.className = 'record-card';
+    const dt = new Date(rec.timestamp);
+    const dtStr = dt.toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' });
+    const archivedBadge = rec.archived ? ' <span style="font-size:10px;color:#666;font-weight:normal;">[archived]</span>' : '';
+
+    const badgeClass = rec.status==='WR_RAISED'?'wr-raised':rec.status==='SERVICEABLE'?'serviceable':rec.result.toLowerCase();
+    const badgeLabel = rec.status==='WR_RAISED'?(rec.workRequestNumber?'WR '+escHtml(rec.workRequestNumber):'WR Raised'):rec.status==='SERVICEABLE'?'Rectified':rec.result;
+    card.innerHTML = `
+      <div class="record-header" onclick="toggleRecord(this.parentElement)">
+        <div class="record-badge ${badgeClass}">${badgeLabel}</div>
+        <div class="record-meta">
+          <div class="record-guard-id">${escHtml(rec.guardId)}${archivedBadge}</div>
+          <div class="record-time">${dtStr} · ${escHtml(rec.inspector)}</div>
+        </div>
+        <div class="record-chevron">›</div>
+      </div>
+      <div class="record-detail">
+        ${buildDetailHtml(rec)}
+      </div>
+    `;
+    body.appendChild(card);
+  });
+}
+
+function toggleRecord(card) {
+  card.classList.toggle('expanded');
+}
+
+function buildDetailHtml(rec) {
+  const answerRows = QUESTIONS.map((q, i) => {
+    const key = `q${i + 1}`;
+    const val = rec.answers[key];
+    let chip, label;
+    if (val === true)   { chip = 'yes'; label = 'YES'; }
+    else if (val === false) { chip = 'no'; label = 'NO'; }
+    else if (val === 'na')  { chip = 'na'; label = 'N/A'; }
+    else { chip = 'na'; label = '—'; }
+    // For NO answers, include finding details
+    let findingHtml = '';
+    if (val === false && rec.findings && rec.findings[key]) {
+      const f = rec.findings[key];
+      const commentHtml = f.comment ? `<div>${escHtml(f.comment)}</div>` : '';
+      const photoHtml = f.photo ? `<img src="/photos/${escHtml(f.photo)}" class="finding-detail-photo" alt="Finding photo">` : '';
+      if (commentHtml || photoHtml) {
+        findingHtml = `<div class="finding-detail">${commentHtml}${photoHtml}</div>`;
+      }
+    }
+    return `<div class="detail-answer-row" style="flex-direction:column;align-items:flex-start;">
+      <div style="display:flex;align-items:flex-start;gap:8px;width:100%">
+        <span class="answer-chip ${chip}">${label}</span>
+        <span>${i + 1}. ${escHtml(q)}</span>
+      </div>
+      ${findingHtml}
+    </div>`;
+  }).join('');
+
+  const photoHtml = rec.photo
+    ? `<img class="record-photo" src="/photos/${escHtml(rec.photo)}" alt="Inspection photo">`
+    : '';
+
+  const signatureHtml = rec.signature
+    ? `<img src="${rec.signature}" style="max-width:100%; border-radius:8px; margin-top:8px; border:1px solid var(--border);" alt="Signature">`
+    : '';
+
+  return `
+    <div class="detail-row">
+      <span class="detail-label">Location</span>
+      <span class="detail-value">${escHtml(rec.location)}</span>
+    </div>
+    <div class="detail-row">
+      <span class="detail-label">Machine</span>
+      <span class="detail-value">${escHtml(rec.machine)}</span>
+    </div>
+    <div class="detail-row">
+      <span class="detail-label">Inspector</span>
+      <span class="detail-value">${escHtml(rec.inspector)}</span>
+    </div>
+    <div class="detail-row">
+      <span class="detail-label">Date/Time</span>
+      <span class="detail-value">${new Date(rec.timestamp).toLocaleString('en-AU')}</span>
+    </div>
+    <div class="detail-row">
+      <span class="detail-label">Record ID</span>
+      <span class="detail-value" style="font-size:11px;font-family:monospace;">${escHtml(rec.id)}</span>
+    </div>
+    ${rec.notes ? `<div class="detail-row"><span class="detail-label">Notes</span><span class="detail-value">${escHtml(rec.notes)}</span></div>` : ''}
+    <div class="detail-answers">${answerRows}</div>
+    ${photoHtml}
+    ${signatureHtml}
+    <div style="margin-top:12px;display:flex;flex-direction:column;gap:10px;">
+      <div style="display:flex;flex-wrap:wrap;gap:8px;">
+        <a href="/api/report/${rec.id}" target="_blank"
+           style="display:inline-block;background:#1a1a1a;color:#e8e8e8;border:1px solid #2a2a2a;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;text-decoration:none;"
+        >📄 PDF Report</a>
+        ${(rec.result === 'FAIL' || rec.status === 'WR_RAISED') && !rec.workRequestNumber ? (planners.length ? `
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+            <select id="planner-sel-${rec.id}" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:8px;font-size:13px;font-family:inherit;">
+              ${planners.map(p => `<option value="${escHtml(p.email)}" data-name="${escHtml(p.name)}">${escHtml(p.name)}</option>`).join('')}
+            </select>
+            <button onclick="(function(){
+              const sel=document.getElementById('planner-sel-${rec.id}');
+              const email=sel.value;
+              const name=sel.options[sel.selectedIndex].dataset.name;
+              sendReportToPlanner('${rec.id}',email,name);
+            })()" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 12px;font-size:13px;font-weight:700;cursor:pointer;">📧 Send to Planner</button>
+          </div>
+          ${rec.sentToPlanner ? `<div style="font-size:12px;color:var(--text-dim);margin-top:4px;">Last sent to: <strong>${escHtml(rec.sentToPlanner.name)}</strong> on ${new Date(rec.sentToPlanner.sentAt).toLocaleDateString('en-AU')}</div>` : ''}
+        ` : rec.sentToPlanner && !rec.workRequestNumber ? `<div style="font-size:12px;color:var(--text-dim);">Report sent to: <strong>${escHtml(rec.sentToPlanner.name)}</strong> on ${new Date(rec.sentToPlanner.sentAt).toLocaleDateString('en-AU')}</div>` : '') : rec.workRequestNumber && rec.sentToPlanner ? `<div style="font-size:12px;color:var(--text-dim);">Report was sent to: <strong>${escHtml(rec.sentToPlanner.name)}</strong></div>` : ''}
+      </div>
+
+      ${rec.result === 'FAIL' || rec.status === 'WR_RAISED' ? `
+        <div style="background:var(--surface);border:1px solid ${rec.status==='WR_RAISED'?'#ff9800':'var(--border)'};border-radius:8px;padding:12px;">
+          <div style="font-size:12px;font-weight:700;color:${rec.status==='WR_RAISED'?'#ff9800':'var(--text-dim)'};margin-bottom:8px;">
+            ${rec.status==='WR_RAISED'?'🟠 WR Raised':'⚠️ Work Request'}
+            ${rec.workRequestNumber?` — <strong>${escHtml(rec.workRequestNumber)}</strong>`:''}
+
+          </div>
+          <div style="display:flex;gap:8px;">
+            <input type="text" id="wr-input-${rec.id}" placeholder="Enter WR number…" value="${escHtml(rec.workRequestNumber||'')}" style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
+            <button onclick="submitWRNumber('${rec.id}')" style="background:#ff9800;color:#fff;border:none;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">Submit WR#</button>
+          </div>
+        </div>
+      ` : ''}
+
+      ${rec.status === 'WR_RAISED' || rec.status === 'SERVICEABLE' ? `
+        <div style="background:var(--surface);border:1px solid ${rec.status==='SERVICEABLE'?'var(--pass)':'var(--border)'};border-radius:8px;padding:12px;">
+          <div style="font-size:12px;font-weight:700;color:${rec.status==='SERVICEABLE'?'var(--pass)':'var(--text-dim)'};margin-bottom:8px;">
+            ✅ Rectification Complete
+            ${rec.completionDate?` — <strong>${escHtml(rec.completionDate)}</strong>`:''}
+            ${rec.rectificationWorkOrder?` — WO: <strong>${escHtml(rec.rectificationWorkOrder)}</strong>`:''}
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <input type="text" id="rect-wo-${rec.id}" placeholder="Work order number…" value="${escHtml(rec.rectificationWorkOrder||'')}" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;width:100%;">
+            <div style="display:flex;gap:8px;">
+              <input type="date" id="rect-date-${rec.id}" value="${rec.completionDate||''}" style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
+              <button onclick="submitRectification('${rec.id}')" style="background:var(--pass);color:#fff;border:none;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">✅ Mark Rectified</button>
+            </div>
+          </div>
+        </div>
+      ` : ''}
+    </div>
+    <div class="std-ref-note">AS/NZS 4024.1601:2014 — Safety of Machinery — Guard inspection record</div>
+  `;
+}
+
+// ── Stats ──────────────────────────────────────────────────
+async function loadStats() {
+  await refreshDashboard();
+}
+
+// ── Toast ──────────────────────────────────────────────────
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+// ── Utils ──────────────────────────────────────────────────
+function escHtml(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// ── Setup / Lists ──────────────────────────────────────────
+let lists = { locations: [], inspectors: [] };
+let currentLocationName = null;
+let currentMachineName = null;
+
+async function loadLists() {
+  try {
+    const r = await fetch('/api/lists');
+    lists = await r.json();
+    if (!Array.isArray(lists.inspectors)) lists.inspectors = [];
+    populateLocationDropdown();
+    populateInspectorDropdown();
+    updateMachineDropdown();
+    updateGuardDropdown();
+  } catch {}
+}
+
+function populateLocationDropdown() {
+  const locSel = document.getElementById('f-location');
+  const locVal = locSel.value;
+  locSel.innerHTML = '<option value="">— Select location —</option>' +
+    lists.locations.map(l => `<option value="${escHtml(l.name)}">${escHtml(l.name)}</option>`).join('') +
+    '<option value="__add_new__">+ Add new…</option>';
+  if (locVal && locVal !== '__add_new__') locSel.value = locVal;
+}
+
+function populateInspectorDropdown() {
+  const sel = document.getElementById('f-inspector');
+  const saved = localStorage.getItem('inspector_name');
+  sel.innerHTML = '<option value="">— Select inspector —</option>' +
+    lists.inspectors.map(n => `<option value="${escHtml(n)}"${n === saved ? ' selected' : ''}>${escHtml(n)}</option>`).join('');
+}
+
+function updateMachineDropdown() {
+  const locSel = document.getElementById('f-location');
+  const macSel = document.getElementById('f-machine');
+  const selectedName = locSel.value;
+  const loc = lists.locations.find(l => l.name === selectedName);
+  macSel.innerHTML = '<option value="">— Select machine —</option>';
+  if (selectedName && selectedName !== '__add_new__') {
+    if (loc && loc.machines.length > 0) {
+      loc.machines.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.name;
+        opt.textContent = m.name;
+        macSel.appendChild(opt);
+      });
+    }
+    macSel.appendChild(new Option('+ Add new…', '__add_new__'));
+  }
+  updateGuardDropdown();
+}
+
+function updateGuardDropdown() {
+  const locSel = document.getElementById('f-location');
+  const macSel = document.getElementById('f-machine');
+  const guardSel = document.getElementById('f-guardId');
+  const locName = locSel.value;
+  const macName = macSel.value;
+  guardSel.innerHTML = '<option value="">— Select guard ID —</option>';
+  if (macName && macName !== '__add_new__' && locName && locName !== '__add_new__') {
+    const loc = lists.locations.find(l => l.name === locName);
+    const mac = loc && loc.machines.find(m => m.name === macName);
+    if (mac && mac.guards.length > 0) {
+      mac.guards.forEach(g => guardSel.appendChild(new Option(g, g)));
+    }
+    guardSel.appendChild(new Option('+ Add new…', '__add_new__'));
+  }
+}
+
+function onLocationChange() {
+  const sel = document.getElementById('f-location');
+  if (sel.value === '__add_new__') { showInline('f-location'); }
+  else { hideInline('f-location'); updateMachineDropdown(); }
+}
+
+function onMachineChange() {
+  const sel = document.getElementById('f-machine');
+  if (sel.value === '__add_new__') { showInline('f-machine'); }
+  else { hideInline('f-machine'); updateGuardDropdown(); }
+}
+
+function onGuardChange() {
+  const sel = document.getElementById('f-guardId');
+  if (sel.value === '__add_new__') {
+    // Auto-generate and save immediately — no typing needed
+    inlineAddGuard();
+  } else {
+    hideInline('f-guardId');
+  }
+}
+
+function showInline(fieldId) {
+  const div = document.getElementById(`${fieldId}-inline`);
+  if (div) { div.style.display = 'flex'; div.querySelector('input').focus(); }
+}
+
+function hideInline(fieldId) {
+  const div = document.getElementById(`${fieldId}-inline`);
+  if (div) { div.style.display = 'none'; const inp = div.querySelector('input'); if (inp) inp.value = ''; }
+}
+
+function cancelInline(fieldId) {
+  hideInline(fieldId);
+  const sel = document.getElementById(fieldId);
+  if (sel) sel.value = '';
+}
+
+async function inlineAddLocation() {
+  const inp = document.getElementById('f-location-inline-input');
+  const name = inp.value.trim();
+  if (!name) return;
+  const r = await fetch('/api/lists/location', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name }) });
+  const d = await r.json();
+  if (d.success) {
+    lists.locations = d.locations;
+    hideInline('f-location');
+    populateLocationDropdown();
+    document.getElementById('f-location').value = name;
+    updateMachineDropdown();
+    toast(`Location "${name}" added ✅`);
+  }
+}
+
+async function inlineAddMachine() {
+  const locName = document.getElementById('f-location').value;
+  if (!locName || locName === '__add_new__') return toast('Select a location first');
+  const inp = document.getElementById('f-machine-inline-input');
+  const machine = inp.value.trim();
+  if (!machine) return;
+  const r = await fetch('/api/lists/machine', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ location: locName, machine }) });
+  const d = await r.json();
+  if (d.success) {
+    lists.locations = d.locations;
+    hideInline('f-machine');
+    updateMachineDropdown();
+    document.getElementById('f-machine').value = machine;
+    updateGuardDropdown();
+    toast(`Machine "${machine}" added ✅`);
+  }
+}
+
+function nextGuardId(macName, existingGuards, locName, compType) {
+  // Format: Type-Location6-Equip3-### e.g. Guard-BLD15-BWR-001
+  const typePart = (compType || 'GRD').replace(/[^a-zA-Z0-9]/g, '');
+  const locPart = (locName || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6);
+  const equipPart = macName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 4) || 'EQP';
+  const prefix = locPart ? `${typePart}-${locPart}-${equipPart}` : `${typePart}-${equipPart}`;
+  let max = 0;
+  existingGuards.forEach(g => {
+    const m = String(g).match(new RegExp(`^${prefix}-(\\d+)$`, 'i'));
+    if (m) max = Math.max(max, parseInt(m[1], 10));
+  });
+  return `${prefix}-${String(max + 1).padStart(3, '0')}`;
+}
+
+async function inlineAddGuard() {
+  const locName = document.getElementById('f-location').value;
+  const macName = document.getElementById('f-machine').value;
+  if (!locName || locName === '__add_new__') return toast('Select a location first');
+  if (!macName || macName === '__add_new__') return toast('Select a machine first');
+
+  // Auto-generate the next guard ID
+  const loc = lists.locations.find(l => l.name === locName);
+  const mac = loc?.machines.find(m => m.name === macName);
+  const guard = nextGuardId(macName, mac?.guards || [], locName, selectedTemplate?.componentType || '');
+
+  const r = await fetch('/api/lists/guard', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ location: locName, machine: macName, guard }) });
+  const d = await r.json();
+  if (d.success) {
+    lists.locations = d.locations;
+    hideInline('f-guardId');
+    updateGuardDropdown();
+    document.getElementById('f-guardId').value = guard;
+    toast(`Guard ID "${guard}" added ✅`);
+  }
+}
+
+function renderSetupLocations() {
+  const locList = document.getElementById('location-list');
+  if (!lists.locations.length) {
+    locList.innerHTML = '<div style="color:var(--text-dim);font-size:14px;padding:8px 0;">No locations added yet</div>';
+  } else {
+    locList.innerHTML = lists.locations.map((l, i) => `
+      <div onclick="showMachinePanel(${i})" style="display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;cursor:pointer;gap:12px;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;">${escHtml(l.name)}</div>
+          <div style="font-size:12px;color:var(--text-dim);margin-top:2px;">${l.machines.length} machine${l.machines.length !== 1 ? 's' : ''}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+          <span style="color:var(--text-dim);font-size:18px;">›</span>
+          <button onclick="event.stopPropagation();deleteLocation(${i});" style="background:none;border:none;color:var(--fail);font-size:20px;cursor:pointer;padding:0 4px;line-height:1;">&#x2715;</button>
+        </div>
+      </div>
+    `).join('');
+  }
+  renderSetupInspectors();
+}
+
+function renderSetupInspectors() {
+  const list = document.getElementById('inspector-list');
+  if (!lists.inspectors || !lists.inspectors.length) {
+    list.innerHTML = '<div style="color:var(--text-dim);font-size:14px;padding:8px 0;">No inspectors added yet</div>';
+    return;
+  }
+  list.innerHTML = lists.inspectors.map((n, i) => `
+    <div style="display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;">
+      <span>${escHtml(n)}</span>
+      <button onclick="deleteInspector(${i});" style="background:none;border:none;color:var(--fail);font-size:20px;cursor:pointer;padding:0 4px;line-height:1;">&#x2715;</button>
+    </div>
+  `).join('');
+}
+
+function renderSetupMachines() {
+  const loc = lists.locations.find(l => l.name === currentLocationName);
+  const macList = document.getElementById('machine-list');
+  if (!loc || !loc.machines.length) {
+    macList.innerHTML = '<div style="color:var(--text-dim);font-size:14px;padding:8px 0;">No machines added yet. Add one below.</div>';
+    return;
+  }
+  macList.innerHTML = loc.machines.map((m, i) => `
+    <div onclick="showGuardPanel(${i})" style="display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;cursor:pointer;gap:12px;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:600;">${escHtml(m.name)}</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-top:2px;">${m.guards.length} guard${m.guards.length !== 1 ? 's' : ''}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+        <span style="color:var(--text-dim);font-size:18px;">›</span>
+        <button onclick="event.stopPropagation();deleteMachine(${i});" style="background:none;border:none;color:var(--fail);font-size:20px;cursor:pointer;padding:0 4px;line-height:1;">&#x2715;</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderSetupGuards() {
+  const loc = lists.locations.find(l => l.name === currentLocationName);
+  const mac = loc && loc.machines.find(m => m.name === currentMachineName);
+  const guardList = document.getElementById('guard-list');
+  if (!mac || !mac.guards.length) {
+    guardList.innerHTML = '<div style="color:var(--text-dim);font-size:14px;padding:8px 0;">No guard IDs added yet. Add one below.</div>';
+    return;
+  }
+  guardList.innerHTML = mac.guards.map(g => `
+    <div style="display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;">
+      <span style="font-family:monospace;font-size:15px;">${escHtml(g)}</span>
+      <button onclick="deleteGuard(${JSON.stringify(g)});" style="background:none;border:none;color:var(--fail);font-size:20px;cursor:pointer;padding:0 4px;line-height:1;">&#x2715;</button>
+    </div>
+  `).join('');
+}
+
+function showSetup() {
+  switchScreen('setup-screen', 'Setup');
+  loadPlanners();
+  loadEmailConfig();
+  showSetupLocations();
+}
+
+function showSetupLocations() {
+  currentLocationName = null;
+  currentMachineName = null;
+  document.getElementById('setup-locations-panel').style.display = 'flex';
+  document.getElementById('setup-machines-panel').style.display = 'none';
+  document.getElementById('setup-guards-panel').style.display = 'none';
+  renderSetupLocations();
+}
+
+function showMachinePanel(idx) {
+  currentLocationName = lists.locations[idx].name;
+  currentMachineName = null;
+  document.getElementById('machine-panel-location-name').textContent = currentLocationName;
+  document.getElementById('setup-locations-panel').style.display = 'none';
+  document.getElementById('setup-machines-panel').style.display = 'flex';
+  document.getElementById('setup-guards-panel').style.display = 'none';
+  document.getElementById('new-machine').value = '';
+  renderSetupMachines();
+}
+
+function showGuardPanel(macIdx) {
+  const loc = lists.locations.find(l => l.name === currentLocationName);
+  currentMachineName = loc.machines[macIdx].name;
+  document.getElementById('guard-panel-machine-name').textContent = currentMachineName;
+  document.getElementById('setup-machines-panel').style.display = 'none';
+  document.getElementById('setup-guards-panel').style.display = 'flex';
+  renderSetupGuards();
+  updateNextGuardPreview();
+}
+
+function backToMachines() {
+  document.getElementById('setup-guards-panel').style.display = 'none';
+  document.getElementById('setup-machines-panel').style.display = 'flex';
+  currentMachineName = null;
+  renderSetupMachines();
+}
+
+async function addLocation() {
+  const inp = document.getElementById('new-location');
+  const name = inp.value.trim();
+  if (!name) return;
+  const r = await fetch('/api/lists/location', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name }) });
+  const d = await r.json();
+  if (d.success) { lists.locations = d.locations; inp.value = ''; populateLocationDropdown(); renderSetupLocations(); toast('Location added ✅'); }
+}
+
+function deleteLocation(idx) {
+  const name = lists.locations[idx].name;
+  showConfirmModal(
+    `Delete location "${name}"?\n\nTip: Use Archive to preserve its history instead.`,
+    async () => {
+      const r = await fetch('/api/lists/location', { method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name }) });
+      const d = await r.json();
+      if (d.success) { lists.locations = d.locations; populateLocationDropdown(); updateMachineDropdown(); updateGuardDropdown(); renderSetupLocations(); }
+    },
+    'Delete', '',
+    { label: '🗄️ Archive', action: async () => {
+      await fetch('/api/archive/location', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name }) });
+      await loadLists(); renderSetupLocations(); toast(`"${name}" archived ✅`);
+    }}
+  );
+}
+
+async function addMachine() {
+  const inp = document.getElementById('new-machine');
+  const machine = inp.value.trim();
+  if (!machine || !currentLocationName) return;
+  const r = await fetch('/api/lists/machine', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ location: currentLocationName, machine }) });
+  const d = await r.json();
+  if (d.success) { lists.locations = d.locations; inp.value = ''; populateLocationDropdown(); updateMachineDropdown(); renderSetupMachines(); toast('Machine added ✅'); }
+}
+
+function deleteMachine(idx) {
+  const loc = lists.locations.find(l => l.name === currentLocationName);
+  if (!loc) return;
+  const machine = loc.machines[idx].name;
+  showConfirmModal(`Delete machine "${machine}"? This cannot be undone.`, async () => {
+    const r = await fetch('/api/lists/machine', { method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ location: currentLocationName, machine }) });
+    const d = await r.json();
+    if (d.success) { lists.locations = d.locations; populateLocationDropdown(); updateMachineDropdown(); updateGuardDropdown(); renderSetupMachines(); }
+  });
+}
+
+function updateNextGuardPreview() {
+  const el = document.getElementById('next-guard-preview');
+  if (!el || !currentMachineName) return;
+  const loc = lists.locations.find(l => l.name === currentLocationName);
+  const mac = loc?.machines.find(m => m.name === currentMachineName);
+  const next = nextGuardId(currentMachineName, mac?.guards || [], currentLocationName, '');
+  el.textContent = `Next ID: ${next}`;
+}
+
+async function addGuard() {
+  if (!currentLocationName || !currentMachineName) return;
+  const loc = lists.locations.find(l => l.name === currentLocationName);
+  const mac = loc?.machines.find(m => m.name === currentMachineName);
+  const guard = nextGuardId(currentMachineName, mac?.guards || []);
+  const r = await fetch('/api/lists/guard', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ location: currentLocationName, machine: currentMachineName, guard }) });
+  const d = await r.json();
+  if (d.success) { lists.locations = d.locations; updateGuardDropdown(); renderSetupGuards(); updateNextGuardPreview(); toast(`Guard ID "${guard}" added ✅`); }
+}
+
+async function deleteGuard(guard) {
+  // Check if any inspections exist for this guard
+  let inspData = [];
+  try {
+    const ir = await fetch('/api/inspections');
+    inspData = await ir.json();
+  } catch {}
+  const guardInspections = inspData.filter(r => r.guardId === guard && !r.archived);
+  if (guardInspections.length > 0) {
+    // Show warning modal with Archive option
+    showWarningModal(
+      `⚠️ Cannot delete ${guard} — it has ${guardInspections.length} inspection(s) on record.\n\nArchive this guard first before deleting. Archiving will preserve all inspection records.`,
+      guard, currentLocationName, currentMachineName
+    );
+    return;
+  }
+  showConfirmModal(`Delete guard "${guard}"? This cannot be undone.`, async () => {
+    const r = await fetch('/api/lists/guard', { method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ location: currentLocationName, machine: currentMachineName, guard }) });
+    const d = await r.json();
+    if (d.success) { lists.locations = d.locations; updateGuardDropdown(); renderSetupGuards(); }
+  });
+}
+
+async function addInspector() {
+  const inp = document.getElementById('new-inspector');
+  const name = inp.value.trim();
+  if (!name) return;
+  const r = await fetch('/api/lists/inspector', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name }) });
+  const d = await r.json();
+  if (d.success) { lists.inspectors = d.inspectors; inp.value = ''; populateInspectorDropdown(); renderSetupInspectors(); toast('Inspector added ✅'); }
+}
+
+function deleteInspector(idx) {
+  const name = lists.inspectors[idx];
+  showConfirmModal(
+    `Delete inspector "${name}"?\n\nTip: Use Archive to preserve their record instead.`,
+    async () => {
+      const r = await fetch('/api/lists/inspector', { method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name }) });
+      const d = await r.json();
+      if (d.success) { lists.inspectors = d.inspectors; populateInspectorDropdown(); renderSetupInspectors(); }
+    },
+    'Delete', '',
+    { label: '🗄️ Archive', action: async () => {
+      await fetch('/api/archive/inspector', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name }) });
+      await loadLists(); renderSetupInspectors(); toast(`"${name}" archived ✅`);
+    }}
+  );
+}
+
+// ── Confirm modal ─────────────────────────────────────────
+// ── Planners ───────────────────────────────────────────────
+let planners = [];
+
+async function loadPlanners() {
+  try { const r = await fetch('/api/planners'); const d = await r.json(); planners = d.planners || []; renderPlannerList(); } catch {}
+}
+
+function renderPlannerList() {
+  const el = document.getElementById('planner-list');
+  if (!el) return;
+  if (!planners.length) { el.innerHTML = '<div style="color:var(--text-dim);font-size:14px;">No planners added yet</div>'; return; }
+  el.innerHTML = planners.map(p => `
+    <div style="display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:11px 14px;">
+      <div>
+        <div style="font-weight:600;">${escHtml(p.name)}</div>
+        <div style="font-size:13px;color:var(--text-dim);">${escHtml(p.email)}</div>
+      </div>
+      <button onclick="deletePlanner('${escHtml(p.email)}')" style="background:none;border:none;color:var(--fail);font-size:20px;cursor:pointer;padding:0 4px;">&#x2715;</button>
+    </div>
+  `).join('');
+}
+
+async function addPlanner() {
+  const name = document.getElementById('new-planner-name').value.trim();
+  const email = document.getElementById('new-planner-email').value.trim();
+  if (!name || !email) return toast('Name and email required');
+  const r = await fetch('/api/planners', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name, email }) });
+  const d = await r.json();
+  if (d.success) { planners = d.planners; document.getElementById('new-planner-name').value = ''; document.getElementById('new-planner-email').value = ''; renderPlannerList(); toast('Planner added ✅'); }
+}
+
+async function deletePlanner(email) {
+  const r = await fetch('/api/planners', { method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ email }) });
+  const d = await r.json();
+  if (d.success) { planners = d.planners; renderPlannerList(); }
+}
+
+async function loadEmailConfig() {
+  try {
+    const r = await fetch('/api/email/config');
+    const d = await r.json();
+    const f = id => document.getElementById(id);
+    if(f('smtp-host')) f('smtp-host').value = d.host || '';
+    if(f('smtp-port')) f('smtp-port').value = d.port || 587;
+    if(f('smtp-secure')) f('smtp-secure').checked = !!d.secure;
+    if(f('smtp-user')) f('smtp-user').value = d.user || '';
+    if(f('smtp-password')) f('smtp-password').value = d.password || '';
+    if(f('smtp-from-name')) f('smtp-from-name').value = d.fromName || '';
+    if(f('smtp-from-email')) f('smtp-from-email').value = d.fromEmail || '';
+    if(f('smtp-external-url')) f('smtp-external-url').value = d.externalUrl || 'http://tomsenior9999.ddns.net:3103';
+  } catch {}
+}
+
+async function saveEmailConfig() {
+  const f = id => document.getElementById(id);
+  const payload = {
+    host: f('smtp-host').value.trim(), port: parseInt(f('smtp-port').value)||587,
+    secure: f('smtp-secure').checked, user: f('smtp-user').value.trim(),
+    password: f('smtp-password').value, fromName: f('smtp-from-name').value.trim(),
+    fromEmail: f('smtp-from-email').value.trim(),
+    externalUrl: (f('smtp-external-url').value||'').trim().replace(/\/$/,'')
+  };
+  const r = await fetch('/api/email/config', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+  const d = await r.json();
+  if (d.success) toast('Email config saved ✅');
+}
+
+async function testEmailConfig() {
+  await saveEmailConfig();
+  const el = document.getElementById('smtp-status');
+  el.textContent = 'Testing…'; el.style.color = 'var(--text-dim)';
+  try {
+    const r = await fetch('/api/email/test', { method:'POST' });
+    const d = await r.json();
+    el.style.color = d.success ? 'var(--pass)' : 'var(--fail)';
+    el.textContent = d.success ? '✅ Connection successful' : '❌ ' + d.error;
+  } catch { el.style.color='var(--fail)'; el.textContent='❌ Network error'; }
+}
+
+// ── Send to planner after fail modal ─────────────────────
+let _pendingFailInspectionId = null;
+
+function showSendPlannerModal(inspectionId) {
+  _pendingFailInspectionId = inspectionId;
+  const sel = document.getElementById('send-planner-select');
+  sel.innerHTML = planners.map(p => `<option value="${p.email}" data-name="${p.name}">${p.name}</option>`).join('');
+  document.getElementById('send-planner-modal').style.display = 'flex';
+}
+
+function skipSendPlanner() {
+  document.getElementById('send-planner-modal').style.display = 'none';
+  _pendingFailInspectionId = null;
+  goHome();
+}
+
+async function doSendPlannerNow() {
+  const sel = document.getElementById('send-planner-select');
+  const email = sel.value;
+  const name = sel.options[sel.selectedIndex].dataset.name;
+  document.getElementById('send-planner-modal').style.display = 'none';
+  if (_pendingFailInspectionId && email) {
+    await sendReportToPlanner(_pendingFailInspectionId, email, name);
+  }
+  _pendingFailInspectionId = null;
+  goHome();
+}
+
+async function submitRectification(inspectionId) {
+  const wo = document.getElementById('rect-wo-' + inspectionId)?.value.trim();
+  const date = document.getElementById('rect-date-' + inspectionId)?.value;
+  if (!date) return toast('Select a completion date');
+  try {
+    const r = await fetch('/api/inspection/' + inspectionId + '/serviceable', {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ workOrderNumber: wo, completionDate: date })
+    });
+    const d = await r.json();
+    if (d.success) { toast('✅ Marked as Rectified'); await renderRecords(); }
+    else toast('Error: ' + (d.error || 'unknown'));
+  } catch(e) { toast('Network error'); }
+}
+
+async function submitWRNumber(inspectionId) {
+  const input = document.getElementById('wr-input-' + inspectionId);
+  const wr = input ? input.value.trim() : '';
+  if (!wr) return toast('Enter a WR number first');
+  try {
+    const r = await fetch('/api/inspection/' + inspectionId + '/wr', {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ workRequestNumber: wr })
+    });
+    const d = await r.json();
+    if (d.success) {
+      toast('🟠 WR# ' + wr + ' recorded ✅');
+      await renderRecords(); // refresh the list to show new badge
+    } else {
+      toast('Error: ' + (d.error || 'unknown'));
+    }
+  } catch(e) {
+    toast('Network error');
+  }
+}
+
+async function sendReportToPlanner(inspectionId, plannerEmail, plannerName) {
+  toast('Sending…');
+  const r = await fetch('/api/email/send-report', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ inspectionId, plannerEmail, plannerName }) });
+  const d = await r.json();
+  if (d.success) toast('Report sent to ' + plannerName + ' ✅');
+  else alert('Failed to send: ' + d.error);
+}
+
+// ── Confirm modal ─────────────────────────
+let _confirmCallback = null;
+
+
+function showConfirmModal(message, onConfirm, btnLabel, btnColor, extraBtn) {
+  _confirmCallback = onConfirm;
+  document.getElementById('confirm-modal-message').textContent = message;
+  const deleteBtn = document.getElementById('confirm-modal-delete-btn');
+  deleteBtn.textContent = btnLabel || 'Delete';
+  deleteBtn.style.background = btnColor || '';
+  // Handle optional extra button (e.g. Archive)
+  let extra = document.getElementById('confirm-modal-extra-btn');
+  if (!extra) {
+    extra = document.createElement('button');
+    extra.id = 'confirm-modal-extra-btn';
+    extra.style.cssText = 'flex:1;background:#444;color:#fff;border:none;border-radius:var(--radius);padding:13px;font-size:15px;font-weight:600;cursor:pointer;';
+    deleteBtn.parentNode.insertBefore(extra, deleteBtn);
+  }
+  if (extraBtn) {
+    extra.textContent = extraBtn.label;
+    extra.style.display = '';
+    extra.onclick = () => { closeConfirmModal(); extraBtn.action(); };
+  } else {
+    extra.style.display = 'none';
+  }
+  document.getElementById('confirm-modal').classList.add('active');
+}
+
+function closeConfirmModal() {
+  document.getElementById('confirm-modal').classList.remove('active');
+  _confirmCallback = null;
+}
+
+function executeConfirm() {
+  const cb = _confirmCallback;
+  closeConfirmModal();
+  if (cb) cb();
+}
+
+// ── Warning modal (guard has inspections) ────────────────────
+let _warningGuard = null, _warningLocation = null, _warningMachine = null;
+
+function showWarningModal(message, guardId, location, machine) {
+  _warningGuard = guardId;
+  _warningLocation = location;
+  _warningMachine = machine;
+  document.getElementById('warning-modal-message').textContent = message;
+  document.getElementById('warning-modal').classList.add('active');
+}
+
+function closeWarningModal() {
+  document.getElementById('warning-modal').classList.remove('active');
+  _warningGuard = null;
+  _warningLocation = null;
+  _warningMachine = null;
+}
+
+async function executeArchiveFromWarning() {
+  const guardId = _warningGuard;
+  const location = _warningLocation;
+  const machine = _warningMachine;
+  closeWarningModal();
+  if (!guardId) return;
+  await doArchiveGuard(guardId, location, machine);
+}
+
+async function doArchiveGuard(guardId, location, machine) {
+  try {
+    const r = await fetch('/api/archive/guard', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ guardId, location, machine })
+    });
+    const d = await r.json();
+    if (d.success) {
+      lists.locations = d.locations;
+      updateGuardDropdown();
+      renderSetupGuards();
+      toast(`🗄️ ${guardId} archived`);
+    }
+  } catch {
+    toast('Archive failed');
+  }
+}
+
+// ── Results screen ───────────────────────────────────────
+async function renderResults() {
+  const body = document.getElementById('results-body');
+  body.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-dim)">Loading…</div>';
+
+  let allInspections = [];
+  try {
+    const r = await fetch('/api/inspections');
+    allInspections = await r.json();
+  } catch {
+    body.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div>Could not load data</div>';
+    return;
+  }
+
+  const showArchived = document.getElementById('results-show-archived')?.checked;
+  const inspData = showArchived ? allInspections : allInspections.filter(r => !r.archived);
+
+  if (!inspData.length) {
+    body.innerHTML = '<div class="empty-state"><div class="icon">📊</div>No inspection records yet.</div>';
+    return;
+  }
+
+  // Build location → machine → guard structure
+  const tree = {}; // { locationName: { machineName: { guardId: [inspections] } } }
+  inspData.forEach(r => {
+    if (!tree[r.location]) tree[r.location] = {};
+    if (!tree[r.location][r.machine]) tree[r.location][r.machine] = {};
+    if (!tree[r.location][r.machine][r.guardId]) tree[r.location][r.machine][r.guardId] = [];
+    tree[r.location][r.machine][r.guardId].push(r);
+  });
+
+  body.innerHTML = '';
+
+  Object.keys(tree).sort().forEach(locName => {
+    const locBlock = document.createElement('div');
+    locBlock.className = 'location-block';
+
+    const machinesForLoc = tree[locName];
+    let locPassCount = 0, locFailCount = 0;
+    Object.keys(machinesForLoc).forEach(mac => {
+      Object.keys(machinesForLoc[mac]).forEach(gid => {
+        const recs = machinesForLoc[mac][gid].sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+        if (recs[0].result === 'PASS') locPassCount++; else locFailCount++;
+      });
+    });
+    const locSummary = (locFailCount > 0 ? `<span style="color:var(--fail)">${locFailCount} FAIL</span>` : '') +
+      (locFailCount > 0 && locPassCount > 0 ? ' / ' : '') +
+      (locPassCount > 0 ? `<span style="color:var(--pass)">${locPassCount} PASS</span>` : '');
+
+    locBlock.innerHTML = `
+      <div class="location-header" onclick="this.parentElement.classList.toggle('expanded')">
+        <span>📍 ${escHtml(locName)}</span>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:12px;font-weight:normal;">${locSummary}</span>
+          <span class="loc-chevron">›</span>
+        </div>
+      </div>
+      <div class="location-content"></div>
+    `;
+    const locContent = locBlock.querySelector('.location-content');
+
+    Object.keys(machinesForLoc).sort().forEach(macName => {
+      const macBlock = document.createElement('div');
+      macBlock.className = 'machine-block';
+
+      const guardsForMac = machinesForLoc[macName];
+      let macFail = 0;
+      Object.keys(guardsForMac).forEach(gid => {
+        const recs = guardsForMac[gid].sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+        if (recs[0].result === 'FAIL') macFail++;
+      });
+      const macSummary = macFail > 0 ? `<span style="color:var(--fail);font-size:12px;">${macFail} FAIL</span>` : `<span style="color:var(--pass);font-size:12px;">OK</span>`;
+
+      macBlock.innerHTML = `
+        <div class="machine-header" onclick="this.parentElement.classList.toggle('expanded')">
+          <span>⚙️ ${escHtml(macName)}</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            ${macSummary}
+            <span style="color:var(--text-dim);font-size:16px;">›</span>
+          </div>
+        </div>
+        <div class="machine-content"></div>
+      `;
+      const macContent = macBlock.querySelector('.machine-content');
+
+      // Guard rows
+      const guardsContainer = document.createElement('div');
+      Object.keys(guardsForMac).sort().forEach(guardId => {
+        const recs = guardsForMac[guardId].sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+        const latest = recs[0];
+        const latestDate = new Date(latest.timestamp).toLocaleDateString('en-AU', { day:'2-digit', month:'short', year:'numeric' });
+
+        const guardRow = document.createElement('div');
+        guardRow.style.cssText = 'border-bottom:1px solid var(--border);';
+
+        const resultRow = document.createElement('div');
+        resultRow.className = 'guard-result-row';
+        resultRow.innerHTML = `
+          <span class="guard-result-id">${escHtml(guardId)}</span>
+          <div class="guard-result-right">
+            <span class="guard-result-date">${latestDate}</span>
+            <span class="record-badge ${latest.result.toLowerCase()}" style="font-size:11px;">${latest.result}</span>
+            <span style="color:var(--text-dim);font-size:16px;">›</span>
+          </div>
+        `;
+
+        const historyList = document.createElement('div');
+        historyList.className = 'guard-history-list';
+
+        recs.forEach(rec => {
+          const hDate = new Date(rec.timestamp).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' });
+          const hEntry = document.createElement('div');
+          hEntry.className = 'history-entry';
+          hEntry.innerHTML = `
+            <span class="record-badge ${rec.result.toLowerCase()}" style="font-size:11px;">${rec.result}</span>
+            <span class="history-entry-meta">${hDate} · ${escHtml(rec.inspector)}</span>
+            <span style="color:var(--text-dim);font-size:14px;">›</span>
+          `;
+          hEntry.onclick = () => showResultsDetail(rec);
+          historyList.appendChild(hEntry);
+        });
+
+        resultRow.onclick = () => {
+          historyList.classList.toggle('open');
+          const chevron = resultRow.querySelector('span:last-child');
+          if (historyList.classList.contains('open')) chevron.style.transform = 'rotate(90deg)';
+          else chevron.style.transform = '';
+        };
+
+        guardRow.appendChild(resultRow);
+        guardRow.appendChild(historyList);
+        guardsContainer.appendChild(guardRow);
+      });
+
+      macContent.appendChild(guardsContainer);
+      locContent.appendChild(macBlock);
+    });
+
+    body.appendChild(locBlock);
+  });
+}
+
+function showResultsDetail(rec) {
+  // Re-use the records screen detail rendering
+  // We'll create a temporary full-screen overlay
+  const overlay = document.createElement('div');
+  overlay.style.cssText = `position:fixed;inset:0;background:var(--bg);z-index:998;overflow-y:auto;`;
+  overlay.innerHTML = `
+    <div style="background:var(--surface);border-bottom:1px solid var(--border);padding:14px 16px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:1;">
+      <button onclick="this.closest('[style]').remove()" style="background:none;border:none;color:var(--accent);font-size:24px;cursor:pointer;">←</button>
+      <span style="font-weight:700;font-size:16px;">${escHtml(rec.guardId)} — ${rec.result}</span>
+    </div>
+    <div style="padding:16px;">
+      <div class="record-card expanded">
+        <div class="record-detail" style="display:block;padding:14px;">
+          ${buildDetailHtml(rec)}
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+}
+
+// ── Archive screen ───────────────────────────────────────
+function archiveSectionHTML(title, icon, items, renderFn, emptyMsg) {
+  if (!items.length) return `<div style="margin-bottom:20px"><div class="section-title">${icon} ${title}</div><div style="color:var(--text-dim);font-size:14px;padding:12px 0;">${emptyMsg}</div></div>`;
+  return `<div style="margin-bottom:20px"><div class="section-title">${icon} ${title}</div><div style="display:flex;flex-direction:column;gap:8px;margin-top:10px;">${items.map(renderFn).join('')}</div></div>`;
+}
+
+async function renderArchive() {
+  const body = document.getElementById('archive-body');
+  body.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-dim)">Loading…</div>';
+  try {
+    const r = await fetch('/api/archive');
+    const data = await r.json();
+    const guards = data.guards || [];
+    const locations = data.locations || [];
+    const inspectors = data.inspectors || [];
+
+    if (!guards.length && !locations.length && !inspectors.length) {
+      body.innerHTML = '<div class="empty-state"><div class="icon">🗄️</div>Archive is empty.<br>Archive guards, locations or inspectors from the setup screen.</div>';
+      return;
+    }
+
+    const html = `<div style="padding:16px;">` +
+      archiveSectionHTML('Guards', '🔐', guards, g => {
+        const d = new Date(g.archivedAt).toLocaleDateString('en-AU', { dateStyle: 'short' });
+        return `<div class="archive-card"><div class="archive-card-header"><span class="archive-guard-id">${escHtml(g.guardId)}</span><button class="btn-restore" onclick="confirmRestoreGuard('${escHtml(g.guardId)}','${escHtml(g.location)}','${escHtml(g.machine)}')">↩ Restore</button></div><div class="archive-meta">📍 ${escHtml(g.location)} / ⚙️ ${escHtml(g.machine)} · ${d} · ${g.inspectionCount} inspection(s)</div></div>`;
+      }, 'No archived guards') +
+      archiveSectionHTML('Locations', '📍', locations, l => {
+        const d = new Date(l.archivedAt).toLocaleDateString('en-AU', { dateStyle: 'short' });
+        return `<div class="archive-card"><div class="archive-card-header"><span class="archive-guard-id">${escHtml(l.name)}</span><button class="btn-restore" onclick="confirmRestoreLocation('${escHtml(l.name)}')">↩ Restore</button></div><div class="archive-meta">Archived: ${d} · ${l.machineCount} machine(s)</div></div>`;
+      }, 'No archived locations') +
+      archiveSectionHTML('Inspectors', '👷', inspectors, i => {
+        const d = new Date(i.archivedAt).toLocaleDateString('en-AU', { dateStyle: 'short' });
+        return `<div class="archive-card"><div class="archive-card-header"><span class="archive-guard-id">${escHtml(i.name)}</span><button class="btn-restore" onclick="confirmRestoreInspector('${escHtml(i.name)}')">↩ Restore</button></div><div class="archive-meta">Archived: ${d}</div></div>`;
+      }, 'No archived inspectors') +
+      `</div>`;
+    body.innerHTML = html;
+  } catch {
+    body.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div>Could not load archive</div>';
+  }
+}
+
+function confirmRestoreGuard(guardId, location, machine) {
+  showConfirmModal(`Restore ${guardId} to ${location} / ${machine}?`, () => doRestoreGuard(guardId, location, machine), 'Restore', '#4a6fa5');
+}
+function confirmRestoreLocation(name) {
+  showConfirmModal(`Restore location "${name}"?`, async () => {
+    await fetch('/api/archive/location/restore', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name }) });
+    await loadLists(); renderArchive(); toast(`Location "${name}" restored ✅`);
+  }, 'Restore', '#4a6fa5');
+}
+function confirmRestoreInspector(name) {
+  showConfirmModal(`Restore inspector "${name}"?`, async () => {
+    await fetch('/api/archive/inspector/restore', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name }) });
+    await loadLists(); renderArchive(); toast(`Inspector "${name}" restored ✅`);
+  }, 'Restore', '#4a6fa5');
+}
+
+// confirmRestore is now confirmRestoreGuard above
+function _unused_confirmRestore(guardId, location, machine) {
+  showConfirmModal(
+    `Restore ${guardId} to ${location} / ${machine}?`,
+    () => doRestoreGuard(guardId, location, machine),
+    'Restore', '#4a6fa5'
+  );
+}
+
+async function doRestoreGuard(guardId, location, machine) {
+  try {
+    const r = await fetch('/api/archive/restore', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ guardId, location, machine })
+    });
+    const d = await r.json();
+    if (d.success) {
+      lists.locations = d.locations;
+      populateLocationDropdown();
+      updateMachineDropdown();
+      updateGuardDropdown();
+      renderArchive();
+      toast(`✅ ${guardId} restored`);
+    }
+  } catch {
+    toast('Restore failed');
+  }
+}
+
+</script>
+</body>
+</html>

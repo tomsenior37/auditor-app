@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Raise Work Request</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#0d0d0d;color:#e8e8e8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:16px;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+.card{background:#1a1a1a;border:1px solid #333;border-radius:14px;padding:28px 24px;max-width:480px;width:100%;}
+h1{font-size:22px;margin-bottom:6px;color:#e8e8e8;}
+.sub{font-size:14px;color:#888;margin-bottom:24px;}
+.info-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #333;font-size:14px;}
+.info-label{color:#888;}
+.info-value{font-weight:600;text-align:right;}
+.badge-fail{display:inline-block;background:#e05c3a;color:#fff;padding:3px 12px;border-radius:20px;font-size:13px;font-weight:700;}
+.fg{margin-top:20px;}
+label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#e8e8e8;}
+input[type=text]{width:100%;background:#0d0d0d;border:1px solid #444;color:#e8e8e8;padding:14px;border-radius:10px;font-size:16px;outline:none;}
+input[type=text]:focus{border-color:#e05c3a;}
+.btn{width:100%;background:#e05c3a;color:#fff;border:none;padding:15px;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer;margin-top:16px;}
+.btn:disabled{opacity:0.5;cursor:not-allowed;}
+.msg{text-align:center;padding:16px;border-radius:10px;margin-top:16px;font-weight:600;display:none;}
+.msg.success{background:#1a3d2b;color:#4caf50;border:1px solid #4caf50;display:block;}
+.msg.error{background:#3d1a1a;color:#e05c3a;border:1px solid #e05c3a;display:block;}
+.spinner{display:inline-block;width:18px;height:18px;border:3px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-right:8px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+<div class="card">
+  <div id="loading-state">
+    <div class="sub"><span class="spinner"></span> Loading inspection…</div>
+  </div>
+  <div id="main-state" style="display:none;">
+    <h1>🔧 Input Work Request Number</h1>
+    <p class="sub">Enter the work request number for this failed inspection.</p>
+
+    <div id="insp-details"></div>
+
+    <div class="fg">
+      <label>Work Request Number *</label>
+      <input type="text" id="wr-number" placeholder="e.g. WR-2026-04512" autocomplete="off">
+    </div>
+
+    <button class="btn" id="submit-btn" onclick="submitWR()">Submit Work Request Number</button>
+    <div class="msg" id="msg"></div>
+  </div>
+  <div id="notfound-state" style="display:none;">
+    <h1>⚠️ Not Found</h1>
+    <p class="sub">This inspection record could not be found.</p><p id="notfound-detail"></p>
+  </div>
+</div>
+
+<script>
+const params = new URLSearchParams(window.location.search);
+const id = params.get('id');
+
+async function init() {
+  if (!id) { show('notfound', 'No ID in URL'); return; }
+  try {
+    const base = window.location.origin;
+    const url = base + '/api/inspection/' + id;
+    let r;
+    try { r = await fetch(url); } catch(e) { show('notfound', 'Fetch error: ' + e.message + '<br>URL: ' + url); return; }
+    if (!r.ok) { show('notfound', 'Server returned HTTP ' + r.status + '<br>URL: ' + url + '<br>ID: ' + id); return; }
+    const rec = await r.json();
+    document.getElementById('insp-details').innerHTML = `
+      <div class="info-row"><span class="info-label">Template</span><span class="info-value">${esc(rec.templateName||'N/A')}</span></div>
+      <div class="info-row"><span class="info-label">Location</span><span class="info-value">${esc(rec.location)}</span></div>
+      <div class="info-row"><span class="info-label">Equipment</span><span class="info-value">${esc(rec.machine)}</span></div>
+      ${rec.guardId ? `<div class="info-row"><span class="info-label">Component</span><span class="info-value">${esc(rec.guardId)}</span></div>` : ''}
+      <div class="info-row"><span class="info-label">Inspector</span><span class="info-value">${esc(rec.inspector)}</span></div>
+      <div class="info-row"><span class="info-label">Date</span><span class="info-value">${new Date(rec.timestamp).toLocaleDateString('en-AU')}</span></div>
+      <div class="info-row"><span class="info-label">Result</span><span class="info-value"><span class="badge-fail">FAIL</span></span></div>
+      ${rec.workRequestNumber ? `<div class="info-row"><span class="info-label">Existing WR#</span><span class="info-value" style="color:#e05c3a;">${esc(rec.workRequestNumber)}</span></div>` : ''}
+    `;
+    if (rec.workRequestNumber) {
+      document.getElementById('wr-number').value = rec.workRequestNumber;
+    }
+    show('main');
+  } catch(e) {
+    show('notfound');
+  }
+}
+
+function show(state, msg) {
+  document.getElementById('loading-state').style.display = state==='loading'?'block':'none';
+  document.getElementById('main-state').style.display = state==='main'?'block':'none';
+  document.getElementById('notfound-state').style.display = state==='notfound'?'block':'none';
+  if (msg && state==='notfound') { const el = document.getElementById('notfound-detail'); if(el) el.innerHTML = '<br><small style="color:#888;word-break:break-all;">' + msg + '</small>'; }
+}
+
+async function submitWR() {
+  const wr = document.getElementById('wr-number').value.trim();
+  if (!wr) { showMsg('Work request number is required', false); return; }
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Saving…';
+  try {
+    const r = await fetch(window.location.origin + '/api/inspection/' + id + '/wr', {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ workRequestNumber: wr })
+    });
+    const d = await r.json();
+    if (d.success) {
+      showMsg('✅ Work request number ' + wr + ' has been recorded. The inspection is now marked WR Raised.', true);
+      btn.style.display = 'none';
+    } else {
+      showMsg('Error: ' + (d.error||'Unknown'), false);
+      btn.disabled = false;
+      btn.textContent = 'Raise Work Request';
+    }
+  } catch(e) {
+    showMsg('Network error — please try again', false);
+    btn.disabled = false;
+    btn.textContent = 'Raise Work Request';
+  }
+}
+
+function showMsg(text, success) {
+  const el = document.getElementById('msg');
+  el.textContent = text;
+  el.className = 'msg ' + (success?'success':'error');
+}
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+init();
+</script>
+</body>
+</html>

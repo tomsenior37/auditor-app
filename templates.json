@@ -1,0 +1,146 @@
+{
+  "templates": [
+    {
+      "id": "tpl-guard-audit",
+      "name": "Machine Guard Audit",
+      "standard": "AS/NZS 4024.1601:2014",
+      "description": "Inspection checklist for machine guarding compliance",
+      "requiresComponent": true,
+      "componentType": "Guard",
+      "questions": [
+        {
+          "id": "q1",
+          "text": "Guard is present and correctly positioned",
+          "type": "yesno",
+          "allowNA": false
+        },
+        {
+          "id": "q2",
+          "text": "Guard is securely fixed and cannot be removed without tools",
+          "type": "yesno",
+          "allowNA": false
+        },
+        {
+          "id": "q3",
+          "text": "Guard shows no visible damage, deformation or deterioration",
+          "type": "yesno",
+          "allowNA": false
+        },
+        {
+          "id": "q4",
+          "text": "Guard has not been modified or bypassed in any way",
+          "type": "yesno",
+          "allowNA": false
+        },
+        {
+          "id": "q5",
+          "text": "Guard provides adequate coverage of the hazard zone",
+          "type": "yesno",
+          "allowNA": false
+        },
+        {
+          "id": "q6",
+          "text": "Safety distances comply with AS/NZS 4024.1601",
+          "type": "yesno",
+          "allowNA": false
+        },
+        {
+          "id": "q7",
+          "text": "Interlocking device is functional (if applicable)",
+          "type": "yesno",
+          "allowNA": true
+        },
+        {
+          "id": "q8",
+          "text": "Warning markings and labels are legible",
+          "type": "yesno",
+          "allowNA": false
+        },
+        {
+          "id": "q9",
+          "text": "No evidence of attempted bypass or defeat",
+          "type": "yesno",
+          "allowNA": false
+        },
+        {
+          "id": "q10",
+          "text": "Guard does not create additional hazards",
+          "type": "yesno",
+          "allowNA": false
+        }
+      ],
+      "createdAt": "2026-04-12T00:00:00.000Z"
+    },
+    {
+      "id": "tpl-gridmesh-001",
+      "name": "Gridmesh Inspection",
+      "standard": "AS 1657-2018",
+      "description": "Inspection of gridmesh flooring, walkways and platforms",
+      "requiresComponent": true,
+      "componentType": "Flooring",
+      "questions": [
+        {
+          "id": "q1",
+          "text": "Gridmesh panels are present and fully in place",
+          "type": "yesno",
+          "allowNA": false
+        },
+        {
+          "id": "q2",
+          "text": "No panels are loose, missing or displaced",
+          "type": "yesno",
+          "allowNA": false
+        },
+        {
+          "id": "q3",
+          "text": "No visible cracks, corrosion or deformation in mesh",
+          "type": "yesno",
+          "allowNA": false
+        },
+        {
+          "id": "q4",
+          "text": "Support frames and bearers are structurally sound",
+          "type": "yesno",
+          "allowNA": false
+        },
+        {
+          "id": "q5",
+          "text": "Anti-slip surface is maintained and not excessively worn",
+          "type": "yesno",
+          "allowNA": false
+        },
+        {
+          "id": "q6",
+          "text": "Fixing bolts, clips or welds are present and secure",
+          "type": "yesno",
+          "allowNA": false
+        },
+        {
+          "id": "q7",
+          "text": "Edges and cut-outs are properly finished with no sharp edges",
+          "type": "yesno",
+          "allowNA": false
+        },
+        {
+          "id": "q8",
+          "text": "Load rating markings are visible and legible (AS 1657-2018)",
+          "type": "yesno",
+          "allowNA": true
+        },
+        {
+          "id": "q9",
+          "text": "Openings and penetrations are adequately guarded or filled",
+          "type": "yesno",
+          "allowNA": true
+        },
+        {
+          "id": "q10",
+          "text": "No trip hazards, surface damage or deflection under load",
+          "type": "yesno",
+          "allowNA": false
+        }
+      ],
+      "createdAt": "2026-04-12T00:00:00.000Z"
+    }
+  ]
+}
