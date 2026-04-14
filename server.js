@@ -59,7 +59,7 @@ function writeEmailConfig(data) {
 }
 
 function readLists() {
-  if (!fs.existsSync(LISTS_FILE)) return { locations: [], inspectors: [] };
+  if (!fs.existsSync(LISTS_FILE)) return { locations: [], inspectors: [], componentTypes: [] };
   try {
     const data = JSON.parse(fs.readFileSync(LISTS_FILE, 'utf8'));
     // Migrate old format: { machines: [], locations: [] } where locations were strings
@@ -73,6 +73,7 @@ function readLists() {
     if (!Array.isArray(data.locations)) return { locations: [], inspectors: [] };
     if (!Array.isArray(data.inspectors)) data.inspectors = [];
     if (!Array.isArray(data.planners)) data.planners = [];
+    if (!Array.isArray(data.componentTypes)) data.componentTypes = [];
     // Migrate machines from strings to objects with guards array
     let dirty = false;
     data.locations.forEach(loc => {
@@ -470,6 +471,27 @@ app.delete('/api/lists/inspector', (req, res) => {
   lists.inspectors = lists.inspectors.filter(n => n !== name);
   writeLists(lists);
   res.json({ success: true, inspectors: lists.inspectors });
+});
+
+// ── Component Types API ────────────────────────────
+app.post('/api/lists/componentType', (req, res) => {
+  const name = (req.body.name || '').trim();
+  if (!name) return res.status(400).json({ error: 'name required' });
+  const lists = readLists();
+  if (!lists.componentTypes.includes(name)) {
+    lists.componentTypes.push(name);
+    lists.componentTypes.sort((a, b) => a.localeCompare(b));
+    writeLists(lists);
+  }
+  res.json({ success: true, componentTypes: lists.componentTypes });
+});
+
+app.delete('/api/lists/componentType', (req, res) => {
+  const name = (req.body.name || '').trim();
+  const lists = readLists();
+  lists.componentTypes = lists.componentTypes.filter(t => t !== name);
+  writeLists(lists);
+  res.json({ success: true, componentTypes: lists.componentTypes });
 });
 
 // ── Planners API ────────────────────────────────────

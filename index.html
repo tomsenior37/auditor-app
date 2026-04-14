@@ -1133,61 +1133,88 @@
 <!-- ══════════════ SETUP SCREEN ══════════════ -->
 <div class="screen" id="setup-screen">
 
-  <!-- PANEL 1: Locations list + Inspectors -->
+  <!-- PANEL 1: Main settings view -->
   <div id="setup-locations-panel" style="padding:16px;display:flex;flex-direction:column;gap:12px;">
-    <div class="section-title">📍 Locations</div>
-    <div id="location-list" style="display:flex;flex-direction:column;gap:8px;"></div>
-    <div style="display:flex;gap:8px;margin-top:4px;">
-      <input type="text" id="new-location" placeholder="New location name..." style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:13px;font-size:15px;outline:none;font-family:inherit;">
-      <button onclick="addLocation()" style="background:var(--accent);color:#fff;border:none;border-radius:var(--radius);padding:13px 18px;font-size:15px;font-weight:700;cursor:pointer;white-space:nowrap;">Add</button>
+
+    <!-- ─── EQUIPMENT SECTION ─── -->
+    <div onclick="toggleSettingsSection('settings-equipment')" style="display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;cursor:pointer;">
+      <div style="font-weight:700;font-size:15px;color:var(--accent);">🔧 Equipment</div>
+      <span id="settings-equipment-arrow" style="color:var(--text-dim);font-size:18px;transition:transform .2s;">▾</span>
     </div>
-
-    <hr class="setup-divider" style="margin-top:8px;">
-
-    <div class="section-title">👷 Inspectors</div>
-    <div id="inspector-list" style="display:flex;flex-direction:column;gap:8px;"></div>
-    <div style="display:flex;gap:8px;margin-top:4px;">
-      <input type="text" id="new-inspector" placeholder="New inspector name..." style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:13px;font-size:15px;outline:none;font-family:inherit;">
-      <button onclick="addInspector()" style="background:var(--accent);color:#fff;border:none;border-radius:var(--radius);padding:13px 18px;font-size:15px;font-weight:700;cursor:pointer;white-space:nowrap;">Add</button>
-    </div>
-
-    <hr class="setup-divider" style="margin-top:8px;">
-
-    <!-- PLANNERS -->
-    <div class="section-title">📅 Planners</div>
-    <div id="planner-list" style="display:flex;flex-direction:column;gap:8px;"></div>
-    <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px;">
-      <input type="text" id="new-planner-name" placeholder="Planner name..." style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:13px;font-size:15px;outline:none;font-family:inherit;width:100%;">
-      <div style="display:flex;gap:8px;">
-        <input type="email" id="new-planner-email" placeholder="Email address..." style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:13px;font-size:15px;outline:none;font-family:inherit;">
-        <button onclick="addPlanner()" style="background:var(--accent);color:#fff;border:none;border-radius:var(--radius);padding:13px 18px;font-size:15px;font-weight:700;cursor:pointer;white-space:nowrap;">Add</button>
+    <div id="settings-equipment" style="display:none;flex-direction:column;gap:12px;">
+      <div class="section-title" style="font-size:13px;">📍 Locations</div>
+      <div id="location-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+      <div style="display:flex;gap:8px;margin-top:4px;">
+        <input type="text" id="new-location" placeholder="New location name..." style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:13px;font-size:15px;outline:none;font-family:inherit;">
+        <button onclick="addLocation()" style="background:var(--accent);color:#fff;border:none;border-radius:var(--radius);padding:13px 18px;font-size:15px;font-weight:700;cursor:pointer;white-space:nowrap;">Add</button>
       </div>
     </div>
 
-    <hr class="setup-divider" style="margin-top:8px;">
-
-    <!-- EMAIL SERVER -->
-    <div class="section-title">📧 Email Server (SMTP)</div>
-    <div style="display:flex;flex-direction:column;gap:10px;">
-      <input type="text" id="smtp-host" placeholder="SMTP Host (e.g. smtp.gmail.com)" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:13px;font-size:15px;outline:none;font-family:inherit;width:100%;">
-      <div style="display:flex;gap:8px;">
-        <input type="number" id="smtp-port" placeholder="Port (587)" style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:13px;font-size:15px;outline:none;font-family:inherit;">
-        <label style="display:flex;align-items:center;gap:8px;font-size:14px;padding:0 8px;cursor:pointer;">
-          <input type="checkbox" id="smtp-secure" style="width:auto;"> SSL/TLS
-        </label>
-      </div>
-      <input type="text" id="smtp-user" placeholder="Username / Email" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:13px;font-size:15px;outline:none;font-family:inherit;width:100%;">
-      <input type="password" id="smtp-password" placeholder="Password / App password" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:13px;font-size:15px;outline:none;font-family:inherit;width:100%;">
-      <input type="text" id="smtp-from-name" placeholder="From name (e.g. Auditor App)" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:13px;font-size:15px;outline:none;font-family:inherit;width:100%;">
-      <input type="email" id="smtp-from-email" placeholder="From email address" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:13px;font-size:15px;outline:none;font-family:inherit;width:100%;">
-      <input type="text" id="smtp-external-url" placeholder="External URL (e.g. http://tomsenior9999.ddns.net:3103)" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:13px;font-size:15px;outline:none;font-family:inherit;width:100%;">
-      <div style="font-size:12px;color:var(--text-dim);">Used in emails so planners can click to raise a work request</div>
-      <div style="display:flex;gap:8px;">
-        <button onclick="saveEmailConfig()" style="flex:1;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);padding:13px;font-size:15px;font-weight:700;cursor:pointer;">Save Config</button>
-        <button onclick="testEmailConfig()" style="flex:1;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:var(--radius);padding:13px;font-size:15px;font-weight:600;cursor:pointer;">Test Connection</button>
-      </div>
-      <div id="smtp-status" style="font-size:13px;color:var(--text-dim);"></div>
+    <!-- ─── USERS SECTION ─── -->
+    <div onclick="toggleSettingsSection('settings-users')" style="display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;cursor:pointer;">
+      <div style="font-weight:700;font-size:15px;color:var(--accent);">👤 Users</div>
+      <span id="settings-users-arrow" style="color:var(--text-dim);font-size:18px;transition:transform .2s;">▾</span>
     </div>
+    <div id="settings-users" style="display:none;flex-direction:column;gap:12px;">
+      <div class="section-title" style="font-size:13px;">👷 Inspectors</div>
+      <div id="inspector-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+      <div style="display:flex;gap:8px;margin-top:4px;">
+        <input type="text" id="new-inspector" placeholder="New inspector name..." style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:13px;font-size:15px;outline:none;font-family:inherit;">
+        <button onclick="addInspector()" style="background:var(--accent);color:#fff;border:none;border-radius:var(--radius);padding:13px 18px;font-size:15px;font-weight:700;cursor:pointer;white-space:nowrap;">Add</button>
+      </div>
+
+      <hr style="border:none;border-top:1px solid var(--border);margin:8px 0;">
+
+      <div class="section-title" style="font-size:13px;">📅 Planners</div>
+      <div id="planner-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px;">
+        <input type="text" id="new-planner-name" placeholder="Planner name..." style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:13px;font-size:15px;outline:none;font-family:inherit;width:100%;">
+        <div style="display:flex;gap:8px;">
+          <input type="email" id="new-planner-email" placeholder="Email address..." style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:13px;font-size:15px;outline:none;font-family:inherit;">
+          <button onclick="addPlanner()" style="background:var(--accent);color:#fff;border:none;border-radius:var(--radius);padding:13px 18px;font-size:15px;font-weight:700;cursor:pointer;white-space:nowrap;">Add</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── SYSTEM SECTION ─── -->
+    <div onclick="toggleSettingsSection('settings-system')" style="display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;cursor:pointer;">
+      <div style="font-weight:700;font-size:15px;color:var(--accent);">⚙️ System</div>
+      <span id="settings-system-arrow" style="color:var(--text-dim);font-size:18px;transition:transform .2s;">▾</span>
+    </div>
+    <div id="settings-system" style="display:none;flex-direction:column;gap:12px;">
+      <div class="section-title" style="font-size:13px;">🧩 Component Types</div>
+      <div style="font-size:12px;color:var(--text-dim);margin-bottom:4px;">Define component types available in templates (e.g. Guard, Valve, Panel)</div>
+      <div id="component-type-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+      <div style="display:flex;gap:8px;margin-top:4px;">
+        <input type="text" id="new-component-type" placeholder="New component type..." style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:13px;font-size:15px;outline:none;font-family:inherit;">
+        <button onclick="addComponentType()" style="background:var(--accent);color:#fff;border:none;border-radius:var(--radius);padding:13px 18px;font-size:15px;font-weight:700;cursor:pointer;white-space:nowrap;">Add</button>
+      </div>
+
+      <hr style="border:none;border-top:1px solid var(--border);margin:8px 0;">
+
+      <div class="section-title" style="font-size:13px;">📧 Email Server (SMTP)</div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <input type="text" id="smtp-host" placeholder="SMTP Host (e.g. smtp.gmail.com)" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:13px;font-size:15px;outline:none;font-family:inherit;width:100%;">
+        <div style="display:flex;gap:8px;">
+          <input type="number" id="smtp-port" placeholder="Port (587)" style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:13px;font-size:15px;outline:none;font-family:inherit;">
+          <label style="display:flex;align-items:center;gap:8px;font-size:14px;padding:0 8px;cursor:pointer;">
+            <input type="checkbox" id="smtp-secure" style="width:auto;"> SSL/TLS
+          </label>
+        </div>
+        <input type="text" id="smtp-user" placeholder="Username / Email" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:13px;font-size:15px;outline:none;font-family:inherit;width:100%;">
+        <input type="password" id="smtp-password" placeholder="Password / App password" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:13px;font-size:15px;outline:none;font-family:inherit;width:100%;">
+        <input type="text" id="smtp-from-name" placeholder="From name (e.g. Auditor App)" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:13px;font-size:15px;outline:none;font-family:inherit;width:100%;">
+        <input type="email" id="smtp-from-email" placeholder="From email address" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:13px;font-size:15px;outline:none;font-family:inherit;width:100%;">
+        <input type="text" id="smtp-external-url" placeholder="External URL (e.g. http://tomsenior9999.ddns.net:3103)" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:13px;font-size:15px;outline:none;font-family:inherit;width:100%;">
+        <div style="font-size:12px;color:var(--text-dim);">Used in emails so planners can click to raise a work request</div>
+        <div style="display:flex;gap:8px;">
+          <button onclick="saveEmailConfig()" style="flex:1;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);padding:13px;font-size:15px;font-weight:700;cursor:pointer;">Save Config</button>
+          <button onclick="testEmailConfig()" style="flex:1;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:var(--radius);padding:13px;font-size:15px;font-weight:600;cursor:pointer;">Test Connection</button>
+        </div>
+        <div id="smtp-status" style="font-size:13px;color:var(--text-dim);"></div>
+      </div>
+    </div>
+
   </div>
 
   <!-- PANEL 2: Machines for a location -->
@@ -1234,7 +1261,9 @@
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px;">
       <input id="bld-name" class="bld-meta-input" placeholder="Template name *" style="font-weight:700;font-size:17px;">
       <input id="bld-standard" class="bld-meta-input" placeholder="Standard / Reference (optional)">
-      <input id="bld-comp" class="bld-meta-input" placeholder="Component type (e.g. Guard) — leave blank if not required">
+      <select id="bld-comp" class="bld-meta-input" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:11px;border-radius:8px;font-size:15px;font-family:inherit;outline:none;">
+        <option value="">No component required</option>
+      </select>
     </div>
     <div id="bld-canvas"></div>
     <button onclick="bAddSection()" class="bld-add-section-btn">＋ Add Section</button>
@@ -2350,6 +2379,7 @@ async function loadLists() {
     const r = await fetch('/api/lists');
     lists = await r.json();
     if (!Array.isArray(lists.inspectors)) lists.inspectors = [];
+    if (!Array.isArray(lists.componentTypes)) lists.componentTypes = [];
     populateLocationDropdown();
     populateInspectorDropdown();
     updateMachineDropdown();
@@ -2594,7 +2624,65 @@ function showSetup() {
   switchScreen('setup-screen', 'Settings');
   loadPlanners();
   loadEmailConfig();
+  loadComponentTypes();
   showSetupLocations();
+}
+
+function toggleSettingsSection(id) {
+  const el = document.getElementById(id);
+  const arrow = document.getElementById(id + '-arrow');
+  if (el.style.display === 'none') {
+    el.style.display = 'flex';
+    if (arrow) arrow.style.transform = 'rotate(180deg)';
+  } else {
+    el.style.display = 'none';
+    if (arrow) arrow.style.transform = '';
+  }
+}
+
+// ── Component Types ───────────────────────────────────────
+async function loadComponentTypes() {
+  try {
+    const r = await fetch('/api/lists');
+    const d = await r.json();
+    lists.componentTypes = d.componentTypes || [];
+    renderComponentTypes();
+  } catch {}
+}
+
+function renderComponentTypes() {
+  const el = document.getElementById('component-type-list');
+  if (!el) return;
+  const types = lists.componentTypes || [];
+  if (!types.length) {
+    el.innerHTML = '<div style="color:var(--text-dim);font-size:14px;padding:8px 0;">No component types added yet</div>';
+    return;
+  }
+  el.innerHTML = types.map((t, i) => `
+    <div style="display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;">
+      <span>${escHtml(t)}</span>
+      <button onclick="deleteComponentType(${i})" style="background:none;border:none;color:var(--fail);font-size:20px;cursor:pointer;padding:0 4px;line-height:1;">&#x2715;</button>
+    </div>
+  `).join('');
+}
+
+async function addComponentType() {
+  const inp = document.getElementById('new-component-type');
+  const name = inp.value.trim();
+  if (!name) return;
+  const r = await fetch('/api/lists/componentType', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name }) });
+  const d = await r.json();
+  if (d.success) { lists.componentTypes = d.componentTypes; inp.value = ''; renderComponentTypes(); toast('Component type added ✅'); }
+}
+
+async function deleteComponentType(idx) {
+  const name = (lists.componentTypes || [])[idx];
+  if (!name) return;
+  showConfirmModal(`Delete component type "${name}"?`, async () => {
+    const r = await fetch('/api/lists/componentType', { method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name }) });
+    const d = await r.json();
+    if (d.success) { lists.componentTypes = d.componentTypes; renderComponentTypes(); }
+  });
 }
 
 function showSetupLocations() {
@@ -2967,7 +3055,12 @@ function bEnterBuilder() {
   switchScreen('builder-screen', 'Template Builder');
   document.getElementById('bld-name').value = bs.name;
   document.getElementById('bld-standard').value = bs.standard;
-  document.getElementById('bld-comp').value = bs.componentType;
+  // Populate component type dropdown from settings
+  const compSel = document.getElementById('bld-comp');
+  const types = (lists.componentTypes || []);
+  compSel.innerHTML = '<option value="">No component required</option>' +
+    types.map(t => `<option value="${escHtml(t)}"${t === bs.componentType ? ' selected' : ''}>${escHtml(t)}</option>`).join('');
+  compSel.value = bs.componentType;
   builderSetTab('build');
   bRenderCanvas();
 }
@@ -3016,7 +3109,7 @@ function bSectionHtml(sec, questions) {
     </div>`;
 }
 
-const TYPE_LABELS = { yesno:'Yes/No', multichoice:'Choice', text:'Text', number:'Number', slider:'Slider', instruction:'Info', signature:'Signature', location:'Location', equipment:'Equipment', component:'Component' };
+const TYPE_LABELS = { yesno:'Yes/No', multichoice:'Choice', text:'Text', number:'Number', slider:'Slider' };
 
 function bQCardHtml(q) {
   const lbl = TYPE_LABELS[q.type] || q.type;
@@ -3239,9 +3332,7 @@ function bRenderSettings() {
   const types = [
     { id:'yesno', label:'Yes/No', icon:'✓✗' }, { id:'multichoice', label:'Choice', icon:'☰' },
     { id:'text', label:'Text', icon:'Aa' }, { id:'number', label:'Number', icon:'#' },
-    { id:'slider', label:'Slider', icon:'↔' }, { id:'signature', label:'Signature', icon:'✍' },
-    { id:'location', label:'Location', icon:'📍' }, { id:'equipment', label:'Equipment', icon:'⚙' },
-    { id:'component', label:'Component', icon:'🔐' }, { id:'instruction', label:'Info', icon:'ℹ' }
+    { id:'slider', label:'Slider', icon:'↔' }
   ];
   const typeBtns = types.map(t => `
     <button class="btype-btn${item.type === t.id ? ' active' : ''}" onclick="bSetType('${item.id}','${t.id}')">
@@ -3294,17 +3385,14 @@ function bRenderSettings() {
     </div>`;
   }
 
-  const isInstruction = item.type === 'instruction';
-  const noPhotoTypes = ['signature','instruction'];
-  const baseToggles = isInstruction ? '' : `
+  const baseToggles = `
     <div style="margin-top:14px;display:flex;flex-direction:column;gap:2px;">
       <label class="bld-toggle-row"><span>Required</span>
         <label class="toggle-switch"><input type="checkbox" ${item.required!==false?'checked':''} onchange="bUpdateItem('${item.id}','required',this.checked)"><span class="toggle-slider"></span></label>
       </label>
-      ${!noPhotoTypes.includes(item.type) ? `
       <label class="bld-toggle-row"><span>Photo attachment</span>
         <label class="toggle-switch"><input type="checkbox" ${item.allowPhoto?'checked':''} onchange="bUpdateItem('${item.id}','allowPhoto',this.checked)"><span class="toggle-slider"></span></label>
-      </label>` : ''}
+      </label>
       ${item.type==='yesno'||item.type==='multichoice' ? `
       <label class="bld-toggle-row"><span>Comment box on fail</span>
         <label class="toggle-switch"><input type="checkbox" ${item.commentOnFail!==false?'checked':''} onchange="bUpdateItem('${item.id}','commentOnFail',this.checked)"><span class="toggle-slider"></span></label>
@@ -3317,15 +3405,15 @@ function bRenderSettings() {
       <button onclick="bCloseSettings()" style="background:none;border:none;color:var(--text-dim);font-size:22px;cursor:pointer;padding:0 4px;">✕</button>
     </div>
     <div style="margin-bottom:10px;">
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text-dim);letter-spacing:.5px;margin-bottom:6px;">${isInstruction?'Content':'Question Text *'}</div>
-      <textarea oninput="bUpdateItem('${item.id}','text',this.value)" placeholder="${isInstruction?'Instruction text...':'Enter question...'}"
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text-dim);letter-spacing:.5px;margin-bottom:6px;">Question Text *</div>
+      <textarea oninput="bUpdateItem('${item.id}','text',this.value)" placeholder="Enter question..."
         style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:14px;font-family:inherit;width:100%;resize:vertical;min-height:66px;outline:none;">${escHtml(item.text)}</textarea>
     </div>
-    ${!isInstruction ? `<div style="margin-bottom:12px;">
+    <div style="margin-bottom:12px;">
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text-dim);letter-spacing:.5px;margin-bottom:6px;">Hint (shown below question)</div>
       <input type="text" value="${escHtml(item.hint||'')}" placeholder="Optional sub-text..." oninput="bUpdateItem('${item.id}','hint',this.value)"
         style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;width:100%;">
-    </div>` : ''}
+    </div>
     <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text-dim);letter-spacing:.5px;margin-bottom:8px;">Question Type</div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:4px;">${typeBtns}</div>
     ${typeConfig}
@@ -3378,16 +3466,6 @@ function bPreviewQuestion(q, num) {
         <span>${q.min??0}${q.unit?' '+escHtml(q.unit):''}</span><span>${q.max??100}${q.unit?' '+escHtml(q.unit):''}</span>
       </div>
     </div>`;
-  } else if (q.type === 'signature') {
-    ansHtml = `<button style="background:var(--surface);border:2px dashed var(--border);border-radius:8px;color:var(--text-dim);padding:14px;width:100%;font-size:14px;cursor:default;font-family:inherit;">✍ Tap to sign</button>`;
-  } else if (q.type === 'location') {
-    ansHtml = `<input disabled placeholder="Location…" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text-dim);padding:12px;border-radius:8px;font-size:14px;font-family:inherit;">`;
-  } else if (q.type === 'equipment') {
-    ansHtml = `<input disabled placeholder="Equipment…" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text-dim);padding:12px;border-radius:8px;font-size:14px;font-family:inherit;">`;
-  } else if (q.type === 'component') {
-    ansHtml = `<input disabled placeholder="Component…" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text-dim);padding:12px;border-radius:8px;font-size:14px;font-family:inherit;">`;
-  } else if (q.type === 'instruction') {
-    return `<div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:var(--radius);padding:14px;font-size:14px;color:var(--text-dim);line-height:1.5;">${escHtml(q.text)||'<em>Empty instruction</em>'}</div>`;
   }
   const photoPlaceholder = q.allowPhoto ? `<div style="margin-top:8px;"><label style="display:inline-flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--text-dim);cursor:default;">📷 Add photo</label></div>` : '';
   const optionalTag = q.required === false ? `<span style="font-size:11px;color:var(--text-dim);font-weight:400;margin-left:6px;">(optional)</span>` : '';
@@ -3448,13 +3526,6 @@ function buildChecklistV2(items) {
       d.textContent = item.title;
       container.appendChild(d);
     } else if (item.itemType === 'question') {
-      if (item.type === 'instruction') {
-        const d = document.createElement('div');
-        d.style.cssText = 'background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:var(--radius);padding:14px;font-size:14px;color:var(--text-dim);line-height:1.5;';
-        d.textContent = item.text;
-        container.appendChild(d);
-        return;
-      }
       qNum++;
       const n = qNum;
       const card = document.createElement('div');
@@ -3504,24 +3575,6 @@ function buildChecklistV2(items) {
           <input type="range" id="slider-ans-${n}" min="${item.min??0}" max="${item.max??100}" value="${initVal}"
             oninput="setSliderAnswer(${n},this.value,'${escHtml(item.unit||'')}')" style="width:100%;accent-color:var(--accent);">
         </div>`;
-      } else if (item.type === 'signature') {
-        ansHtml = `<div>
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-            <span id="qsig-status-${n}" style="font-size:13px;color:var(--text-dim);">No signature yet</span>
-            <button onclick="clearQSig(${n})" style="background:none;border:none;color:var(--text-dim);font-size:12px;cursor:pointer;padding:2px 6px;">Clear</button>
-          </div>
-          <img id="qsig-preview-${n}" src="" alt="Signature" style="display:none;max-width:100%;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;">
-          <button onclick="openQSig(${n})" style="background:var(--surface);border:2px dashed var(--border);border-radius:8px;color:var(--text);padding:14px;width:100%;font-size:14px;cursor:pointer;font-family:inherit;font-weight:600;">✍ Tap to sign</button>
-        </div>`;
-      } else if (item.type === 'location') {
-        ansHtml = `<input type="text" id="loc-ans-${n}" placeholder="Enter location…" oninput="setTextAnswer(${n},this.value)"
-          style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:12px;border-radius:8px;font-size:15px;font-family:inherit;outline:none;">`;
-      } else if (item.type === 'equipment') {
-        ansHtml = `<input type="text" id="equip-ans-${n}" placeholder="Enter equipment…" oninput="setTextAnswer(${n},this.value)"
-          style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:12px;border-radius:8px;font-size:15px;font-family:inherit;outline:none;">`;
-      } else if (item.type === 'component') {
-        ansHtml = `<input type="text" id="comp-ans-${n}" placeholder="Enter component…" oninput="setTextAnswer(${n},this.value)"
-          style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:12px;border-radius:8px;font-size:15px;font-family:inherit;outline:none;">`;
       }
       // Photo attachment button (for types that support it)
       const photoCapture = item.allowPhoto ? `
