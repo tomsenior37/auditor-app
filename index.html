@@ -942,16 +942,8 @@
   <div style="padding:16px; display:flex; flex-direction:column; gap:14px; flex:1;">
 
     <button class="btn-primary" onclick="showForm()">＋ New Audit</button>
-
-    <div style="display:flex;gap:10px;">
-      <a href="/api/export/csv" style="text-decoration:none;flex:1;">
-        <button class="btn-secondary" style="width:100%;">⬇ Export CSV</button>
-      </a>
-      <a href="/api/report/all" target="_blank" style="text-decoration:none;flex:1;">
-        <button class="btn-secondary" style="width:100%;">📄 PDF</button>
-      </a>
-    </div>
     <button class="btn-secondary" onclick="showTemplates()">📋 Audit Templates</button>
+    <button class="btn-secondary" onclick="showImportExport()">📦 Import / Export</button>
     <button class="btn-secondary" onclick="showSetup()">⚙️ Settings</button>
     <button class="btn-secondary" style="font-size:14px;padding:10px 16px;" onclick="showArchive()">🗄️ Archive</button>
   </div>
@@ -1123,6 +1115,64 @@
     </div>
   </div>
   <div class="results-body" id="results-body" style="padding-top:0;"></div>
+</div>
+
+<!-- ══════════════ IMPORT / EXPORT SCREEN ══════════════ -->
+<div class="screen" id="importexport-screen">
+  <div class="form-body" style="gap:14px;">
+
+    <!-- EXPORT: Templates -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;">
+      <div style="font-weight:700;font-size:15px;color:var(--accent);margin-bottom:10px;">📋 Export Templates</div>
+      <div style="font-size:13px;color:var(--text-dim);margin-bottom:10px;">Download all audit templates as a JSON file.</div>
+      <button class="btn-secondary" style="width:100%;" onclick="exportTemplates()">⬇ Download Templates</button>
+    </div>
+
+    <!-- EXPORT: Inspections -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;">
+      <div style="font-weight:700;font-size:15px;color:var(--accent);margin-bottom:10px;">📝 Export Inspections</div>
+      <div style="font-size:13px;color:var(--text-dim);margin-bottom:10px;">Export inspections as CSV. Filter by template or export all.</div>
+      <select id="export-insp-template" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:11px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;margin-bottom:8px;">
+        <option value="__all__">All Templates</option>
+      </select>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
+        <label style="font-size:13px;color:var(--text-dim);">From</label>
+        <input type="date" id="export-insp-from" style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
+        <label style="font-size:13px;color:var(--text-dim);">To</label>
+        <input type="date" id="export-insp-to" style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-secondary" style="flex:1;" onclick="exportInspectionsCSV()">⬇ CSV</button>
+        <a id="export-insp-pdf-link" href="/api/report/all" target="_blank" style="text-decoration:none;flex:1;">
+          <button class="btn-secondary" style="width:100%;">📄 PDF Report</button>
+        </a>
+      </div>
+    </div>
+
+    <!-- EXPORT: Asset Database -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;">
+      <div style="font-weight:700;font-size:15px;color:var(--accent);margin-bottom:10px;">🏭 Export Asset Database</div>
+      <div style="font-size:13px;color:var(--text-dim);margin-bottom:10px;">Download locations, machines and components as CSV.</div>
+      <button class="btn-secondary" style="width:100%;" onclick="exportAssetDatabase()">⬇ Download Asset CSV</button>
+    </div>
+
+    <!-- IMPORT: Asset Database -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;">
+      <div style="font-weight:700;font-size:15px;color:var(--accent);margin-bottom:10px;">📤 Import Asset Database</div>
+      <div style="font-size:13px;color:var(--text-dim);margin-bottom:6px;">Upload a CSV file to import locations, machines and components. Format:</div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;font-family:monospace;font-size:12px;color:var(--text-dim);margin-bottom:10px;overflow-x:auto;white-space:pre;">Location,Machine,Component
+Building A,Press 01,GRD-001
+Building A,Press 01,GRD-002
+Building A,Lathe 02,
+Building B,CNC Mill,</div>
+      <div style="font-size:12px;color:var(--text-dim);margin-bottom:10px;">Leave Component blank if not applicable. Duplicate entries are skipped.</div>
+      <input type="file" id="import-asset-file" accept=".csv" style="width:100%;padding:8px;margin-bottom:8px;">
+      <button class="btn-primary" style="width:100%;" onclick="importAssetDatabase()">Upload &amp; Import</button>
+      <div id="import-asset-status" style="font-size:13px;color:var(--text-dim);margin-top:8px;"></div>
+    </div>
+
+    <button class="btn-secondary" onclick="goHome()" style="width:100%;">&#8592; Back</button>
+  </div>
 </div>
 
 <!-- ══════════════ ARCHIVE SCREEN ══════════════ -->
@@ -2057,6 +2107,156 @@ function showRecordsFiltered(filterValue) {
 function showResults() {
   renderResults();
   switchScreen('results-screen', 'Results by Location');
+}
+
+// ── Import / Export ───────────────────────────────────────
+function showImportExport() {
+  switchScreen('importexport-screen', 'Import / Export');
+  // Populate template filter dropdown
+  const sel = document.getElementById('export-insp-template');
+  sel.innerHTML = '<option value="__all__">All Templates</option>' +
+    templates.map(t => `<option value="${escHtml(t.id)}">${escHtml(t.name)}</option>`).join('');
+}
+
+function exportTemplates() {
+  const blob = new Blob([JSON.stringify({ templates }, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'templates-export.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('Templates exported');
+}
+
+async function exportInspectionsCSV() {
+  try {
+    const r = await fetch('/api/inspections');
+    let data = await r.json();
+    const tplId = document.getElementById('export-insp-template').value;
+    const fromDate = document.getElementById('export-insp-from').value;
+    const toDate = document.getElementById('export-insp-to').value;
+    if (tplId !== '__all__') data = data.filter(d => d.templateId === tplId);
+    if (fromDate) data = data.filter(d => d.timestamp >= fromDate);
+    if (toDate) data = data.filter(d => d.timestamp <= toDate + 'T23:59:59');
+    if (!data.length) return toast('No inspections match the filter');
+    // Build CSV with dynamic answer columns
+    const maxQ = data.reduce((m, d) => Math.max(m, Object.keys(d.answers || {}).length), 0);
+    const qHeaders = Array.from({ length: maxQ }, (_, i) => `Q${i + 1}`);
+    const headers = ['ID', 'Timestamp', 'Template', 'Inspector', 'Location', 'Machine', 'Component', 'Result', ...qHeaders, 'Notes'];
+    const rows = data.map(d => {
+      const answerCols = Array.from({ length: maxQ }, (_, i) => {
+        const v = (d.answers || {})[`q${i + 1}`];
+        if (v === true) return 'YES';
+        if (v === false) return 'NO';
+        if (v === 'na') return 'N/A';
+        return v != null ? String(v) : '';
+      });
+      return [d.id, d.timestamp, d.templateName || '', d.inspector || '', d.location || '', d.machine || '', d.guardId || '', d.result || '', ...answerCols, (d.notes || '').replace(/"/g, '""')].map(v => `"${v}"`).join(',');
+    });
+    const csv = [headers.map(h => `"${h}"`).join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'inspections-export.csv';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    toast(`Exported ${data.length} inspection(s)`);
+  } catch (err) { toast('Export failed: ' + err.message); }
+}
+
+function exportAssetDatabase() {
+  const rows = [['Location', 'Machine', 'Component']];
+  (lists.locations || []).forEach(loc => {
+    if (!loc.machines || !loc.machines.length) {
+      rows.push([loc.name, '', '']);
+    } else {
+      loc.machines.forEach(mac => {
+        const m = typeof mac === 'string' ? { name: mac, guards: [] } : mac;
+        if (!m.guards || !m.guards.length) {
+          rows.push([loc.name, m.name, '']);
+        } else {
+          m.guards.forEach(g => rows.push([loc.name, m.name, g]));
+        }
+      });
+    }
+  });
+  const csv = rows.map(r => r.map(c => `"${(c || '').replace(/"/g, '""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'asset-database.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('Asset database exported');
+}
+
+async function importAssetDatabase() {
+  const fileInput = document.getElementById('import-asset-file');
+  const statusEl = document.getElementById('import-asset-status');
+  const file = fileInput.files[0];
+  if (!file) return toast('Select a CSV file first');
+  statusEl.textContent = 'Reading file...';
+  statusEl.style.color = 'var(--text-dim)';
+  try {
+    const text = await file.text();
+    const lines = text.split(/\r?\n/).filter(l => l.trim());
+    if (lines.length < 2) return (statusEl.textContent = 'CSV must have a header row and at least one data row', statusEl.style.color = 'var(--fail)');
+    // Parse header
+    const header = parseCSVRow(lines[0]).map(h => h.trim().toLowerCase());
+    const locIdx = header.findIndex(h => h === 'location' || h === 'site' || h === 'area');
+    const macIdx = header.findIndex(h => h === 'machine' || h === 'equipment' || h === 'asset');
+    const compIdx = header.findIndex(h => h === 'component' || h === 'guard' || h === 'sub_asset' || h === 'sub-asset' || h === 'subasset');
+    if (locIdx === -1) return (statusEl.textContent = 'CSV must have a "Location" column', statusEl.style.color = 'var(--fail)');
+    // Parse rows
+    const entries = [];
+    for (let i = 1; i < lines.length; i++) {
+      const cols = parseCSVRow(lines[i]);
+      const location = (cols[locIdx] || '').trim();
+      const machine = macIdx >= 0 ? (cols[macIdx] || '').trim() : '';
+      const component = compIdx >= 0 ? (cols[compIdx] || '').trim() : '';
+      if (location) entries.push({ location, machine, component });
+    }
+    if (!entries.length) return (statusEl.textContent = 'No valid rows found', statusEl.style.color = 'var(--fail)');
+    statusEl.textContent = `Importing ${entries.length} row(s)...`;
+    const r = await fetch('/api/import/assets', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ entries }) });
+    const d = await r.json();
+    if (d.success) {
+      lists.locations = d.locations;
+      populateLocationDropdown();
+      updateMachineDropdown();
+      statusEl.style.color = 'var(--pass)';
+      statusEl.textContent = `Imported: ${d.stats.locations} location(s), ${d.stats.machines} machine(s), ${d.stats.components} component(s)`;
+      fileInput.value = '';
+      toast('Asset database imported');
+    } else {
+      statusEl.style.color = 'var(--fail)';
+      statusEl.textContent = d.error || 'Import failed';
+    }
+  } catch (err) {
+    statusEl.style.color = 'var(--fail)';
+    statusEl.textContent = 'Error: ' + err.message;
+  }
+}
+
+function parseCSVRow(line) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (i + 1 < line.length && line[i + 1] === '"') { current += '"'; i++; }
+        else inQuotes = false;
+      } else { current += ch; }
+    } else {
+      if (ch === '"') inQuotes = true;
+      else if (ch === ',') { result.push(current); current = ''; }
+      else current += ch;
+    }
+  }
+  result.push(current);
+  return result;
 }
 
 function showArchive() {

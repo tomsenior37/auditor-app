@@ -494,6 +494,42 @@ app.delete('/api/lists/componentType', (req, res) => {
   res.json({ success: true, componentTypes: lists.componentTypes });
 });
 
+// ── Asset Import API ──────────────────────────────────
+app.post('/api/import/assets', (req, res) => {
+  const { entries } = req.body;
+  if (!Array.isArray(entries)) return res.status(400).json({ error: 'entries array required' });
+  const lists = readLists();
+  let locCount = 0, macCount = 0, compCount = 0;
+  entries.forEach(({ location, machine, component }) => {
+    if (!location) return;
+    let loc = lists.locations.find(l => l.name === location);
+    if (!loc) {
+      loc = { name: location, machines: [] };
+      lists.locations.push(loc);
+      locCount++;
+    }
+    if (machine) {
+      let mac = loc.machines.find(m => (typeof m === 'string' ? m : m.name) === machine);
+      if (!mac) {
+        mac = { name: machine, guards: [] };
+        loc.machines.push(mac);
+        macCount++;
+      } else if (typeof mac === 'string') {
+        const idx = loc.machines.indexOf(mac);
+        mac = { name: mac, guards: [] };
+        loc.machines[idx] = mac;
+      }
+      if (component && !mac.guards.includes(component)) {
+        mac.guards.push(component);
+        compCount++;
+      }
+    }
+  });
+  lists.locations.sort((a, b) => a.name.localeCompare(b.name));
+  writeLists(lists);
+  res.json({ success: true, locations: lists.locations, stats: { locations: locCount, machines: macCount, components: compCount } });
+});
+
 // ── Planners API ────────────────────────────────────
 app.get('/api/planners', (req, res) => {
   const lists = readLists();
