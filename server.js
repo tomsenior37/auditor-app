@@ -138,6 +138,67 @@ app.post('/api/templates', (req, res) => {
   res.json({ success: true, template: tpl });
 });
 
+// Upload template from file (DOC, DOCX, XML, PDF, JSON)
+app.post('/api/templates/upload', upload.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  
+  const fileBuffer = fs.readFileSync(req.file.path);
+  const fileType = req.file.mimetype;
+  const fileName = req.file.originalname.toLowerCase();
+  
+  try {
+    let templateData;
+    
+    // Handle JSON files directly
+    if (fileName.endsWith('.json')) {
+      templateData = JSON.parse(fileBuffer.toString());
+    }
+    // Handle XML files
+    else if (fileName.endsWith('.xml')) {
+      const xml = require('xml2js').parseStringSync(fileBuffer.toString());
+      templateData = xml.template || xml.Template || {};
+    }
+    // For DOC/DOCX/PDF, we'd need additional parsing libraries
+    // For now, return an error suggesting JSON format
+    else {
+      return res.status(400).json({ 
+        error: 'For now, only JSON template files are supported. Please convert your DOC/DOCX/PDF to JSON format first.' 
+      });
+    }
+    
+    // Validate and normalize the template
+    if (!templateData.name || !templateData.questions) {
+      return res.status(400).json({ error: 'Invalid template format: name and questions required' });
+    }
+    
+    const data = readTemplates();
+    const tpl = {
+      id: 'tpl-' + uuidv4().slice(0, 8),
+      name: templateData.name,
+      standard: templateData.standard || '',
+      description: templateData.description || '',
+      requiresComponent: !!templateData.requiresComponent,
+      componentType: templateData.componentType || '',
+      questions: Array.isArray(templateData.questions) ? templateData.questions : [templateData.questions],
+      createdAt: new Date().toISOString()
+    };
+    
+    data.templates.push(tpl);
+    writeTemplates(data);
+    
+    // Clean up uploaded file
+    fs.unlinkSync(req.file.path);
+    
+    res.json({ success: true, template: tpl });
+  } catch (err) {
+    // Clean up uploaded file on error
+    if (fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    res.status(500).json({ error: 'Failed to parse template file: ' + err.message });
+  }
+});
+
 app.put('/api/templates/:id', (req, res) => {
   const data = readTemplates();
   const idx = data.templates.findIndex(t => t.id === req.params.id);
