@@ -941,40 +941,7 @@
 <div class="screen active" id="home-screen">
   <div style="padding:16px; display:flex; flex-direction:column; gap:14px; flex:1;">
 
-    <!-- Template selector -->
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;">
-      <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--accent);letter-spacing:0.5px;margin-bottom:8px;">Active Template</div>
-      <select id="dashboard-template" onchange="onDashboardTemplateChange()" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:11px;border-radius:10px;font-size:15px;font-family:inherit;outline:none;">
-        <option value="">— Select template —</option>
-      </select>
-    </div>
-
-    <!-- Stats -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-      <div onclick="showRecordsFiltered('PASS')" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;cursor:pointer;active:opacity:0.8;">
-        <div style="font-size:26px;font-weight:700;color:var(--pass);" id="stat-pass">0</div>
-        <div style="font-size:12px;color:var(--dim);">Passed</div>
-      </div>
-      <div onclick="showRecordsFiltered('FAIL')" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;cursor:pointer;">
-        <div style="font-size:26px;font-weight:700;color:var(--fail);" id="stat-fail">0</div>
-        <div style="font-size:12px;color:var(--dim);">Failed</div>
-      </div>
-      <div onclick="showRecordsFiltered('WR_RAISED')" style="background:var(--surface);border:1px solid #ff9800;border-radius:10px;padding:12px;text-align:center;cursor:pointer;">
-        <div style="font-size:26px;font-weight:700;color:#ff9800;" id="stat-wr">0</div>
-        <div style="font-size:12px;color:var(--dim);">WR Raised</div>
-      </div>
-      <div onclick="showRecordsFiltered('SERVICEABLE')" style="background:var(--surface);border:1px solid var(--pass);border-radius:10px;padding:12px;text-align:center;cursor:pointer;">
-        <div style="font-size:26px;font-weight:700;color:var(--pass);" id="stat-rect">0</div>
-        <div style="font-size:12px;color:var(--dim);">Rectified</div>
-      </div>
-    </div>
-
-
-
     <button class="btn-primary" onclick="showForm()">＋ New Audit</button>
-
-    <!-- Template result buttons (generated dynamically) -->
-    <div id="template-result-buttons"></div>
 
     <div style="display:flex;gap:10px;">
       <a href="/api/export/csv" style="text-decoration:none;flex:1;">
@@ -984,8 +951,8 @@
         <button class="btn-secondary" style="width:100%;">📄 PDF</button>
       </a>
     </div>
-    <button class="btn-secondary" onclick="showSetup()">⚙️ Locations &amp; Equipment</button>
     <button class="btn-secondary" onclick="showTemplates()">📋 Audit Templates</button>
+    <button class="btn-secondary" onclick="showSetup()">⚙️ Settings</button>
     <button class="btn-secondary" style="font-size:14px;padding:10px 16px;" onclick="showArchive()">🗄️ Archive</button>
   </div>
 </div>
@@ -2624,7 +2591,7 @@ function renderSetupGuards() {
 }
 
 function showSetup() {
-  switchScreen('setup-screen', 'Setup');
+  switchScreen('setup-screen', 'Settings');
   loadPlanners();
   loadEmailConfig();
   showSetupLocations();
