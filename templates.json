@@ -141,6 +141,66 @@
         }
       ],
       "createdAt": "2026-04-12T00:00:00.000Z"
+    },
+    {
+      "id": "tpl-032dd26c",
+      "name": "Test",
+      "standard": "Test",
+      "description": "",
+      "requiresComponent": true,
+      "componentType": "Test",
+      "questions": [
+        {
+          "id": "q1",
+          "text": "",
+          "type": "component",
+          "required": true
+        },
+        {
+          "id": "q2",
+          "text": "",
+          "type": "location",
+          "required": true
+        }
+      ],
+      "items": [
+        {
+          "id": "i6ga4tdr",
+          "itemType": "section",
+          "title": "Section 1"
+        },
+        {
+          "id": "iriy1798",
+          "itemType": "question",
+          "sectionId": "i6ga4tdr",
+          "text": "",
+          "type": "component",
+          "allowNA": false,
+          "required": true,
+          "hint": "",
+          "commentOnFail": true,
+          "photoRequired": false,
+          "unit": "",
+          "min": null,
+          "max": null
+        },
+        {
+          "id": "i5b6blt9",
+          "itemType": "question",
+          "sectionId": "i6ga4tdr",
+          "text": "",
+          "type": "location",
+          "allowNA": false,
+          "required": true,
+          "hint": "",
+          "commentOnFail": true,
+          "photoRequired": false
+        }
+      ],
+      "version": 2,
+      "scoringEnabled": false,
+      "createdAt": "2026-04-14T09:42:04.151Z",
+      "updatedAt": "2026-04-14T09:42:19.616Z"
     }
   ]
 }

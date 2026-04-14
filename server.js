@@ -7,7 +7,7 @@ const path = require('path');
 const PDFDocument = require('pdfkit');
 
 const app = express();
-const PORT = 3103;
+const PORT = 3105;
 const INSPECTIONS_FILE = path.join(__dirname, 'inspections.json');
 const LISTS_FILE = path.join(__dirname, 'lists.json');
 const ARCHIVE_FILE = path.join(__dirname, 'archive.json');
@@ -122,15 +122,16 @@ function writeTemplates(data) {
 app.get('/api/templates', (req, res) => res.json(readTemplates()));
 
 app.post('/api/templates', (req, res) => {
-  const { name, standard, description, requiresComponent, componentType, questions } = req.body;
-  if (!name || !questions) return res.status(400).json({ error: 'name and questions required' });
+  const { name, standard, description, requiresComponent, componentType, questions, items, version, scoringEnabled } = req.body;
+  if (!name || (!questions && !items)) return res.status(400).json({ error: 'name and questions required' });
   const data = readTemplates();
   const tpl = {
     id: 'tpl-' + uuidv4().slice(0, 8),
     name, standard: standard || '', description: description || '',
     requiresComponent: !!requiresComponent,
     componentType: componentType || '',
-    questions,
+    questions: questions || [],
+    ...(items ? { items, version: version || 2, scoringEnabled: !!scoringEnabled } : {}),
     createdAt: new Date().toISOString()
   };
   data.templates.push(tpl);
@@ -203,7 +204,7 @@ app.put('/api/templates/:id', (req, res) => {
   const data = readTemplates();
   const idx = data.templates.findIndex(t => t.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'not found' });
-  data.templates[idx] = { ...data.templates[idx], ...req.body, id: req.params.id };
+  data.templates[idx] = { ...data.templates[idx], ...req.body, id: req.params.id, updatedAt: new Date().toISOString() };
   writeTemplates(data);
   res.json({ success: true, template: data.templates[idx] });
 });

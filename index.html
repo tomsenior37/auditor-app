@@ -783,6 +783,105 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    /* ── Template Builder ── */
+    .bld-toolbar {
+      position: sticky; top: 57px; z-index: 90;
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 10px 16px; display: flex; justify-content: space-between; align-items: center;
+    }
+    .btab {
+      background: var(--bg); border: 1px solid var(--border); color: var(--text-dim);
+      border-radius: 8px; padding: 8px 14px; font-size: 14px; font-weight: 600;
+      cursor: pointer; font-family: inherit; transition: all 0.15s;
+    }
+    .btab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .bld-meta-input {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+      color: var(--text); padding: 10px 12px; font-size: 15px; font-family: inherit;
+      outline: none; width: 100%;
+    }
+    .bld-meta-input:focus { border-color: var(--accent); }
+    .bld-section {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; overflow: hidden; margin-bottom: 10px;
+    }
+    .bld-section-header {
+      display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+      background: rgba(224,92,58,0.07); border-bottom: 1px solid var(--border);
+    }
+    .bld-section-title-input {
+      flex: 1; background: transparent; border: none; color: var(--text);
+      font-size: 13px; font-weight: 700; font-family: inherit; outline: none;
+      text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .bld-section-body { padding: 8px; display: flex; flex-direction: column; gap: 6px; min-height: 4px; }
+    .bld-q-card {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+      padding: 10px 12px; display: flex; align-items: center; gap: 10px;
+      transition: border-color 0.15s; user-select: none;
+    }
+    .bld-q-card.selected { border-color: var(--accent); background: rgba(224,92,58,0.05); }
+    .bld-q-card.dragging { opacity: 0.35; }
+    .bld-drag-handle {
+      color: var(--text-dim); font-size: 16px; cursor: grab; padding: 2px 4px;
+      flex-shrink: 0; touch-action: none; line-height: 1;
+    }
+    .bld-drag-handle:active { cursor: grabbing; }
+    .bld-q-body { flex: 1; min-width: 0; cursor: pointer; }
+    .bld-q-type-chip {
+      display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.5px; color: var(--accent); background: rgba(224,92,58,0.12);
+      border-radius: 4px; padding: 2px 6px; margin-bottom: 3px;
+    }
+    .bld-q-text { font-size: 14px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .bld-gear-btn, .bld-del-btn {
+      background: none; border: none; color: var(--text-dim); font-size: 18px;
+      cursor: pointer; padding: 2px 6px; flex-shrink: 0;
+    }
+    .bld-add-q-btn {
+      background: none; border: 1px dashed var(--border); color: var(--text-dim);
+      border-radius: 8px; padding: 9px; font-size: 13px; cursor: pointer;
+      width: calc(100% - 16px); margin: 2px 8px 8px; font-family: inherit;
+    }
+    .bld-add-q-btn:active { border-color: var(--accent); color: var(--accent); }
+    .bld-add-section-btn {
+      background: none; border: 1px dashed var(--accent); color: var(--accent);
+      border-radius: 10px; padding: 14px; font-size: 15px; font-weight: 700;
+      cursor: pointer; font-family: inherit; width: 100%;
+    }
+    .bld-add-section-btn:active { background: rgba(224,92,58,0.1); }
+    .bld-drop-zone { height: 4px; border-radius: 4px; transition: height 0.15s, background 0.15s; }
+    .bld-drop-zone.over {
+      height: 32px; background: rgba(224,92,58,0.15);
+      border: 2px dashed var(--accent); border-radius: 8px;
+    }
+    .bld-settings {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: var(--surface); border-top: 1px solid var(--border);
+      border-radius: 16px 16px 0 0; z-index: 500;
+      transform: translateY(100%); transition: transform 0.3s ease;
+      max-height: 88vh; display: flex; flex-direction: column;
+    }
+    .bld-settings.open { transform: translateY(0); }
+    .bld-settings-handle {
+      width: 36px; height: 4px; background: var(--border);
+      border-radius: 2px; margin: 12px auto 6px; flex-shrink: 0;
+    }
+    .bld-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 499; }
+    .bld-overlay.show { display: block; }
+    .btype-btn {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+      color: var(--text-dim); padding: 8px 4px; font-size: 12px; cursor: pointer;
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+      font-family: inherit; transition: all 0.15s;
+    }
+    .btype-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(224,92,58,0.08); }
+    .btype-btn:active { opacity: 0.7; }
+    .bld-toggle-row {
+      display: flex; align-items: center; gap: 10px; padding: 6px 0; cursor: pointer;
+    }
+    .bld-toggle-row span { flex: 1; font-size: 14px; color: var(--text); }
+
     /* ── Setup divider ── */
     .setup-divider {
       border: none;
@@ -894,7 +993,8 @@
 <!-- ══════════════ TEMPLATES SCREEN ══════════════ -->
 <div class="screen" id="templates-screen">
   <div class="form-body">
-    <div style="font-size:13px;color:var(--text-dim);margin-bottom:16px;">Templates define the questions for each type of audit. The Machine Guard Audit template is pre-loaded. Add more below.</div>
+    <button onclick="newBuilder()" class="btn-primary" style="margin-bottom:4px;">＋ New Template (Builder)</button>
+    <div style="font-size:13px;color:var(--text-dim);margin-bottom:16px;">Templates define the questions for each type of audit. Use the builder above or upload a JSON file below.</div>
 
     <div id="template-list-body" style="margin-bottom:24px;"></div>
 
@@ -1152,6 +1252,38 @@
 
 </div>
 
+<!-- ══════════════ BUILDER SCREEN ══════════════ -->
+<div class="screen" id="builder-screen">
+  <div class="bld-toolbar">
+    <div style="display:flex;gap:6px;">
+      <button id="btab-build" class="btab active" onclick="builderSetTab('build')">Build</button>
+      <button id="btab-preview" class="btab" onclick="builderSetTab('preview')">Preview</button>
+    </div>
+    <button onclick="saveBuilder()" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">💾 Save</button>
+  </div>
+
+  <!-- Build tab -->
+  <div id="bld-build-tab" style="padding:16px;display:flex;flex-direction:column;gap:12px;padding-bottom:160px;">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px;">
+      <input id="bld-name" class="bld-meta-input" placeholder="Template name *" style="font-weight:700;font-size:17px;">
+      <input id="bld-standard" class="bld-meta-input" placeholder="Standard / Reference (optional)">
+      <input id="bld-comp" class="bld-meta-input" placeholder="Component type (e.g. Guard) — leave blank if not required">
+    </div>
+    <div id="bld-canvas"></div>
+    <button onclick="bAddSection()" class="bld-add-section-btn">＋ Add Section</button>
+  </div>
+
+  <!-- Preview tab -->
+  <div id="bld-preview-tab" style="display:none;padding:16px;padding-bottom:80px;display:flex;flex-direction:column;gap:12px;"></div>
+
+  <!-- Settings bottom sheet -->
+  <div id="bld-settings" class="bld-settings">
+    <div class="bld-settings-handle"></div>
+    <div id="bld-settings-inner" style="overflow-y:auto;padding:0 16px 32px;"></div>
+  </div>
+  <div id="bld-overlay" class="bld-overlay" onclick="bCloseSettings()"></div>
+</div>
+
 <!-- ══════════════ SIGNATURE OVERLAY ══════════════ -->
 <div id="sig-overlay" style="display:none;position:fixed;inset:0;background:#000;z-index:999;flex-direction:column;overflow:hidden;touch-action:none;">
   <div style="background:var(--surface);border-bottom:1px solid var(--border);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
@@ -1176,6 +1308,35 @@
     <div style="display:flex;gap:8px;">
       <button onclick="skipSendPlanner()" style="flex:1;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:13px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;">Skip</button>
       <button onclick="doSendPlannerNow()" style="flex:1;background:var(--accent);color:#fff;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;">&#128231; Send Report</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ EDIT TEMPLATE MODAL ══════════════ -->
+<div id="edit-tpl-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9999;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto;pointer-events:auto;touch-action:auto;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;max-width:520px;width:100%;display:flex;flex-direction:column;gap:14px;margin:auto;">
+    <div style="font-size:17px;font-weight:700;color:var(--accent);">✏️ Edit Template</div>
+
+    <div class="field-group">
+      <label>Template Name *</label>
+      <input id="edit-tpl-name" type="text" placeholder="e.g. Machine Guard Audit">
+    </div>
+    <div class="field-group">
+      <label>Standard / Reference</label>
+      <input id="edit-tpl-standard" type="text" placeholder="e.g. AS/NZS 4024.1601:2014">
+    </div>
+    <div class="field-group">
+      <label>Component Type <span style="font-weight:400;color:var(--text-dim)">(leave blank if not required)</span></label>
+      <input id="edit-tpl-comp-type" type="text" placeholder="e.g. Guard, Flooring">
+    </div>
+
+    <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--accent);letter-spacing:0.5px;margin-top:4px;">Questions</div>
+    <div id="edit-tpl-questions" style="display:flex;flex-direction:column;gap:8px;"></div>
+    <button onclick="addEditQuestion()" style="background:none;border:1px dashed var(--border);color:var(--text-dim);border-radius:8px;padding:10px;cursor:pointer;font-size:14px;">+ Add Question</button>
+
+    <div style="display:flex;gap:10px;margin-top:6px;">
+      <button onclick="closeEditTplModal()" style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:14px;font-size:15px;font-weight:600;cursor:pointer;">Cancel</button>
+      <button onclick="saveEditTemplate()" style="flex:1;background:var(--accent);border:none;color:#fff;border-radius:10px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;">Save Changes</button>
     </div>
   </div>
 </div>
@@ -1225,7 +1386,7 @@ async function loadTemplates() {
     // Auto-select first template
     if (templates.length && !selectedTemplate) {
       selectedTemplate = templates[0];
-      QUESTIONS = selectedTemplate.questions.map(q => q.text);
+      QUESTIONS = tplQuestions(selectedTemplate).map(q => q.text);
       updateTemplateLabel();
     }
     refreshDashboard();
@@ -1241,11 +1402,18 @@ function updateTemplateLabel() {
   else if (guardLabel) guardLabel.textContent = 'Component ID';
 }
 
+function tplQuestions(tpl) {
+  if (tpl && tpl.version === 2 && tpl.items) {
+    return tpl.items.filter(i => i.itemType === 'question' && i.type !== 'instruction');
+  }
+  return tpl ? (tpl.questions || []) : [];
+}
+
 function selectTemplateForForm(tplId) {
   const tpl = templates.find(t => t.id === tplId);
   if (!tpl) return;
   selectedTemplate = tpl;
-  QUESTIONS = tpl.questions.map(q => q.text);
+  QUESTIONS = tplQuestions(tpl).map(q => q.text);
   updateTemplateLabel();
   buildChecklist();
   resetFormAnswers();
@@ -1260,18 +1428,28 @@ function renderTemplateList() {
   const el = document.getElementById('template-list-body');
   if (!el) return;
   if (!templates.length) { el.innerHTML = '<div style="color:var(--text-dim);padding:16px;">No templates yet.</div>'; return; }
-  el.innerHTML = templates.map(t => `
+  el.innerHTML = templates.map(t => {
+    const qCount = t.version === 2 && t.items
+      ? t.items.filter(i => i.itemType === 'question' && i.type !== 'instruction').length
+      : (t.questions || []).length;
+    const sCount = t.version === 2 && t.items ? t.items.filter(i => i.itemType === 'section').length : 0;
+    const meta = sCount > 0
+      ? `${sCount} section${sCount > 1 ? 's' : ''}, ${qCount} question${qCount !== 1 ? 's' : ''}`
+      : `${qCount} question${qCount !== 1 ? 's' : ''}`;
+    return `
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;">
         <div>
           <div style="font-weight:700;font-size:16px;">${escHtml(t.name)}</div>
-
-          <div style="font-size:13px;color:var(--text-dim);margin-top:4px;">${t.questions.length} questions${t.requiresComponent ? ' &nbsp;·&nbsp; 🔐 Component: <strong style="color:var(--accent);">' + escHtml(t.componentType) + '</strong>' : ''}</div>
+          <div style="font-size:13px;color:var(--text-dim);margin-top:4px;">${meta}${t.requiresComponent ? ' &nbsp;·&nbsp; 🔐 <strong style="color:var(--accent);">' + escHtml(t.componentType) + '</strong>' : ''}${t.version === 2 ? ' &nbsp;·&nbsp; <span style="color:var(--accent);font-size:11px;font-weight:700;">BUILDER</span>' : ''}</div>
         </div>
-        <button onclick="deleteTemplate('${t.id}')" style="background:none;border:none;color:var(--fail);font-size:20px;cursor:pointer;padding:4px;">🗑</button>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <button onclick="openBuilder('${t.id}')" style="background:none;border:none;color:var(--text-dim);font-size:18px;cursor:pointer;padding:4px;" title="Edit in Builder">✏️</button>
+          <button onclick="deleteTemplate('${t.id}')" style="background:none;border:none;color:var(--fail);font-size:20px;cursor:pointer;padding:4px;" title="Delete">🗑</button>
+        </div>
       </div>
     </div>
-  `).join('');
+  `}).join('');
 }
 
 async function uploadTemplate() {
@@ -1329,6 +1507,71 @@ async function deleteTemplate(id) {
   });
 }
 
+let editingTemplateId = null;
+
+function editTemplate(id) {
+  const tpl = templates.find(t => t.id === id);
+  if (!tpl) return;
+  editingTemplateId = id;
+  document.getElementById('edit-tpl-name').value = tpl.name || '';
+  document.getElementById('edit-tpl-standard').value = tpl.standard || '';
+  document.getElementById('edit-tpl-comp-type').value = tpl.componentType || '';
+  const container = document.getElementById('edit-tpl-questions');
+  container.innerHTML = '';
+  (tpl.questions || []).forEach((q, i) => addEditQuestion(q.text, q.allowNA));
+  const modal = document.getElementById('edit-tpl-modal');
+  modal.style.display = 'flex';
+}
+
+function addEditQuestion(text = '', allowNA = false) {
+  const container = document.getElementById('edit-tpl-questions');
+  const idx = container.children.length;
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:8px;align-items:center;';
+  row.innerHTML = `
+    <input type="text" value="${escHtml(text)}" placeholder="Question text"
+      style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:14px;font-family:inherit;">
+    <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text-dim);white-space:nowrap;cursor:pointer;">
+      <input type="checkbox" ${allowNA ? 'checked' : ''} style="accent-color:var(--accent);width:15px;height:15px;"> N/A
+    </label>
+    <button onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--fail);font-size:18px;cursor:pointer;padding:2px 4px;">✕</button>
+  `;
+  container.appendChild(row);
+}
+
+function closeEditTplModal() {
+  document.getElementById('edit-tpl-modal').style.display = 'none';
+  editingTemplateId = null;
+}
+
+async function saveEditTemplate() {
+  const name = document.getElementById('edit-tpl-name').value.trim();
+  if (!name) return toast('Template name is required');
+  const standard = document.getElementById('edit-tpl-standard').value.trim();
+  const compType = document.getElementById('edit-tpl-comp-type').value.trim();
+  const rows = document.getElementById('edit-tpl-questions').children;
+  const questions = Array.from(rows).map((row, i) => ({
+    id: 'q' + (i + 1),
+    text: row.querySelector('input[type="text"]').value.trim(),
+    type: 'yesno',
+    allowNA: row.querySelector('input[type="checkbox"]').checked
+  })).filter(q => q.text);
+  if (!questions.length) return toast('At least one question is required');
+  const r = await fetch('/api/templates/' + editingTemplateId, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, standard, requiresComponent: !!compType, componentType: compType, questions })
+  });
+  const d = await r.json();
+  if (d.success) {
+    await loadTemplates();
+    closeEditTplModal();
+    toast('Template updated ✅');
+  } else {
+    toast(d.error || 'Save failed');
+  }
+}
+
 function escHtml(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 // State
@@ -1342,6 +1585,8 @@ let inspections = [];
 let hasSig = false;
 let sigDrawing = false;
 let sigLastX = 0, sigLastY = 0;
+let _sigMode = 'global'; // 'global' | 'question'
+let _sigQuestionN = null;
 
 // ── Init ───────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
@@ -1374,6 +1619,8 @@ let sigDataUrl = null;
 function initSignatureCanvas() { /* canvas lives in overlay now */ }
 
 function openSigOverlay() {
+  // If called directly (not via openQSig), reset to global mode
+  if (_sigMode !== 'question') { _sigMode = 'global'; _sigQuestionN = null; }
   const overlay = document.getElementById('sig-overlay');
   overlay.style.display = 'flex';
   // Lock scroll cross-platform (works on Android Chrome + iOS Safari)
@@ -1445,11 +1692,24 @@ function clearSigOverlay() {
 
 function confirmSignature() {
   if (overlayHasSig) {
-    hasSig = true;
-    sigDataUrl = document.getElementById('sig-canvas').toDataURL('image/png');
-    document.getElementById('sig-status').textContent = '✅ Signed';
-    const prev = document.getElementById('sig-preview');
-    prev.src = sigDataUrl; prev.style.display = 'block';
+    const dataUrl = document.getElementById('sig-canvas').toDataURL('image/png');
+    if (_sigMode === 'question' && _sigQuestionN !== null) {
+      const n = _sigQuestionN;
+      answers[`q${n}`] = dataUrl;
+      const statusEl = document.getElementById(`qsig-status-${n}`);
+      if (statusEl) statusEl.textContent = '✅ Signed';
+      const prevEl = document.getElementById(`qsig-preview-${n}`);
+      if (prevEl) { prevEl.src = dataUrl; prevEl.style.display = 'block'; }
+      const card = document.getElementById(`qcard-${n}`);
+      if (card) { card.classList.remove('answered-yes','answered-no','answered-na'); card.classList.add('answered-yes'); }
+      resultComputed = null;
+    } else {
+      hasSig = true;
+      sigDataUrl = dataUrl;
+      document.getElementById('sig-status').textContent = '✅ Signed';
+      const prev = document.getElementById('sig-preview');
+      prev.src = sigDataUrl; prev.style.display = 'block';
+    }
   }
   document.getElementById('sig-overlay').style.display = 'none';
   document.body.style.overflow = '';
@@ -1458,6 +1718,23 @@ function confirmSignature() {
   document.body.style.left = '';
   document.body.style.right = '';
   window.scrollTo(0, window.__scrollY || 0);
+}
+
+function openQSig(n) {
+  _sigMode = 'question';
+  _sigQuestionN = n;
+  openSigOverlay();
+}
+
+function clearQSig(n) {
+  answers[`q${n}`] = undefined;
+  const statusEl = document.getElementById(`qsig-status-${n}`);
+  if (statusEl) statusEl.textContent = 'No signature yet';
+  const prevEl = document.getElementById(`qsig-preview-${n}`);
+  if (prevEl) { prevEl.src = ''; prevEl.style.display = 'none'; }
+  const card = document.getElementById(`qcard-${n}`);
+  if (card) card.classList.remove('answered-yes','answered-no','answered-na');
+  resultComputed = null;
 }
 
 function clearSignature() {
@@ -1489,6 +1766,10 @@ function captureSignature(inspectorName) {
 
 // ── Build checklist ────────────────────────────────────────
 function buildChecklist() {
+  if (selectedTemplate && selectedTemplate.version === 2 && selectedTemplate.items) {
+    buildChecklistV2(selectedTemplate.items);
+    return;
+  }
   const container = document.getElementById('checklist-container');
   container.innerHTML = '';
   QUESTIONS.forEach((q, i) => {
@@ -1564,6 +1845,26 @@ async function handleFindingPhotoSelect(e) {
   }
 }
 
+async function handleQuestionPhotoSelect(e) {
+  const n = e.target.dataset.q;
+  const file = e.target.files[0];
+  if (!file) return;
+  const preview = document.getElementById(`q-photo-preview-${n}`);
+  if (preview) { preview.src = URL.createObjectURL(file); preview.style.display = 'block'; }
+  try {
+    const fd = new FormData();
+    fd.append('photo', file);
+    const res = await fetch('/api/photo', { method: 'POST', body: fd });
+    const data = await res.json();
+    const key = `q${n}`;
+    if (!findings[key]) findings[key] = { comment: '', photo: null };
+    findings[key].questionPhoto = data.filename;
+    toast('Photo uploaded ✓');
+  } catch (err) {
+    toast('Photo upload failed');
+  }
+}
+
 // ── Photo ──────────────────────────────────────────────────
 async function handlePhotoSelect(e) {
   const file = e.target.files[0];
@@ -1586,6 +1887,9 @@ async function handlePhotoSelect(e) {
 
 // ── Compute result ─────────────────────────────────────────
 function computeResult() {
+  if (selectedTemplate && selectedTemplate.version === 2 && selectedTemplate.items) {
+    return computeResultV2(selectedTemplate.items);
+  }
   for (let i = 1; i <= QUESTIONS.length; i++) {
     if (answers[`q${i}`] === false) return 'FAIL';
   }
@@ -1598,6 +1902,8 @@ function resetFormAnswers() {
   answers = {};
   findings = {};
   resultComputed = null;
+  _sigMode = 'global';
+  _sigQuestionN = null;
   const banner = document.getElementById('result-banner');
   if (banner) banner.style.display = 'none';
 }
@@ -1616,8 +1922,17 @@ async function submitInspection() {
   if (selectedTemplate?.requiresComponent && (!guardId || guardId === '__add_new__')) return toast('⚠ ' + (selectedTemplate.componentType || 'Component') + ' ID is required');
 
   const unanswered = [];
-  for (let i = 1; i <= QUESTIONS.length; i++) {
-    if (answers[`q${i}`] === undefined) unanswered.push(i);
+  if (selectedTemplate && selectedTemplate.version === 2 && selectedTemplate.items) {
+    const qs = selectedTemplate.items.filter(i => i.itemType === 'question' && i.type !== 'instruction');
+    qs.forEach((q, idx) => {
+      if (q.required === false) return; // optional — skip
+      const val = answers[`q${idx + 1}`];
+      if (val === undefined || val === null || val === '') unanswered.push(idx + 1);
+    });
+  } else {
+    for (let i = 1; i <= QUESTIONS.length; i++) {
+      if (answers[`q${i}`] === undefined) unanswered.push(i);
+    }
   }
   if (unanswered.length > 0) {
     return toast(`⚠ Answer questions: ${unanswered.join(', ')}`);
@@ -1650,7 +1965,8 @@ async function submitInspection() {
       const n = i + 1;
       const key = `q${n}`;
       const commentEl = document.getElementById(`finding-comment-${n}`);
-      if (commentEl && answers[key] === false) {
+      const panel = document.getElementById(`finding-panel-${n}`);
+      if (commentEl && panel && panel.style.display !== 'none') {
         if (!findings[key]) findings[key] = { comment: '', photo: null };
         findings[key].comment = commentEl.value;
       }
@@ -1786,7 +2102,7 @@ function populateDashboardTemplateDropdown() {
 function onDashboardTemplateChange() {
   const tplId = document.getElementById('dashboard-template').value;
   const tpl = templates.find(t => t.id === tplId);
-  if (tpl) { selectedTemplate = tpl; QUESTIONS = tpl.questions.map(q => q.text); }
+  if (tpl) { selectedTemplate = tpl; QUESTIONS = tplQuestions(tpl).map(q => q.text); }
   refreshDashboard();
 }
 
@@ -1819,6 +2135,12 @@ async function refreshDashboard() {
 }
 
 function goHome() {
+  if (typeof bs !== 'undefined' && bs.dirty && document.getElementById('builder-screen').classList.contains('active')) {
+    showConfirmModal('Discard unsaved changes?', () => { closeConfirmModal(); bs.dirty = false; goHome(); });
+    const btn = document.getElementById('confirm-modal-delete-btn');
+    if (btn) { btn.textContent = 'Discard'; btn.style.background = ''; }
+    return;
+  }
   switchScreen('home-screen', 'Auditor');
   populateDashboardTemplateDropdown();
   refreshDashboard();
@@ -2611,6 +2933,721 @@ async function sendReportToPlanner(inspectionId, plannerEmail, plannerName) {
   const d = await r.json();
   if (d.success) toast('Report sent to ' + plannerName + ' ✅');
   else alert('Failed to send: ' + d.error);
+}
+
+// ══════════════════════════════════════════════════════
+// TEMPLATE BUILDER
+// ══════════════════════════════════════════════════════
+
+// Builder state
+const bs = {
+  tplId: null, name: '', standard: '', componentType: '',
+  requiresComponent: false, scoringEnabled: false,
+  items: [], selectedId: null, dirty: false,
+  dragId: null
+};
+
+function bUid() { return 'i' + Math.random().toString(36).slice(2, 9); }
+
+// ── Entry points ──────────────────────────────────────
+function openBuilder(tplId) {
+  const tpl = templates.find(t => t.id === tplId);
+  if (!tpl) return;
+  bs.tplId = tplId;
+  bs.name = tpl.name || '';
+  bs.standard = tpl.standard || '';
+  bs.componentType = tpl.componentType || '';
+  bs.requiresComponent = !!tpl.requiresComponent;
+  bs.scoringEnabled = !!tpl.scoringEnabled;
+  bs.selectedId = null;
+  bs.dirty = false;
+  if (tpl.version === 2 && tpl.items && tpl.items.length) {
+    bs.items = JSON.parse(JSON.stringify(tpl.items));
+  } else {
+    // Migrate v1 → wrap questions in a default section
+    const sId = bUid();
+    bs.items = [
+      { id: sId, itemType: 'section', title: 'General' },
+      ...(tpl.questions || []).map(q => ({
+        id: bUid(), itemType: 'question', sectionId: sId,
+        text: q.text || '', type: q.type || 'yesno',
+        allowNA: !!q.allowNA, required: true, hint: '',
+        commentOnFail: true, photoRequired: false
+      }))
+    ];
+  }
+  bEnterBuilder();
+}
+
+function newBuilder() {
+  const sId = bUid();
+  bs.tplId = null;
+  bs.name = 'New Template';
+  bs.standard = '';
+  bs.componentType = '';
+  bs.requiresComponent = false;
+  bs.scoringEnabled = false;
+  bs.selectedId = null;
+  bs.dirty = false;
+  bs.items = [
+    { id: sId, itemType: 'section', title: 'Section 1' },
+    { id: bUid(), itemType: 'question', sectionId: sId, text: '', type: 'yesno', allowNA: false, required: true, hint: '', commentOnFail: true, photoRequired: false }
+  ];
+  bEnterBuilder();
+}
+
+function bEnterBuilder() {
+  switchScreen('builder-screen', 'Template Builder');
+  document.getElementById('bld-name').value = bs.name;
+  document.getElementById('bld-standard').value = bs.standard;
+  document.getElementById('bld-comp').value = bs.componentType;
+  builderSetTab('build');
+  bRenderCanvas();
+}
+
+// ── Tabs ──────────────────────────────────────────────
+function builderSetTab(tab) {
+  const isBuild = tab === 'build';
+  document.getElementById('bld-build-tab').style.display = isBuild ? 'flex' : 'none';
+  document.getElementById('bld-preview-tab').style.display = isBuild ? 'none' : 'flex';
+  document.getElementById('btab-build').classList.toggle('active', isBuild);
+  document.getElementById('btab-preview').classList.toggle('active', !isBuild);
+  if (!isBuild) bRenderPreview();
+}
+
+// ── Canvas render ─────────────────────────────────────
+function bRenderCanvas() {
+  const canvas = document.getElementById('bld-canvas');
+  if (!canvas) return;
+  const sections = bs.items.filter(i => i.itemType === 'section');
+  const orphans = bs.items.filter(i => i.itemType === 'question' && !i.sectionId);
+  let html = '';
+  sections.forEach(sec => {
+    const qs = bs.items.filter(i => i.itemType === 'question' && i.sectionId === sec.id);
+    html += bSectionHtml(sec, qs);
+  });
+  if (orphans.length) orphans.forEach(q => { html += bQCardHtml(q); });
+  canvas.innerHTML = html;
+  bAttachDrag();
+}
+
+function bSectionHtml(sec, questions) {
+  const qRows = questions.map(q => bQCardHtml(q)).join('');
+  return `
+    <div class="bld-section" id="bsec-${sec.id}">
+      <div class="bld-section-header">
+        <span class="bld-drag-handle" style="cursor:default;color:var(--accent);">▶</span>
+        <input class="bld-section-title-input" value="${escHtml(sec.title)}" placeholder="Section title"
+          oninput="bUpdateSection('${sec.id}','title',this.value)">
+        <button onclick="bDeleteSection('${sec.id}')" class="bld-del-btn" title="Delete section">✕</button>
+      </div>
+      <div class="bld-section-body" id="sbody-${sec.id}">
+        ${qRows}
+        <div class="bld-drop-zone" data-section="${sec.id}"></div>
+      </div>
+      <button onclick="bAddQuestion('${sec.id}')" class="bld-add-q-btn">＋ Add Question</button>
+    </div>`;
+}
+
+const TYPE_LABELS = { yesno:'Yes/No', multichoice:'Choice', text:'Text', number:'Number', slider:'Slider', instruction:'Info', signature:'Signature', location:'Location', equipment:'Equipment', component:'Component' };
+
+function bQCardHtml(q) {
+  const lbl = TYPE_LABELS[q.type] || q.type;
+  const sel = bs.selectedId === q.id;
+  const preview = escHtml(q.text) || '<em style="color:var(--text-dim);font-style:italic;">Empty question</em>';
+  const badges = [
+    q.required === false ? '<span style="font-size:10px;color:var(--text-dim);background:rgba(255,255,255,0.06);border-radius:4px;padding:1px 5px;">optional</span>' : '',
+    q.allowPhoto ? '<span style="font-size:10px;color:var(--text-dim);">📷</span>' : ''
+  ].filter(Boolean).join(' ');
+  return `
+    <div class="bld-q-card${sel ? ' selected' : ''}" id="bq-${q.id}" data-id="${q.id}" draggable="true">
+      <span class="bld-drag-handle" data-drag="${q.id}">⠿</span>
+      <div class="bld-q-body" onclick="bSelectQ('${q.id}')">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
+          <div class="bld-q-type-chip">${lbl}</div>${badges}
+        </div>
+        <div class="bld-q-text">${preview}</div>
+      </div>
+      <button onclick="bSelectQ('${q.id}')" class="bld-gear-btn" title="Settings">⚙</button>
+    </div>`;
+}
+
+// ── Drag & drop ───────────────────────────────────────
+function bAttachDrag() {
+  document.querySelectorAll('#bld-canvas .bld-q-card').forEach(card => {
+    card.addEventListener('dragstart', e => {
+      bs.dragId = card.dataset.id;
+      card.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    card.addEventListener('dragend', () => {
+      card.classList.remove('dragging');
+      document.querySelectorAll('.bld-drop-zone.over').forEach(z => z.classList.remove('over'));
+      bs.dragId = null;
+    });
+    card.addEventListener('dragover', e => {
+      if (!bs.dragId || bs.dragId === card.dataset.id) return;
+      e.preventDefault();
+      document.querySelectorAll('.bld-drop-zone.over').forEach(z => z.classList.remove('over'));
+    });
+    card.addEventListener('drop', e => {
+      e.preventDefault();
+      if (!bs.dragId || bs.dragId === card.dataset.id) return;
+      bMoveItem(bs.dragId, card.dataset.id);
+    });
+  });
+  document.querySelectorAll('#bld-canvas .bld-drop-zone').forEach(zone => {
+    zone.addEventListener('dragover', e => {
+      if (!bs.dragId) return;
+      e.preventDefault();
+      document.querySelectorAll('.bld-drop-zone.over').forEach(z => z.classList.remove('over'));
+      zone.classList.add('over');
+    });
+    zone.addEventListener('dragleave', () => zone.classList.remove('over'));
+    zone.addEventListener('drop', e => {
+      e.preventDefault();
+      zone.classList.remove('over');
+      if (!bs.dragId) return;
+      const sectionId = zone.dataset.section;
+      bMoveItemToSection(bs.dragId, sectionId);
+    });
+  });
+}
+
+function bMoveItem(dragId, targetId) {
+  const draggedIdx = bs.items.findIndex(i => i.id === dragId);
+  const targetIdx = bs.items.findIndex(i => i.id === targetId);
+  if (draggedIdx === -1 || targetIdx === -1) return;
+  const dragged = bs.items.splice(draggedIdx, 1)[0];
+  const newTarget = bs.items.findIndex(i => i.id === targetId);
+  dragged.sectionId = bs.items[newTarget]?.sectionId || dragged.sectionId;
+  bs.items.splice(newTarget, 0, dragged);
+  bs.dirty = true;
+  bRenderCanvas();
+}
+
+function bMoveItemToSection(dragId, sectionId) {
+  const dragged = bs.items.find(i => i.id === dragId);
+  if (!dragged) return;
+  bs.items = bs.items.filter(i => i.id !== dragId);
+  dragged.sectionId = sectionId;
+  const secIdx = bs.items.findIndex(i => i.id === sectionId);
+  const lastInSection = bs.items.reduce((acc, item, idx) =>
+    (item.itemType === 'question' && item.sectionId === sectionId) ? idx : acc, secIdx);
+  bs.items.splice(lastInSection + 1, 0, dragged);
+  bs.dirty = true;
+  bRenderCanvas();
+}
+
+// ── Section / question actions ────────────────────────
+function bAddSection() {
+  const id = bUid();
+  bs.items.push({ id, itemType: 'section', title: 'New Section' });
+  bs.dirty = true;
+  bRenderCanvas();
+  setTimeout(() => {
+    const inp = document.querySelector(`#bsec-${id} .bld-section-title-input`);
+    if (inp) { inp.focus(); inp.select(); }
+  }, 60);
+}
+
+function bAddQuestion(sectionId) {
+  const id = bUid();
+  const newQ = { id, itemType: 'question', sectionId, text: '', type: 'yesno', allowNA: false, required: true, hint: '', commentOnFail: true, photoRequired: false };
+  const secIdx = bs.items.findIndex(i => i.id === sectionId);
+  const lastInSection = bs.items.reduce((acc, item, idx) =>
+    (item.itemType === 'question' && item.sectionId === sectionId) ? idx : acc, secIdx);
+  bs.items.splice(lastInSection + 1, 0, newQ);
+  bs.dirty = true;
+  bRenderCanvas();
+  bSelectQ(id);
+}
+
+function bDeleteSection(sectionId) {
+  const qs = bs.items.filter(i => i.itemType === 'question' && i.sectionId === sectionId);
+  const msg = qs.length
+    ? `Delete section and its ${qs.length} question${qs.length > 1 ? 's' : ''}?`
+    : 'Delete this empty section?';
+  showConfirmModal(msg, () => {
+    bs.items = bs.items.filter(i => !(i.id === sectionId || (i.itemType === 'question' && i.sectionId === sectionId)));
+    bs.dirty = true;
+    closeConfirmModal();
+    bRenderCanvas();
+  });
+  const btn = document.getElementById('confirm-modal-delete-btn');
+  if (btn) btn.textContent = 'Delete';
+}
+
+function bUpdateSection(id, field, value) {
+  const item = bs.items.find(i => i.id === id);
+  if (item) { item[field] = value; bs.dirty = true; }
+}
+
+function bUpdateItem(id, field, value) {
+  const item = bs.items.find(i => i.id === id);
+  if (!item) return;
+  item[field] = value;
+  bs.dirty = true;
+  if (field === 'text') {
+    const el = document.querySelector(`#bq-${id} .bld-q-text`);
+    if (el) el.innerHTML = value ? escHtml(value) : '<em style="color:var(--text-dim);font-style:italic;">Empty question</em>';
+  }
+}
+
+function bSetType(id, type) {
+  const item = bs.items.find(i => i.id === id);
+  if (!item) return;
+  item.type = type;
+  if (type === 'multichoice' && !item.options) {
+    item.options = [{ id: bUid(), label: 'Option 1', flagFail: false }, { id: bUid(), label: 'Option 2', flagFail: false }];
+  }
+  if (type === 'number') { item.unit = item.unit || ''; item.min = item.min ?? null; item.max = item.max ?? null; }
+  if (type === 'slider') { item.min = item.min ?? 0; item.max = item.max ?? 100; item.unit = item.unit || ''; }
+  if (type === 'text') { item.maxLength = item.maxLength || 500; }
+  bs.dirty = true;
+  bRenderCanvas();
+  bRenderSettings();
+}
+
+function bAddOption(qId) {
+  const item = bs.items.find(i => i.id === qId);
+  if (!item) return;
+  if (!item.options) item.options = [];
+  item.options.push({ id: bUid(), label: 'New option', flagFail: false });
+  bs.dirty = true;
+  bRenderSettings();
+}
+
+function bRemoveOption(qId, idx) {
+  const item = bs.items.find(i => i.id === qId);
+  if (item && item.options) { item.options.splice(idx, 1); bs.dirty = true; bRenderSettings(); }
+}
+
+function bUpdateOption(qId, idx, field, value) {
+  const item = bs.items.find(i => i.id === qId);
+  if (item && item.options && item.options[idx]) { item.options[idx][field] = value; bs.dirty = true; }
+}
+
+function bDuplicateItem(id) {
+  const item = bs.items.find(i => i.id === id);
+  if (!item) return;
+  const copy = { ...JSON.parse(JSON.stringify(item)), id: bUid() };
+  bs.items.splice(bs.items.findIndex(i => i.id === id) + 1, 0, copy);
+  bs.dirty = true;
+  bCloseSettings();
+  bRenderCanvas();
+  toast('Duplicated');
+}
+
+function bDeleteItem(id) {
+  bs.items = bs.items.filter(i => i.id !== id);
+  bs.dirty = true;
+  bs.selectedId = null;
+  bCloseSettings();
+  bRenderCanvas();
+}
+
+// ── Settings panel ────────────────────────────────────
+function bSelectQ(id) {
+  bs.selectedId = id;
+  bRenderCanvas();
+  bRenderSettings();
+  document.getElementById('bld-settings').classList.add('open');
+  document.getElementById('bld-overlay').classList.add('show');
+}
+
+function bCloseSettings() {
+  document.getElementById('bld-settings').classList.remove('open');
+  document.getElementById('bld-overlay').classList.remove('show');
+  bs.selectedId = null;
+  bRenderCanvas();
+}
+
+function bRenderSettings() {
+  const panel = document.getElementById('bld-settings-inner');
+  if (!bs.selectedId || !panel) return;
+  const item = bs.items.find(i => i.id === bs.selectedId);
+  if (!item) return;
+
+  const types = [
+    { id:'yesno', label:'Yes/No', icon:'✓✗' }, { id:'multichoice', label:'Choice', icon:'☰' },
+    { id:'text', label:'Text', icon:'Aa' }, { id:'number', label:'Number', icon:'#' },
+    { id:'slider', label:'Slider', icon:'↔' }, { id:'signature', label:'Signature', icon:'✍' },
+    { id:'location', label:'Location', icon:'📍' }, { id:'equipment', label:'Equipment', icon:'⚙' },
+    { id:'component', label:'Component', icon:'🔐' }, { id:'instruction', label:'Info', icon:'ℹ' }
+  ];
+  const typeBtns = types.map(t => `
+    <button class="btype-btn${item.type === t.id ? ' active' : ''}" onclick="bSetType('${item.id}','${t.id}')">
+      <span style="font-size:15px;">${t.icon}</span><span>${t.label}</span>
+    </button>`).join('');
+
+  let typeConfig = '';
+  if (item.type === 'multichoice') {
+    typeConfig = `<div style="margin-top:12px;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--accent);letter-spacing:.5px;margin-bottom:8px;">Answer Options</div>
+      ${(item.options||[]).map((o,i) => `
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+          <input type="text" value="${escHtml(o.label)}" placeholder="Option label"
+            oninput="bUpdateOption('${item.id}',${i},'label',this.value)"
+            style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:9px 10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
+          <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--fail);cursor:pointer;white-space:nowrap;">
+            <input type="checkbox" ${o.flagFail?'checked':''} onchange="bUpdateOption('${item.id}',${i},'flagFail',this.checked)" style="accent-color:var(--fail);"> Fail
+          </label>
+          <button onclick="bRemoveOption('${item.id}',${i})" style="background:none;border:none;color:var(--text-dim);font-size:16px;cursor:pointer;padding:0 4px;">✕</button>
+        </div>`).join('')}
+      <button onclick="bAddOption('${item.id}')" style="background:none;border:1px dashed var(--border);color:var(--text-dim);border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;width:100%;font-family:inherit;">＋ Add Option</button>
+    </div>`;
+  } else if (item.type === 'text') {
+    typeConfig = `<div style="margin-top:12px;">
+      <div style="font-size:12px;color:var(--text-dim);margin-bottom:6px;">Max characters</div>
+      <input type="number" value="${item.maxLength||500}" min="10" max="5000" oninput="bUpdateItem('${item.id}','maxLength',parseInt(this.value)||500)"
+        style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;width:100%;">
+    </div>`;
+  } else if (item.type === 'number') {
+    typeConfig = `<div style="margin-top:12px;display:flex;flex-direction:column;gap:8px;">
+      <input type="text" value="${escHtml(item.unit||'')}" placeholder="Unit (e.g. mm, kg)" oninput="bUpdateItem('${item.id}','unit',this.value)"
+        style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;width:100%;">
+      <div style="display:flex;gap:8px;">
+        <input type="number" value="${item.min??''}" placeholder="Min (optional)" oninput="bUpdateItem('${item.id}','min',this.value===''?null:parseFloat(this.value))"
+          style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
+        <input type="number" value="${item.max??''}" placeholder="Max (optional)" oninput="bUpdateItem('${item.id}','max',this.value===''?null:parseFloat(this.value))"
+          style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
+      </div>
+    </div>`;
+  } else if (item.type === 'slider') {
+    typeConfig = `<div style="margin-top:12px;display:flex;flex-direction:column;gap:8px;">
+      <div style="display:flex;gap:8px;">
+        <input type="number" value="${item.min??0}" placeholder="Min" oninput="bUpdateItem('${item.id}','min',parseFloat(this.value)||0)"
+          style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
+        <input type="number" value="${item.max??100}" placeholder="Max" oninput="bUpdateItem('${item.id}','max',parseFloat(this.value)||100)"
+          style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
+      </div>
+      <input type="text" value="${escHtml(item.unit||'')}" placeholder="Unit (e.g. %)" oninput="bUpdateItem('${item.id}','unit',this.value)"
+        style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;width:100%;">
+    </div>`;
+  }
+
+  const isInstruction = item.type === 'instruction';
+  const noPhotoTypes = ['signature','instruction'];
+  const baseToggles = isInstruction ? '' : `
+    <div style="margin-top:14px;display:flex;flex-direction:column;gap:2px;">
+      <label class="bld-toggle-row"><span>Required</span>
+        <label class="toggle-switch"><input type="checkbox" ${item.required!==false?'checked':''} onchange="bUpdateItem('${item.id}','required',this.checked)"><span class="toggle-slider"></span></label>
+      </label>
+      ${!noPhotoTypes.includes(item.type) ? `
+      <label class="bld-toggle-row"><span>Photo attachment</span>
+        <label class="toggle-switch"><input type="checkbox" ${item.allowPhoto?'checked':''} onchange="bUpdateItem('${item.id}','allowPhoto',this.checked)"><span class="toggle-slider"></span></label>
+      </label>` : ''}
+      ${item.type==='yesno'||item.type==='multichoice' ? `
+      <label class="bld-toggle-row"><span>Comment box on fail</span>
+        <label class="toggle-switch"><input type="checkbox" ${item.commentOnFail!==false?'checked':''} onchange="bUpdateItem('${item.id}','commentOnFail',this.checked)"><span class="toggle-slider"></span></label>
+      </label>` : ''}
+    </div>`;
+
+  panel.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-top:4px;">
+      <div style="font-weight:700;font-size:15px;color:var(--accent);">Question Settings</div>
+      <button onclick="bCloseSettings()" style="background:none;border:none;color:var(--text-dim);font-size:22px;cursor:pointer;padding:0 4px;">✕</button>
+    </div>
+    <div style="margin-bottom:10px;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text-dim);letter-spacing:.5px;margin-bottom:6px;">${isInstruction?'Content':'Question Text *'}</div>
+      <textarea oninput="bUpdateItem('${item.id}','text',this.value)" placeholder="${isInstruction?'Instruction text...':'Enter question...'}"
+        style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:14px;font-family:inherit;width:100%;resize:vertical;min-height:66px;outline:none;">${escHtml(item.text)}</textarea>
+    </div>
+    ${!isInstruction ? `<div style="margin-bottom:12px;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text-dim);letter-spacing:.5px;margin-bottom:6px;">Hint (shown below question)</div>
+      <input type="text" value="${escHtml(item.hint||'')}" placeholder="Optional sub-text..." oninput="bUpdateItem('${item.id}','hint',this.value)"
+        style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;width:100%;">
+    </div>` : ''}
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text-dim);letter-spacing:.5px;margin-bottom:8px;">Question Type</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:4px;">${typeBtns}</div>
+    ${typeConfig}
+    ${baseToggles}
+    <div style="display:flex;gap:8px;margin-top:18px;">
+      <button onclick="bDuplicateItem('${item.id}')" style="flex:1;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:11px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Duplicate</button>
+      <button onclick="bDeleteItem('${item.id}')" style="flex:1;background:none;border:1px solid var(--fail);color:var(--fail);border-radius:8px;padding:11px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Delete</button>
+    </div>`;
+}
+
+// ── Preview ───────────────────────────────────────────
+function bRenderPreview() {
+  const el = document.getElementById('bld-preview-tab');
+  if (!el) return;
+  const questions = bs.items.filter(i => i.itemType === 'question' && i.type !== 'instruction');
+  let html = '';
+  bs.items.forEach(item => {
+    if (item.itemType === 'section') {
+      html += `<div class="section-title" style="margin-top:4px;">${escHtml(item.title)}</div>`;
+    } else if (item.itemType === 'question') {
+      const n = questions.indexOf(item) + 1;
+      html += bPreviewQuestion(item, n);
+    }
+  });
+  el.innerHTML = html || '<div style="color:var(--text-dim);padding:20px;text-align:center;">Add questions to see a preview</div>';
+}
+
+function bPreviewQuestion(q, num) {
+  let ansHtml = '';
+  if (q.type === 'yesno') {
+    ansHtml = `<div class="q-btns">
+      <button class="q-btn yes" style="cursor:default;">YES</button>
+      <button class="q-btn no" style="cursor:default;">NO</button>
+    </div>`;
+  } else if (q.type === 'multichoice') {
+    ansHtml = `<div style="display:flex;flex-direction:column;gap:6px;">
+      ${(q.options||[]).map(o => `<button style="background:var(--bg);border:2px solid var(--border);border-radius:8px;color:var(--text-dim);padding:10px 14px;text-align:left;font-size:14px;cursor:default;width:100%;font-family:inherit;">${escHtml(o.label)}${o.flagFail?` <span style="font-size:11px;color:var(--fail);">(fail)</span>`:''}</button>`).join('')}
+    </div>`;
+  } else if (q.type === 'text') {
+    ansHtml = `<textarea disabled placeholder="Text answer…" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text-dim);padding:10px;border-radius:8px;font-size:14px;font-family:inherit;resize:none;height:70px;"></textarea>`;
+  } else if (q.type === 'number') {
+    ansHtml = `<div style="display:flex;gap:8px;align-items:center;">
+      <input type="number" disabled placeholder="0" style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text-dim);padding:12px;border-radius:8px;font-size:16px;font-family:inherit;">
+      ${q.unit ? `<span style="color:var(--text-dim);font-size:14px;">${escHtml(q.unit)}</span>` : ''}
+    </div>`;
+  } else if (q.type === 'slider') {
+    ansHtml = `<div>
+      <input type="range" disabled min="${q.min??0}" max="${q.max??100}" style="width:100%;accent-color:var(--accent);">
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-dim);">
+        <span>${q.min??0}${q.unit?' '+escHtml(q.unit):''}</span><span>${q.max??100}${q.unit?' '+escHtml(q.unit):''}</span>
+      </div>
+    </div>`;
+  } else if (q.type === 'signature') {
+    ansHtml = `<button style="background:var(--surface);border:2px dashed var(--border);border-radius:8px;color:var(--text-dim);padding:14px;width:100%;font-size:14px;cursor:default;font-family:inherit;">✍ Tap to sign</button>`;
+  } else if (q.type === 'location') {
+    ansHtml = `<input disabled placeholder="Location…" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text-dim);padding:12px;border-radius:8px;font-size:14px;font-family:inherit;">`;
+  } else if (q.type === 'equipment') {
+    ansHtml = `<input disabled placeholder="Equipment…" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text-dim);padding:12px;border-radius:8px;font-size:14px;font-family:inherit;">`;
+  } else if (q.type === 'component') {
+    ansHtml = `<input disabled placeholder="Component…" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text-dim);padding:12px;border-radius:8px;font-size:14px;font-family:inherit;">`;
+  } else if (q.type === 'instruction') {
+    return `<div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:var(--radius);padding:14px;font-size:14px;color:var(--text-dim);line-height:1.5;">${escHtml(q.text)||'<em>Empty instruction</em>'}</div>`;
+  }
+  const photoPlaceholder = q.allowPhoto ? `<div style="margin-top:8px;"><label style="display:inline-flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--text-dim);cursor:default;">📷 Add photo</label></div>` : '';
+  const optionalTag = q.required === false ? `<span style="font-size:11px;color:var(--text-dim);font-weight:400;margin-left:6px;">(optional)</span>` : '';
+  return `<div class="question-card">
+    <div class="q-text">
+      <span class="q-num">${num}.</span>
+      <div>
+        <div>${escHtml(q.text)||'<em style="color:var(--text-dim)">No question text</em>'}${optionalTag}</div>
+        ${q.hint?`<div style="font-size:12px;color:var(--text-dim);margin-top:3px;">${escHtml(q.hint)}</div>`:''}
+      </div>
+    </div>
+    ${ansHtml}
+    ${photoPlaceholder}
+  </div>`;
+}
+
+// ── Save ──────────────────────────────────────────────
+async function saveBuilder() {
+  const name = document.getElementById('bld-name').value.trim();
+  if (!name) return toast('Template name is required');
+  bs.name = name;
+  bs.standard = document.getElementById('bld-standard').value.trim();
+  bs.componentType = document.getElementById('bld-comp').value.trim();
+  bs.requiresComponent = !!bs.componentType;
+  const questions = bs.items
+    .filter(i => i.itemType === 'question' && i.type !== 'instruction')
+    .map((q, idx) => ({ id: 'q' + (idx + 1), text: q.text, type: q.type, required: q.required !== false }));
+  const payload = {
+    name: bs.name, standard: bs.standard, description: '',
+    requiresComponent: bs.requiresComponent, componentType: bs.componentType,
+    scoringEnabled: bs.scoringEnabled, version: 2,
+    items: bs.items, questions, updatedAt: new Date().toISOString()
+  };
+  try {
+    const method = bs.tplId ? 'PUT' : 'POST';
+    const url = bs.tplId ? '/api/templates/' + bs.tplId : '/api/templates';
+    const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const d = await res.json();
+    if (d.success) {
+      bs.dirty = false;
+      if (!bs.tplId) bs.tplId = d.template.id;
+      await loadTemplates();
+      toast('Template saved ✅');
+    } else { toast(d.error || 'Save failed'); }
+  } catch (err) { toast('Save failed: ' + err.message); }
+}
+
+// ── V2 checklist render ───────────────────────────────
+function buildChecklistV2(items) {
+  const container = document.getElementById('checklist-container');
+  container.innerHTML = '';
+  let qNum = 0;
+  items.forEach(item => {
+    if (item.itemType === 'section') {
+      const d = document.createElement('div');
+      d.className = 'section-title';
+      d.style.marginTop = '8px';
+      d.textContent = item.title;
+      container.appendChild(d);
+    } else if (item.itemType === 'question') {
+      if (item.type === 'instruction') {
+        const d = document.createElement('div');
+        d.style.cssText = 'background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:var(--radius);padding:14px;font-size:14px;color:var(--text-dim);line-height:1.5;';
+        d.textContent = item.text;
+        container.appendChild(d);
+        return;
+      }
+      qNum++;
+      const n = qNum;
+      const card = document.createElement('div');
+      card.className = 'question-card';
+      card.id = `qcard-${n}`;
+      const isOptional = item.required === false;
+      const optionalTag = isOptional ? `<span style="font-size:11px;color:var(--text-dim);font-weight:400;margin-left:6px;">(optional)</span>` : '';
+      let ansHtml = '';
+      if (item.type === 'yesno') {
+        ansHtml = `<div class="q-btns">
+          <button class="q-btn yes" data-q="${n}" data-val="yes" onclick="setAnswer(${n},'yes')">YES</button>
+          <button class="q-btn no"  data-q="${n}" data-val="no"  onclick="setAnswer(${n},'no')">NO</button>
+        </div>
+        <div class="finding-panel" id="finding-panel-${n}" style="display:none;">
+          <textarea id="finding-comment-${n}" placeholder="Describe the issue..." oninput="onFindingComment(${n})"></textarea>
+          <div class="finding-photo-row">
+            <label class="finding-photo-label" for="finding-photo-${n}">📷 Add photo</label>
+            <input type="file" class="finding-photo-input" id="finding-photo-${n}" accept="image/*" capture="environment" data-q="${n}">
+            <img id="finding-photo-preview-${n}" class="finding-photo-thumb" style="display:none;" alt="">
+          </div>
+        </div>`;
+      } else if (item.type === 'multichoice') {
+        ansHtml = `<div style="display:flex;flex-direction:column;gap:6px;" id="mc-${n}">
+          ${(item.options||[]).map((o,oi) => `<button class="q-btn" id="mc-opt-${n}-${oi}" style="text-align:left;padding:10px 14px;font-size:14px;font-weight:600;" onclick="setMcAnswer(${n},'${escHtml(o.id||o.label)}',${oi},'${item.id}')">${escHtml(o.label)}</button>`).join('')}
+        </div>
+        <div class="finding-panel" id="finding-panel-${n}" style="display:none;">
+          <textarea id="finding-comment-${n}" placeholder="Describe the issue..." oninput="onFindingComment(${n})"></textarea>
+        </div>`;
+      } else if (item.type === 'text') {
+        ansHtml = `<textarea id="text-ans-${n}" placeholder="Enter your answer…" oninput="setTextAnswer(${n},this.value)" maxlength="${item.maxLength||500}"
+          style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:15px;font-family:inherit;resize:vertical;min-height:80px;width:100%;outline:none;"></textarea>`;
+      } else if (item.type === 'number') {
+        ansHtml = `<div style="display:flex;gap:8px;align-items:center;">
+          <input type="number" id="num-ans-${n}" placeholder="0" oninput="setNumberAnswer(${n},this.value)"
+            style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:12px;border-radius:8px;font-size:18px;font-family:inherit;outline:none;">
+          ${item.unit ? `<span style="color:var(--text-dim);font-size:15px;">${escHtml(item.unit)}</span>` : ''}
+        </div>`;
+      } else if (item.type === 'slider') {
+        const initVal = item.min ?? 0;
+        answers[`q${n}`] = initVal;
+        ansHtml = `<div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+            <span style="color:var(--text-dim);font-size:13px;">${item.min??0}${item.unit?' '+escHtml(item.unit):''}</span>
+            <span id="slider-val-${n}" style="font-size:18px;font-weight:700;color:var(--accent);">${initVal}${item.unit?' '+escHtml(item.unit):''}</span>
+            <span style="color:var(--text-dim);font-size:13px;">${item.max??100}${item.unit?' '+escHtml(item.unit):''}</span>
+          </div>
+          <input type="range" id="slider-ans-${n}" min="${item.min??0}" max="${item.max??100}" value="${initVal}"
+            oninput="setSliderAnswer(${n},this.value,'${escHtml(item.unit||'')}')" style="width:100%;accent-color:var(--accent);">
+        </div>`;
+      } else if (item.type === 'signature') {
+        ansHtml = `<div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+            <span id="qsig-status-${n}" style="font-size:13px;color:var(--text-dim);">No signature yet</span>
+            <button onclick="clearQSig(${n})" style="background:none;border:none;color:var(--text-dim);font-size:12px;cursor:pointer;padding:2px 6px;">Clear</button>
+          </div>
+          <img id="qsig-preview-${n}" src="" alt="Signature" style="display:none;max-width:100%;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;">
+          <button onclick="openQSig(${n})" style="background:var(--surface);border:2px dashed var(--border);border-radius:8px;color:var(--text);padding:14px;width:100%;font-size:14px;cursor:pointer;font-family:inherit;font-weight:600;">✍ Tap to sign</button>
+        </div>`;
+      } else if (item.type === 'location') {
+        ansHtml = `<input type="text" id="loc-ans-${n}" placeholder="Enter location…" oninput="setTextAnswer(${n},this.value)"
+          style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:12px;border-radius:8px;font-size:15px;font-family:inherit;outline:none;">`;
+      } else if (item.type === 'equipment') {
+        ansHtml = `<input type="text" id="equip-ans-${n}" placeholder="Enter equipment…" oninput="setTextAnswer(${n},this.value)"
+          style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:12px;border-radius:8px;font-size:15px;font-family:inherit;outline:none;">`;
+      } else if (item.type === 'component') {
+        ansHtml = `<input type="text" id="comp-ans-${n}" placeholder="Enter component…" oninput="setTextAnswer(${n},this.value)"
+          style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:12px;border-radius:8px;font-size:15px;font-family:inherit;outline:none;">`;
+      }
+      // Photo attachment button (for types that support it)
+      const photoCapture = item.allowPhoto ? `
+        <div style="margin-top:8px;">
+          <label class="finding-photo-label" for="q-photo-${n}" style="display:inline-flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;cursor:pointer;">📷 Add photo</label>
+          <input type="file" class="finding-photo-input" id="q-photo-${n}" accept="image/*" capture="environment" data-q="${n}" style="display:none;">
+          <img id="q-photo-preview-${n}" style="display:none;max-width:100%;margin-top:6px;border-radius:8px;border:1px solid var(--border);" alt="">
+        </div>` : '';
+      card.innerHTML = `
+        <div class="q-text">
+          <span class="q-num">${n}.</span>
+          <div>
+            <div>${escHtml(item.text)}${optionalTag}</div>
+            ${item.hint ? `<div style="font-size:12px;color:var(--text-dim);margin-top:3px;">${escHtml(item.hint)}</div>` : ''}
+          </div>
+        </div>
+        ${ansHtml}
+        ${photoCapture}`;
+      container.appendChild(card);
+      // Attach event listeners for finding photos (yesno) and question photos
+      if (item.type === 'yesno') {
+        const findingPhoto = card.querySelector(`#finding-photo-${n}`);
+        if (findingPhoto) findingPhoto.addEventListener('change', handleFindingPhotoSelect);
+      }
+      if (item.allowPhoto) {
+        const qPhoto = card.querySelector(`#q-photo-${n}`);
+        if (qPhoto) qPhoto.addEventListener('change', handleQuestionPhotoSelect);
+      }
+    }
+  });
+}
+
+// ── V2 answer setters ─────────────────────────────────
+function setMcAnswer(n, optId, optIdx, qItemId) {
+  answers[`q${n}`] = optId;
+  const card = document.getElementById(`qcard-${n}`);
+  if (!card) return;
+  card.querySelectorAll(`#mc-${n} .q-btn`).forEach(b => b.classList.remove('selected', 'yes', 'no'));
+  const qItem = selectedTemplate?.items?.find(i => i.id === qItemId);
+  const opt = qItem?.options?.[optIdx];
+  const isFail = !!opt?.flagFail;
+  const btn = document.getElementById(`mc-opt-${n}-${optIdx}`);
+  if (btn) btn.classList.add('selected', isFail ? 'no' : 'yes');
+  card.classList.remove('answered-yes','answered-no','answered-na');
+  card.classList.add(isFail ? 'answered-no' : 'answered-yes');
+  const panel = document.getElementById(`finding-panel-${n}`);
+  if (panel) panel.style.display = isFail ? 'flex' : 'none';
+  document.getElementById('result-banner').style.display = 'none';
+  resultComputed = null;
+}
+
+function setTextAnswer(n, value) {
+  answers[`q${n}`] = value;
+  const card = document.getElementById(`qcard-${n}`);
+  if (card) { card.classList.remove('answered-yes','answered-no','answered-na'); if (value.trim()) card.classList.add('answered-yes'); }
+}
+
+function setNumberAnswer(n, value) {
+  const num = parseFloat(value);
+  answers[`q${n}`] = isNaN(num) ? undefined : num;
+  const card = document.getElementById(`qcard-${n}`);
+  if (card) { card.classList.remove('answered-yes','answered-no','answered-na'); if (!isNaN(num)) card.classList.add('answered-yes'); }
+  resultComputed = null;
+}
+
+function setSliderAnswer(n, value, unit) {
+  answers[`q${n}`] = parseFloat(value);
+  const el = document.getElementById(`slider-val-${n}`);
+  if (el) el.textContent = value + (unit ? ' ' + unit : '');
+  const card = document.getElementById(`qcard-${n}`);
+  if (card) { card.classList.remove('answered-yes','answered-no','answered-na'); card.classList.add('answered-yes'); }
+  resultComputed = null;
+}
+
+// ── V2 result compute ─────────────────────────────────
+function computeResultV2(items) {
+  const qs = items.filter(i => i.itemType === 'question' && i.type !== 'instruction');
+  for (let i = 0; i < qs.length; i++) {
+    const q = qs[i]; const val = answers[`q${i+1}`];
+    if (q.type === 'yesno' && val === false) return 'FAIL';
+    if (q.type === 'multichoice' && val !== undefined && val !== 'na') {
+      const opt = q.options?.find(o => (o.id || o.label) === val);
+      if (opt?.flagFail) return 'FAIL';
+    }
+  }
+  const requiredQs = qs.filter(q => q.required !== false);
+  const answered = requiredQs.filter((q, i) => {
+    const idx = qs.indexOf(q);
+    const val = answers[`q${idx+1}`];
+    return val !== undefined && val !== null && val !== '';
+  }).length;
+  if (answered === 0 && requiredQs.length > 0) return null;
+  return 'PASS';
 }
 
 // ── Confirm modal ─────────────────────────
