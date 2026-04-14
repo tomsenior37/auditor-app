@@ -967,6 +967,33 @@
       font-size: 14px;
       cursor: pointer;
     }
+    /* ── Issues ── */
+    .issue-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 14px; cursor: pointer;
+    }
+    .issue-card:active { opacity: 0.8; }
+    .issue-status {
+      font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px;
+      text-transform: uppercase; letter-spacing: .3px;
+    }
+    .issue-status.open { background: var(--fail); color: #fff; }
+    .issue-status.in_progress { background: #ff9800; color: #fff; }
+    .issue-status.resolved { background: var(--pass); color: #fff; }
+    .issue-status.closed { background: var(--text-dim); color: #fff; }
+    .issue-priority { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
+    .issue-priority.critical { background: rgba(224,92,58,0.2); color: var(--fail); }
+    .issue-priority.high { background: rgba(255,152,0,0.2); color: #ff9800; }
+    .issue-priority.medium { background: rgba(255,255,255,0.06); color: var(--text-dim); }
+    .issue-priority.low { background: rgba(58,173,92,0.1); color: var(--pass); }
+    .issue-timeline-item {
+      display: flex; gap: 10px; font-size: 13px; padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .issue-timeline-dot {
+      width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0;
+    }
+
     /* ── Asset database ── */
     .asset-tab {
       background: none; border: none; color: var(--text-dim);
@@ -1014,7 +1041,7 @@
     </select>
 
     <!-- Stats row -->
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;">
       <div onclick="showRecordsFiltered('PASS')" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 6px;text-align:center;cursor:pointer;">
         <div style="font-size:22px;font-weight:800;color:var(--pass);" id="stat-pass">0</div>
         <div style="font-size:10px;color:var(--text-dim);margin-top:2px;">Pass</div>
@@ -1027,9 +1054,13 @@
         <div style="font-size:22px;font-weight:800;color:#ff9800;" id="stat-wr">0</div>
         <div style="font-size:10px;color:var(--text-dim);margin-top:2px;">WR</div>
       </div>
-      <div onclick="showRecordsFiltered('SERVICEABLE')" style="background:var(--surface);border:1px solid var(--pass);border-radius:var(--radius);padding:10px 6px;text-align:center;cursor:pointer;">
+      <div onclick="showRecordsFiltered('SERVICEABLE')" style="background:var(--surface);border:1px solid var(--pass);border-radius:var(--radius);padding:10px 4px;text-align:center;cursor:pointer;">
         <div style="font-size:22px;font-weight:800;color:var(--pass);" id="stat-rect">0</div>
         <div style="font-size:10px;color:var(--text-dim);margin-top:2px;">Fixed</div>
+      </div>
+      <div onclick="showIssues()" style="background:var(--surface);border:1px solid var(--fail);border-radius:var(--radius);padding:10px 4px;text-align:center;cursor:pointer;">
+        <div style="font-size:22px;font-weight:800;color:var(--fail);" id="stat-issues">0</div>
+        <div style="font-size:10px;color:var(--text-dim);margin-top:2px;">Issues</div>
       </div>
     </div>
 
@@ -1227,6 +1258,30 @@
     </div>
   </div>
   <div class="results-body" id="results-body" style="padding-top:0;"></div>
+</div>
+
+<!-- ══════════════ ISSUES SCREEN ══════════════ -->
+<div class="screen" id="issues-screen">
+  <div style="padding:16px;display:flex;flex-direction:column;gap:12px;">
+    <!-- Filter bar -->
+    <div style="display:flex;gap:8px;">
+      <select id="issues-filter-status" onchange="renderIssuesList()" style="flex:1;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
+        <option value="active">Open & In Progress</option>
+        <option value="all">All Issues</option>
+        <option value="open">Open</option>
+        <option value="in_progress">In Progress</option>
+        <option value="resolved">Resolved</option>
+        <option value="closed">Closed</option>
+      </select>
+      <button onclick="createIssueManual()" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">＋ New</button>
+    </div>
+    <div id="issues-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+  </div>
+</div>
+
+<!-- ══════════════ ISSUE DETAIL SCREEN ══════════════ -->
+<div class="screen" id="issue-detail-screen">
+  <div style="padding:16px;display:flex;flex-direction:column;gap:12px;" id="issue-detail-body"></div>
 </div>
 
 <!-- ══════════════ ASSET DATABASE SCREEN ══════════════ -->
@@ -1499,6 +1554,46 @@ Building B,CNC Mill,</div>
     <div style="display:flex;gap:8px;">
       <button onclick="skipSendPlanner()" style="flex:1;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:13px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;">Skip</button>
       <button onclick="doSendPlannerNow()" style="flex:1;background:var(--accent);color:#fff;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;">&#128231; Send Report</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ CREATE ISSUE MODAL ══════════════ -->
+<div id="create-issue-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9999;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto;pointer-events:auto;touch-action:auto;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;max-width:480px;width:100%;display:flex;flex-direction:column;gap:12px;margin:auto;">
+    <div style="font-size:17px;font-weight:700;color:var(--accent);">⚠️ Create Issue</div>
+    <div class="field-group">
+      <label>Title *</label>
+      <input id="create-issue-title" type="text" placeholder="Brief description of the issue">
+    </div>
+    <div class="field-group">
+      <label>Description</label>
+      <textarea id="create-issue-desc" placeholder="Details, findings, observations..." style="min-height:80px;"></textarea>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <div class="field-group" style="flex:1;">
+        <label>Priority</label>
+        <select id="create-issue-priority" style="width:100%;">
+          <option value="low">Low</option>
+          <option value="medium" selected>Medium</option>
+          <option value="high">High</option>
+          <option value="critical">Critical</option>
+        </select>
+      </div>
+      <div class="field-group" style="flex:1;">
+        <label>Due Date</label>
+        <input id="create-issue-due" type="date" style="width:100%;">
+      </div>
+    </div>
+    <div class="field-group">
+      <label>Assign To (Planner)</label>
+      <select id="create-issue-assignee" style="width:100%;">
+        <option value="">— Select —</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:4px;">
+      <button onclick="closeCreateIssueModal()" style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:14px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
+      <button onclick="submitCreateIssue()" style="flex:1;background:var(--accent);border:none;color:#fff;border-radius:10px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;">Create Issue</button>
     </div>
   </div>
 </div>
@@ -1785,6 +1880,7 @@ document.addEventListener('DOMContentLoaded', () => {
   loadStats();
   loadLists();
   loadPlanners();
+  loadIssues();
 
   document.getElementById('new-location').addEventListener('keydown', e => { if (e.key === 'Enter') addLocation(); });
   document.getElementById('new-machine').addEventListener('keydown', e => { if (e.key === 'Enter') addMachine(); });
@@ -2222,11 +2318,11 @@ async function submitInspection() {
     if (!res.ok) throw new Error('Server error');
     const saved = await res.json();
     await loadStats();
-    if (result === 'FAIL' && planners.length) {
-      // Show send-to-planner prompt for failed inspections
-      showSendPlannerModal(saved.id || null);
+    if (result === 'FAIL') {
+      // Create issue for failed inspection
+      createIssueFromInspection(saved.id || null);
     } else {
-      toast(result === 'PASS' ? '✅ Inspection saved — PASS' : '❌ Inspection saved — FAIL');
+      toast('✅ Inspection saved — PASS');
       setTimeout(() => goHome(), 1200);
     }
   } catch (err) {
@@ -2293,6 +2389,390 @@ function showRecordsFiltered(filterValue) {
 function showResults() {
   renderResults();
   switchScreen('results-screen', 'Results by Location');
+}
+
+// ══════════════════════════════════════════════════════
+// ISSUES & ACTIONS
+// ══════════════════════════════════════════════════════
+let _issues = [];
+
+async function loadIssues() {
+  try { const r = await fetch('/api/issues'); _issues = await r.json(); } catch { _issues = []; }
+  updateIssuesBadge();
+}
+
+function updateIssuesBadge() {
+  const openCount = _issues.filter(i => i.status === 'open' || i.status === 'in_progress').length;
+  const badge = document.getElementById('issues-badge');
+  if (badge) {
+    badge.textContent = openCount;
+    badge.style.display = openCount > 0 ? 'flex' : 'none';
+  }
+  // Also update home dashboard
+  const homeEl = document.getElementById('stat-issues');
+  if (homeEl) homeEl.textContent = openCount;
+}
+
+function showIssues() {
+  switchScreen('issues-screen', 'Issues & Actions');
+  loadIssues().then(() => renderIssuesList());
+}
+
+function renderIssuesList() {
+  const filter = document.getElementById('issues-filter-status')?.value || 'active';
+  let filtered = _issues;
+  if (filter === 'active') filtered = _issues.filter(i => i.status === 'open' || i.status === 'in_progress');
+  else if (filter !== 'all') filtered = _issues.filter(i => i.status === filter);
+
+  const el = document.getElementById('issues-list');
+  if (!filtered.length) {
+    el.innerHTML = `<div style="color:var(--text-dim);text-align:center;padding:30px 0;">${filter === 'active' ? 'No open issues' : 'No issues found'}</div>`;
+    return;
+  }
+  el.innerHTML = filtered.map(issue => {
+    const age = timeAgo(issue.createdAt);
+    const assignee = issue.assignedTo ? escHtml(issue.assignedTo.name) : '<span style="color:var(--text-dim);">Unassigned</span>';
+    const dueBadge = issue.dueDate ? dueLabel(issue.dueDate) : '';
+    return `<div class="issue-card" onclick="openIssueDetail('${issue.id}')">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px;">
+        <div style="font-weight:700;font-size:14px;flex:1;min-width:0;">${escHtml(issue.title)}</div>
+        <div style="display:flex;gap:4px;flex-shrink:0;">
+          <span class="issue-priority ${issue.priority}">${issue.priority}</span>
+          <span class="issue-status ${issue.status}">${issue.status.replace('_', ' ')}</span>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--text-dim);display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
+        <span>${escHtml(issue.id)}</span>
+        <span>·</span>
+        <span>${assignee}</span>
+        <span>·</span>
+        <span>${age}</span>
+        ${dueBadge}
+        ${issue.comments?.length ? `<span>· 💬 ${issue.comments.length}</span>` : ''}
+      </div>
+      <div style="font-size:12px;color:var(--text-dim);margin-top:4px;">${escHtml(issue.location || '')}${issue.machine ? ' › ' + escHtml(issue.machine) : ''}${issue.component ? ' › ' + escHtml(issue.component) : ''}</div>
+    </div>`;
+  }).join('');
+}
+
+function timeAgo(dateStr) {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return mins + 'm ago';
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return hrs + 'h ago';
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return days + 'd ago';
+  return Math.floor(days / 30) + 'mo ago';
+}
+
+function dueLabel(dateStr) {
+  const due = new Date(dateStr);
+  const now = new Date();
+  const diffDays = Math.ceil((due - now) / 86400000);
+  if (diffDays < 0) return `<span style="color:var(--fail);font-weight:600;">Overdue ${Math.abs(diffDays)}d</span>`;
+  if (diffDays === 0) return `<span style="color:#ff9800;font-weight:600;">Due today</span>`;
+  if (diffDays <= 3) return `<span style="color:#ff9800;">Due in ${diffDays}d</span>`;
+  return `<span>Due in ${diffDays}d</span>`;
+}
+
+// ── Issue Detail ─────────────────────────────────────
+async function openIssueDetail(id) {
+  switchScreen('issue-detail-screen', 'Issue Detail');
+  const body = document.getElementById('issue-detail-body');
+  body.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-dim);">Loading...</div>';
+  try {
+    const r = await fetch('/api/issues/' + id);
+    const issue = await r.json();
+    renderIssueDetail(issue);
+  } catch { body.innerHTML = '<div style="color:var(--fail);text-align:center;padding:30px;">Failed to load issue</div>'; }
+}
+
+function renderIssueDetail(issue) {
+  const body = document.getElementById('issue-detail-body');
+  const statusOpts = ['open', 'in_progress', 'resolved', 'closed'].map(s =>
+    `<option value="${s}"${issue.status === s ? ' selected' : ''}>${s.replace('_', ' ').toUpperCase()}</option>`).join('');
+  const priorityOpts = ['low', 'medium', 'high', 'critical'].map(p =>
+    `<option value="${p}"${issue.priority === p ? ' selected' : ''}>${p.charAt(0).toUpperCase() + p.slice(1)}</option>`).join('');
+  const plannerOpts = '<option value="">Unassigned</option>' + planners.map(p =>
+    `<option value="${escHtml(p.email)}" data-name="${escHtml(p.name)}"${issue.assignedTo?.email === p.email ? ' selected' : ''}>${escHtml(p.name)}</option>`).join('');
+
+  const dateStr = new Date(issue.createdAt).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+  // Photos section
+  const photosHtml = (issue.photos || []).map(p => `
+    <img src="/photos/${p.filename}" alt="" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:1px solid var(--border);cursor:pointer;" onclick="window.open('/photos/${p.filename}','_blank')">`).join('');
+
+  // Comments
+  const commentsHtml = (issue.comments || []).map(c => {
+    const cDate = new Date(c.timestamp).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+    return `<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+        <span style="font-weight:600;font-size:13px;">${escHtml(c.author)}</span>
+        <span style="font-size:11px;color:var(--text-dim);">${cDate}</span>
+      </div>
+      <div style="font-size:14px;line-height:1.5;">${escHtml(c.text)}</div>
+    </div>`;
+  }).join('');
+
+  // History timeline
+  const historyHtml = (issue.history || []).map(h => {
+    const hDate = new Date(h.at).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+    let desc = '';
+    const dotColor = 'var(--text-dim)';
+    if (h.action === 'created') desc = `Issue created by ${escHtml(h.by)}`;
+    else if (h.action === 'status_changed') desc = `Status: ${h.from} → <strong>${h.to}</strong> by ${escHtml(h.by)}`;
+    else if (h.action === 'assigned') desc = `Assigned to <strong>${escHtml(h.to)}</strong> by ${escHtml(h.by)}`;
+    else if (h.action === 'priority_changed') desc = `Priority: ${h.from} → <strong>${h.to}</strong> by ${escHtml(h.by)}`;
+    else if (h.action === 'comment_added') desc = `Comment by ${escHtml(h.by)}`;
+    else desc = `${h.action} by ${escHtml(h.by || 'System')}`;
+    return `<div class="issue-timeline-item">
+      <div class="issue-timeline-dot" style="background:${dotColor};"></div>
+      <div style="flex:1;"><div>${desc}</div><div style="font-size:11px;color:var(--text-dim);">${hDate}</div></div>
+    </div>`;
+  }).join('');
+
+  body.innerHTML = `
+    <!-- Header -->
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+      <span style="font-family:monospace;font-size:13px;color:var(--text-dim);">${escHtml(issue.id)}</span>
+      <span class="issue-status ${issue.status}">${issue.status.replace('_', ' ')}</span>
+      <span class="issue-priority ${issue.priority}">${issue.priority}</span>
+    </div>
+    <div style="font-weight:700;font-size:18px;line-height:1.3;">${escHtml(issue.title)}</div>
+    <div style="font-size:12px;color:var(--text-dim);">Created ${dateStr} by ${escHtml(issue.createdBy || 'System')}</div>
+
+    <!-- Location info -->
+    ${issue.location ? `<div style="font-size:13px;color:var(--text-dim);background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;">
+      📍 ${escHtml(issue.location)}${issue.machine ? ' › ' + escHtml(issue.machine) : ''}${issue.component ? ' › ' + escHtml(issue.component) : ''}
+      ${issue.templateName ? `<br>📋 ${escHtml(issue.templateName)}` : ''}
+      ${issue.inspectionId ? `<br><a href="/api/report/${issue.inspectionId}" target="_blank" style="color:var(--accent);text-decoration:none;">📄 View inspection report</a>` : ''}
+    </div>` : ''}
+
+    <!-- Description -->
+    ${issue.description ? `<div style="font-size:14px;line-height:1.5;padding:10px;background:var(--surface);border:1px solid var(--border);border-radius:8px;">${escHtml(issue.description)}</div>` : ''}
+
+    <!-- Controls -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;gap:10px;">
+      <div style="display:flex;gap:8px;">
+        <div style="flex:1;">
+          <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;margin-bottom:4px;">Status</div>
+          <select onchange="updateIssueField('${issue.id}','status',this.value)" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">${statusOpts}</select>
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;margin-bottom:4px;">Priority</div>
+          <select onchange="updateIssueField('${issue.id}','priority',this.value)" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">${priorityOpts}</select>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;margin-bottom:4px;">Assigned To</div>
+        <select onchange="updateIssueAssignee('${issue.id}',this)" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">${plannerOpts}</select>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <div style="flex:1;">
+          <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;margin-bottom:4px;">Due Date</div>
+          <input type="date" value="${issue.dueDate || ''}" onchange="updateIssueField('${issue.id}','dueDate',this.value)"
+            style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;margin-bottom:4px;">Work Order #</div>
+          <input type="text" value="${escHtml(issue.workOrderNumber || '')}" placeholder="WO-..." onchange="updateIssueField('${issue.id}','workOrderNumber',this.value)"
+            style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
+        </div>
+      </div>
+    </div>
+
+    <!-- Photos -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;">
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text-dim);margin-bottom:8px;">Photos</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;">${photosHtml || '<span style="color:var(--text-dim);font-size:13px;">No photos</span>'}</div>
+      <label style="display:inline-flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--text-dim);cursor:pointer;">
+        📷 Add Photo
+        <input type="file" accept="image/*" capture="environment" onchange="uploadIssuePhoto('${issue.id}',this)" style="display:none;">
+      </label>
+    </div>
+
+    <!-- Comments -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;">
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text-dim);margin-bottom:8px;">Comments (${issue.comments?.length || 0})</div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;">${commentsHtml || '<div style="color:var(--text-dim);font-size:13px;">No comments yet</div>'}</div>
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="issue-comment-input" placeholder="Add a comment..." style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
+        <button onclick="addIssueComment('${issue.id}')" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:10px 14px;font-size:14px;font-weight:700;cursor:pointer;">Send</button>
+      </div>
+    </div>
+
+    <!-- Timeline -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;">
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text-dim);margin-bottom:8px;">Activity Timeline</div>
+      ${historyHtml}
+    </div>
+
+    <!-- Email report to assignee -->
+    ${issue.assignedTo ? `<button onclick="emailIssueReport('${issue.id}')" class="btn-secondary" style="font-size:14px;">📧 Email Report to ${escHtml(issue.assignedTo.name)}</button>` : ''}
+
+    <!-- Delete -->
+    <button onclick="deleteIssue('${issue.id}')" style="background:none;border:1px solid var(--fail);color:var(--fail);border-radius:var(--radius);padding:12px;font-size:14px;font-weight:600;cursor:pointer;width:100%;font-family:inherit;">Delete Issue</button>
+  `;
+}
+
+async function updateIssueField(id, field, value) {
+  const inspector = localStorage.getItem('inspector_name') || 'User';
+  const payload = { [field]: value, _updatedBy: inspector };
+  try {
+    const r = await fetch('/api/issues/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const d = await r.json();
+    if (d.success) { renderIssueDetail(d.issue); loadIssues(); toast('Updated'); }
+  } catch { toast('Update failed'); }
+}
+
+async function updateIssueAssignee(id, select) {
+  const email = select.value;
+  const name = select.options[select.selectedIndex]?.dataset?.name || '';
+  const assignedTo = email ? { name, email } : null;
+  const inspector = localStorage.getItem('inspector_name') || 'User';
+  try {
+    const r = await fetch('/api/issues/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ assignedTo, _updatedBy: inspector }) });
+    const d = await r.json();
+    if (d.success) { renderIssueDetail(d.issue); toast('Assigned'); }
+  } catch { toast('Update failed'); }
+}
+
+async function addIssueComment(id) {
+  const input = document.getElementById('issue-comment-input');
+  const text = input?.value.trim();
+  if (!text) return;
+  const author = localStorage.getItem('inspector_name') || 'User';
+  try {
+    const r = await fetch(`/api/issues/${id}/comment`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ author, text }) });
+    const d = await r.json();
+    if (d.success) { renderIssueDetail(d.issue); }
+  } catch { toast('Failed to add comment'); }
+}
+
+async function uploadIssuePhoto(id, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const fd = new FormData();
+  fd.append('photo', file);
+  try {
+    const r = await fetch(`/api/issues/${id}/photo`, { method: 'POST', body: fd });
+    const d = await r.json();
+    if (d.success) { renderIssueDetail(d.issue); toast('Photo added'); }
+  } catch { toast('Upload failed'); }
+}
+
+async function deleteIssue(id) {
+  showConfirmModal('Delete this issue permanently?', async () => {
+    await fetch('/api/issues/' + id, { method: 'DELETE' });
+    loadIssues();
+    showIssues();
+    toast('Issue deleted');
+  });
+}
+
+async function emailIssueReport(id) {
+  const issue = _issues.find(i => i.id === id);
+  if (!issue || !issue.assignedTo || !issue.inspectionId) return toast('No inspection report to send');
+  toast('Sending...');
+  try {
+    const r = await fetch('/api/email/send-report', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ inspectionId: issue.inspectionId, plannerEmail: issue.assignedTo.email, plannerName: issue.assignedTo.name }) });
+    const d = await r.json();
+    if (d.success) toast('Report sent to ' + issue.assignedTo.name);
+    else toast('Send failed: ' + d.error);
+  } catch { toast('Send failed'); }
+}
+
+// ── Create issue from failed inspection ──────────────
+function createIssueFromInspection(inspectionId) {
+  _pendingFailInspectionId = inspectionId;
+  // Find the inspection data
+  const insp = inspections?.find(r => r.id === inspectionId);
+  // Build description from findings
+  let desc = '';
+  if (insp?.findings) {
+    Object.entries(insp.findings).forEach(([key, f]) => {
+      if (f.comment) desc += `${key}: ${f.comment}\n`;
+    });
+  }
+  // Populate the create issue modal
+  document.getElementById('create-issue-title').value = `Failed audit — ${insp?.machine || ''} ${insp?.guardId ? '(' + insp.guardId + ')' : ''}`.trim();
+  document.getElementById('create-issue-desc').value = desc.trim();
+  document.getElementById('create-issue-priority').value = 'high';
+  // Due date default: 7 days from now
+  const due = new Date(); due.setDate(due.getDate() + 7);
+  document.getElementById('create-issue-due').value = due.toISOString().split('T')[0];
+  // Planner dropdown
+  const sel = document.getElementById('create-issue-assignee');
+  sel.innerHTML = '<option value="">— Select —</option>' + planners.map(p =>
+    `<option value="${escHtml(p.email)}" data-name="${escHtml(p.name)}">${escHtml(p.name)}</option>`).join('');
+  // Store context
+  document.getElementById('create-issue-modal').dataset.inspectionId = inspectionId;
+  document.getElementById('create-issue-modal').dataset.location = insp?.location || '';
+  document.getElementById('create-issue-modal').dataset.machine = insp?.machine || '';
+  document.getElementById('create-issue-modal').dataset.component = insp?.guardId || '';
+  document.getElementById('create-issue-modal').dataset.templateName = insp?.templateName || '';
+  document.getElementById('create-issue-modal').dataset.createdBy = insp?.inspector || '';
+  document.getElementById('create-issue-modal').style.display = 'flex';
+}
+
+function closeCreateIssueModal() {
+  document.getElementById('create-issue-modal').style.display = 'none';
+}
+
+async function submitCreateIssue() {
+  const modal = document.getElementById('create-issue-modal');
+  const title = document.getElementById('create-issue-title').value.trim();
+  if (!title) return toast('Title required');
+  const assigneeSel = document.getElementById('create-issue-assignee');
+  const email = assigneeSel.value;
+  const name = assigneeSel.options[assigneeSel.selectedIndex]?.dataset?.name || '';
+  const payload = {
+    inspectionId: modal.dataset.inspectionId || null,
+    templateName: modal.dataset.templateName || '',
+    title,
+    description: document.getElementById('create-issue-desc').value.trim(),
+    location: modal.dataset.location || '',
+    machine: modal.dataset.machine || '',
+    component: modal.dataset.component || '',
+    priority: document.getElementById('create-issue-priority').value,
+    assignedTo: email ? { name, email } : null,
+    dueDate: document.getElementById('create-issue-due').value || null,
+    createdBy: modal.dataset.createdBy || localStorage.getItem('inspector_name') || 'Inspector'
+  };
+  try {
+    const r = await fetch('/api/issues', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const d = await r.json();
+    if (d.success) {
+      closeCreateIssueModal();
+      loadIssues();
+      toast('Issue ' + d.issue.id + ' created');
+      // Send email if planner assigned and inspection exists
+      if (payload.assignedTo && payload.inspectionId) {
+        sendReportToPlanner(payload.inspectionId, payload.assignedTo.email, payload.assignedTo.name);
+      }
+      setTimeout(() => goHome(), 1200);
+    }
+  } catch { toast('Failed to create issue'); }
+}
+
+function createIssueManual() {
+  document.getElementById('create-issue-title').value = '';
+  document.getElementById('create-issue-desc').value = '';
+  document.getElementById('create-issue-priority').value = 'medium';
+  document.getElementById('create-issue-due').value = '';
+  const sel = document.getElementById('create-issue-assignee');
+  sel.innerHTML = '<option value="">— Select —</option>' + planners.map(p =>
+    `<option value="${escHtml(p.email)}" data-name="${escHtml(p.name)}">${escHtml(p.name)}</option>`).join('');
+  const modal = document.getElementById('create-issue-modal');
+  modal.dataset.inspectionId = '';
+  modal.dataset.location = '';
+  modal.dataset.machine = '';
+  modal.dataset.component = '';
+  modal.dataset.templateName = '';
+  modal.dataset.createdBy = localStorage.getItem('inspector_name') || '';
+  modal.style.display = 'flex';
 }
 
 // ══════════════════════════════════════════════════════
@@ -2631,11 +3111,34 @@ async function loadAssetHistory() {
             ${insp.location ? `<div>Location: ${escHtml(insp.location)}${insp.machine ? ' › ' + escHtml(insp.machine) : ''}${insp.guardId ? ' › ' + escHtml(insp.guardId) : ''}</div>` : ''}
             ${insp.notes ? `<div style="margin-top:4px;font-style:italic;">"${escHtml(insp.notes)}"</div>` : ''}
           </div>
-          ${insp.result === 'FAIL' ? `<div style="margin-top:8px;">
-            <a href="/api/report/${insp.id}" target="_blank" style="color:var(--accent);font-size:13px;font-weight:600;text-decoration:none;">📄 View Report</a>
-          </div>` : ''}
+          ${insp.result === 'FAIL' ? (() => {
+            const linkedIssue = _issues.find(iss => iss.inspectionId === insp.id);
+            return `<div style="margin-top:8px;display:flex;gap:10px;align-items:center;">
+              <a href="/api/report/${insp.id}" target="_blank" style="color:var(--accent);font-size:13px;font-weight:600;text-decoration:none;">📄 View Report</a>
+              ${linkedIssue ? `<span onclick="openIssueDetail('${linkedIssue.id}')" style="color:var(--fail);font-size:13px;font-weight:600;cursor:pointer;">⚠️ ${linkedIssue.id} (${linkedIssue.status.replace('_',' ')})</span>` : ''}
+            </div>`;
+          })() : ''}
         </div>`;
       }).join('');
+
+    // Show linked issues section
+    const assetIssues = _issues.filter(iss => {
+      if (_assetNav._detailComp && iss.component === _assetNav._detailComp) return true;
+      if (!_assetNav._detailComp && _assetNav._detailMac && iss.machine === _assetNav._detailMac && iss.location === _assetNav._detailLoc) return true;
+      if (!_assetNav._detailMac && iss.location === _assetNav._detailLoc) return true;
+      return false;
+    });
+    if (assetIssues.length) {
+      el.innerHTML = `<div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--accent);letter-spacing:.5px;margin-bottom:6px;">Open Issues (${assetIssues.filter(i=>i.status==='open'||i.status==='in_progress').length})</div>` +
+        assetIssues.slice(0, 10).map(iss => `<div class="issue-card" onclick="openIssueDetail('${iss.id}')" style="margin-bottom:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-weight:600;font-size:13px;">${escHtml(iss.title)}</span>
+            <span class="issue-status ${iss.status}">${iss.status.replace('_',' ')}</span>
+          </div>
+          <div style="font-size:12px;color:var(--text-dim);">${escHtml(iss.id)} · ${timeAgo(iss.createdAt)}</div>
+        </div>`).join('') +
+        `<div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text-dim);letter-spacing:.5px;margin:12px 0 6px;">Inspection History (${history.length})</div>` + el.innerHTML.split('</div>').slice(1).join('</div>');
+    }
   } catch { el.innerHTML = '<div style="color:var(--fail);text-align:center;padding:20px;">Failed to load history.</div>'; }
 }
 
@@ -5072,11 +5575,11 @@ async function doRestoreGuard(guardId, location, machine) {
     <span class="nav-icon" style="background:var(--accent);color:#fff;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;margin-top:-12px;">＋</span>
     <span style="margin-top:-2px;">Audit</span>
   </button>
-  <button onclick="showTemplates()" data-nav="templates-screen">
-    <span class="nav-icon">📋</span>Templates
+  <button onclick="showIssues()" data-nav="issues-screen">
+    <span class="nav-icon" style="position:relative;">⚠️<span id="issues-badge" style="display:none;position:absolute;top:-4px;right:-8px;background:var(--fail);color:#fff;font-size:9px;font-weight:800;min-width:16px;height:16px;border-radius:8px;display:none;align-items:center;justify-content:center;padding:0 4px;">0</span></span>Issues
   </button>
   <button onclick="showSetup()" data-nav="setup-screen">
-    <span class="nav-icon">⚙️</span>Settings
+    <span class="nav-icon">⚙️</span>More
   </button>
 </nav>
 

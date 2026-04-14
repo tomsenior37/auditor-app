@@ -14,6 +14,7 @@ const ARCHIVE_FILE = path.join(__dirname, 'archive.json');
 const TEMPLATES_FILE = path.join(__dirname, 'templates.json');
 const EMAIL_CONFIG_FILE = path.join(__dirname, 'emailConfig.json');
 const ASSETS_FILE = path.join(__dirname, 'assets.json');
+const ISSUES_FILE = path.join(__dirname, 'issues.json');
 const PHOTOS_DIR = path.join(__dirname, 'photos');
 const DOCS_DIR = path.join(__dirname, 'documents');
 
@@ -107,6 +108,20 @@ function writeAssets(data) {
 
 function assetKey(location, machine, component) {
   return [location || '', machine || '', component || ''].join('::');
+}
+
+function readIssues() {
+  if (!fs.existsSync(ISSUES_FILE)) return [];
+  try { return JSON.parse(fs.readFileSync(ISSUES_FILE, 'utf8')); } catch { return []; }
+}
+
+function writeIssues(data) {
+  fs.writeFileSync(ISSUES_FILE, JSON.stringify(data, null, 2), 'utf8');
+}
+
+function nextIssueId(issues) {
+  const nums = issues.map(i => parseInt((i.id || '').replace('ISS-', '')) || 0);
+  return 'ISS-' + String(Math.max(0, ...nums) + 1).padStart(4, '0');
 }
 
 function readArchive() {
@@ -636,6 +651,112 @@ app.get('/api/asset/history', (req, res) => {
     return true;
   });
   res.json(filtered);
+});
+
+// ── Issues & Actions API ───────────────────────────────
+app.get('/api/issues', (req, res) => {
+  res.json(readIssues());
+});
+
+app.get('/api/issues/:id', (req, res) => {
+  const issues = readIssues();
+  const issue = issues.find(i => i.id === req.params.id);
+  if (!issue) return res.status(404).json({ error: 'Not found' });
+  res.json(issue);
+});
+
+app.post('/api/issues', (req, res) => {
+  const issues = readIssues();
+  const id = nextIssueId(issues);
+  const issue = {
+    id,
+    inspectionId: req.body.inspectionId || null,
+    templateName: req.body.templateName || '',
+    title: req.body.title || 'Untitled Issue',
+    description: req.body.description || '',
+    location: req.body.location || '',
+    machine: req.body.machine || '',
+    component: req.body.component || '',
+    status: 'open',
+    priority: req.body.priority || 'medium',
+    assignedTo: req.body.assignedTo || null,
+    createdBy: req.body.createdBy || '',
+    createdAt: new Date().toISOString(),
+    dueDate: req.body.dueDate || null,
+    resolvedAt: null,
+    workOrderNumber: '',
+    photos: req.body.photos || [],
+    findings: req.body.findings || {},
+    comments: [],
+    history: [{ action: 'created', by: req.body.createdBy || 'System', at: new Date().toISOString() }]
+  };
+  issues.unshift(issue);
+  writeIssues(issues);
+  res.json({ success: true, issue });
+});
+
+app.patch('/api/issues/:id', (req, res) => {
+  const issues = readIssues();
+  const idx = issues.findIndex(i => i.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Not found' });
+  const issue = issues[idx];
+  const changes = req.body;
+  const by = changes._updatedBy || 'System';
+  delete changes._updatedBy;
+
+  // Track status changes in history
+  if (changes.status && changes.status !== issue.status) {
+    issue.history.push({ action: 'status_changed', from: issue.status, to: changes.status, by, at: new Date().toISOString() });
+    if (changes.status === 'resolved' || changes.status === 'closed') {
+      issue.resolvedAt = new Date().toISOString();
+    }
+  }
+  if (changes.assignedTo && (!issue.assignedTo || changes.assignedTo.email !== issue.assignedTo.email)) {
+    issue.history.push({ action: 'assigned', to: changes.assignedTo.name, by, at: new Date().toISOString() });
+  }
+  if (changes.priority && changes.priority !== issue.priority) {
+    issue.history.push({ action: 'priority_changed', from: issue.priority, to: changes.priority, by, at: new Date().toISOString() });
+  }
+
+  Object.assign(issue, changes);
+  issue.updatedAt = new Date().toISOString();
+  writeIssues(issues);
+  res.json({ success: true, issue });
+});
+
+app.post('/api/issues/:id/comment', (req, res) => {
+  const issues = readIssues();
+  const issue = issues.find(i => i.id === req.params.id);
+  if (!issue) return res.status(404).json({ error: 'Not found' });
+  const comment = {
+    id: uuidv4().slice(0, 8),
+    author: req.body.author || 'Unknown',
+    text: req.body.text || '',
+    timestamp: new Date().toISOString()
+  };
+  issue.comments.push(comment);
+  issue.history.push({ action: 'comment_added', by: comment.author, at: comment.timestamp });
+  issue.updatedAt = new Date().toISOString();
+  writeIssues(issues);
+  res.json({ success: true, comment, issue });
+});
+
+app.post('/api/issues/:id/photo', upload.single('photo'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file' });
+  const issues = readIssues();
+  const issue = issues.find(i => i.id === req.params.id);
+  if (!issue) return res.status(404).json({ error: 'Not found' });
+  issue.photos.push({ filename: req.file.filename, originalName: req.file.originalname, uploadedAt: new Date().toISOString() });
+  issue.updatedAt = new Date().toISOString();
+  writeIssues(issues);
+  res.json({ success: true, photo: req.file.filename, issue });
+});
+
+app.delete('/api/issues/:id', (req, res) => {
+  let issues = readIssues();
+  issues = issues.filter(i => i.id !== req.params.id);
+  writeIssues(issues);
+  res.json({ success: true });
 });
 
 // ── Planners API ────────────────────────────────────
