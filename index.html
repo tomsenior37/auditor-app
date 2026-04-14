@@ -1275,6 +1275,20 @@
       </select>
       <button onclick="createRectManual()" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">＋ New</button>
     </div>
+    <!-- Batch actions bar -->
+    <div id="rects-batch-bar" style="display:none;background:var(--surface);border:1px solid var(--accent);border-radius:8px;padding:10px;display:none;flex-direction:column;gap:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span id="rects-batch-count" style="font-size:13px;font-weight:600;">0 selected</span>
+        <div style="display:flex;gap:6px;">
+          <button onclick="batchSendRects()" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;">📧 Send to Planner</button>
+          <button onclick="toggleRectBatchMode(false)" style="background:var(--surface);color:var(--text-dim);border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-size:12px;cursor:pointer;">Cancel</button>
+        </div>
+      </div>
+      <select id="rects-batch-planner" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;"></select>
+    </div>
+    <div style="text-align:right;">
+      <button id="rects-batch-toggle" onclick="toggleRectBatchMode(true)" style="background:none;border:none;color:var(--accent);font-size:12px;font-weight:600;cursor:pointer;padding:4px 0;">Select multiple →</button>
+    </div>
     <div id="rects-list" style="display:flex;flex-direction:column;gap:8px;"></div>
   </div>
 </div>
@@ -1569,6 +1583,16 @@ Building B,CNC Mill,</div>
     <span style="font-size:12px;color:var(--text-dim);">Stroke:</span>
     <input type="range" id="ann-stroke" min="2" max="12" value="4" style="width:100px;accent-color:var(--accent);">
     <button onclick="annotateCancel()" style="background:var(--surface);color:var(--text-dim);border:1px solid var(--border);border-radius:8px;padding:6px 14px;font-size:13px;cursor:pointer;margin-left:auto;">Cancel</button>
+  </div>
+</div>
+
+<!-- ══════════════ FAIL OPTIONS MODAL ══════════════ -->
+<div id="fail-options-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;align-items:center;justify-content:center;padding:20px;pointer-events:auto;touch-action:auto;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px 20px;max-width:420px;width:100%;display:flex;flex-direction:column;gap:14px;">
+    <div style="font-size:18px;font-weight:700;color:var(--fail);">&#x274C; Inspection Failed</div>
+    <div style="font-size:14px;color:var(--text-dim);">The inspection has been saved. What would you like to do?</div>
+    <button onclick="failOptionCreateRect()" style="background:var(--accent);color:#fff;border:none;border-radius:10px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;width:100%;">⚠️ Create Rectification</button>
+    <button onclick="failOptionSaveOnly()" style="background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:14px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;width:100%;">Save Only — No Action</button>
   </div>
 </div>
 
@@ -2409,6 +2433,7 @@ async function submitInspection() {
   if (!location || location === '__add_new__')  return toast('⚠ Location is required');
   if (!machine  || machine === '__add_new__')   return toast('⚠ Machine name is required');
   if (!inspector) return toast('⚠ Inspector is required');
+  if (!hasSig) return toast('⚠ Signature is required');
   // Guard ID only required if template has component
   if (selectedTemplate?.requiresComponent && (!guardId || guardId === '__add_new__')) return toast('⚠ ' + (selectedTemplate.componentType || 'Component') + ' ID is required');
 
@@ -2490,8 +2515,8 @@ async function submitInspection() {
     const saved = await res.json();
     await loadStats();
     if (result === 'FAIL') {
-      // Create rectification for failed inspection
-      createRectFromInspection(saved.id || null);
+      // Show fail options: create rectification or just save
+      showFailOptionsModal(saved.id || null);
     } else {
       toast('✅ Inspection saved — PASS');
       setTimeout(() => goHome(), 1200);
@@ -2589,6 +2614,58 @@ function showRects() {
   loadRects().then(() => renderRectsList());
 }
 
+let _rectBatchMode = false;
+let _rectBatchSelected = new Set();
+
+function toggleRectBatchMode(on) {
+  _rectBatchMode = on;
+  _rectBatchSelected.clear();
+  const bar = document.getElementById('rects-batch-bar');
+  const toggle = document.getElementById('rects-batch-toggle');
+  bar.style.display = on ? 'flex' : 'none';
+  toggle.style.display = on ? 'none' : '';
+  if (on) {
+    const sel = document.getElementById('rects-batch-planner');
+    sel.innerHTML = planners.map(p => `<option value="${escHtml(p.email)}" data-name="${escHtml(p.name)}">${escHtml(p.name)}</option>`).join('');
+  }
+  renderRectsList();
+}
+
+function toggleRectBatchItem(id) {
+  if (_rectBatchSelected.has(id)) _rectBatchSelected.delete(id);
+  else _rectBatchSelected.add(id);
+  document.getElementById('rects-batch-count').textContent = _rectBatchSelected.size + ' selected';
+  renderRectsList();
+}
+
+async function batchSendRects() {
+  if (!_rectBatchSelected.size) return toast('Select rectifications first');
+  const sel = document.getElementById('rects-batch-planner');
+  const email = sel.value;
+  const name = sel.options[sel.selectedIndex]?.dataset?.name || '';
+  if (!email) return toast('Select a planner');
+  toast('Sending...');
+  let sent = 0;
+  for (const rectId of _rectBatchSelected) {
+    const rect = _rects.find(r => r.id === rectId);
+    if (rect?.inspectionId) {
+      try {
+        await fetch('/api/email/send-report', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ inspectionId: rect.inspectionId, plannerEmail: email, plannerName: name, rectId }) });
+        sent++;
+      } catch {}
+    }
+    // Assign planner to rect if not already assigned
+    if (!rect?.assignedTo || rect.assignedTo.email !== email) {
+      await fetch('/api/rectifications/' + rectId, { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assignedTo: { name, email }, _updatedBy: 'System' }) });
+    }
+  }
+  toggleRectBatchMode(false);
+  loadRects().then(() => renderRectsList());
+  toast(`Sent ${sent} report(s) to ${name}`);
+}
+
 function renderRectsList() {
   const filter = document.getElementById('rects-filter-status')?.value || 'active';
   let filtered = _rects;
@@ -2604,9 +2681,10 @@ function renderRectsList() {
     const age = timeAgo(rect.createdAt);
     const assignee = rect.assignedTo ? escHtml(rect.assignedTo.name) : '<span style="color:var(--text-dim);">Unassigned</span>';
     const dueBadge = rect.dueDate ? dueLabel(rect.dueDate) : '';
-    return `<div class="rect-card" onclick="openRectDetail('${rect.id}')">
+    const batchCb = _rectBatchMode ? `<input type="checkbox" ${_rectBatchSelected.has(rect.id)?'checked':''} onclick="event.stopPropagation();toggleRectBatchItem('${rect.id}')" style="accent-color:var(--accent);width:18px;height:18px;flex-shrink:0;margin-right:6px;">` : '';
+    return `<div class="rect-card" onclick="${_rectBatchMode ? `toggleRectBatchItem('${rect.id}')` : `openRectDetail('${rect.id}')`}" style="${_rectBatchSelected.has(rect.id)?'border-color:var(--accent);':''}">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px;">
-        <div style="font-weight:700;font-size:14px;flex:1;min-width:0;">${escHtml(rect.title)}</div>
+        ${batchCb}<div style="font-weight:700;font-size:14px;flex:1;min-width:0;">${escHtml(rect.title)}</div>
         <div style="display:flex;gap:4px;flex-shrink:0;">
           <span class="rect-priority ${rect.priority}">${rect.priority}</span>
           <span class="rect-status ${rect.status}">${rect.status.replace('_', ' ')}</span>
@@ -2771,6 +2849,14 @@ function renderRectDetail(rect) {
             style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
         </div>
       </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;margin-bottom:4px;">Completion Date</div>
+        <input type="date" value="${rect.completionDate || ''}" onchange="updateRectField('${rect.id}','completionDate',this.value)"
+          style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
+      </div>
+      ${(rect.status === 'open' || rect.status === 'in_progress') && rect.workOrderNumber && rect.completionDate ? `
+      <button onclick="updateRectField('${rect.id}','status','resolved')" style="background:var(--pass);color:#fff;border:none;border-radius:8px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;width:100%;font-family:inherit;">✅ Close Out Rectification</button>
+      ` : ''}
     </div>
 
     <!-- Photos -->
@@ -2829,6 +2915,12 @@ async function updateRectLineItem(id, idx, status) {
 }
 
 async function updateRectField(id, field, value) {
+  // Enforce WO# and completion date for resolving/closing
+  if (field === 'status' && (value === 'resolved' || value === 'closed')) {
+    const rect = _rects.find(r => r.id === id);
+    if (!rect?.workOrderNumber) return toast('Enter a Work Order # before closing');
+    if (!rect?.completionDate) return toast('Enter a Completion Date before closing');
+  }
   const inspector = localStorage.getItem('inspector_name') || 'User';
   const payload = { [field]: value, _updatedBy: inspector };
   try {
@@ -2894,6 +2986,25 @@ async function emailRectReport(id) {
     if (d.success) toast('Report sent to ' + rect.assignedTo.name);
     else toast('Send failed: ' + d.error);
   } catch { toast('Send failed'); }
+}
+
+// ── Fail options ─────────────────────────────────────
+let _failInspectionId = null;
+
+function showFailOptionsModal(inspectionId) {
+  _failInspectionId = inspectionId;
+  document.getElementById('fail-options-modal').style.display = 'flex';
+}
+
+function failOptionCreateRect() {
+  document.getElementById('fail-options-modal').style.display = 'none';
+  createRectFromInspection(_failInspectionId);
+}
+
+function failOptionSaveOnly() {
+  document.getElementById('fail-options-modal').style.display = 'none';
+  toast('❌ Inspection saved — FAIL');
+  setTimeout(() => goHome(), 1200);
 }
 
 // ── Create rectification from failed inspection ──────────────
@@ -3010,7 +3121,7 @@ async function submitCreateRect() {
       toast('Rectification ' + d.rect.id + ' created');
       // Send email if planner assigned and inspection exists
       if (payload.assignedTo && payload.inspectionId) {
-        sendReportToPlanner(payload.inspectionId, payload.assignedTo.email, payload.assignedTo.name);
+        sendReportToPlanner(payload.inspectionId, payload.assignedTo.email, payload.assignedTo.name, d.rect.id);
       }
       setTimeout(() => goHome(), 1200);
     }
@@ -3841,7 +3952,11 @@ function buildDetailHtml(rec) {
         </div>
       ` : ''}
     </div>
-    <div class="std-ref-note">AS/NZS 4024.1601:2014 — Safety of Machinery — Guard inspection record</div>
+    <!-- Archive button -->
+    <button onclick="archiveInspection('${rec.id}',${!!rec.archived})" style="background:none;border:1px solid var(--border);color:var(--text-dim);border-radius:8px;padding:8px 14px;font-size:12px;cursor:pointer;font-family:inherit;width:100%;">
+      ${rec.archived ? '📦 Unarchive' : '🗄️ Archive this inspection'}
+    </button>
+    </div>
   `;
 }
 
@@ -4444,6 +4559,17 @@ async function doSendPlannerNow() {
   goHome();
 }
 
+async function archiveInspection(id, isArchived) {
+  const action = isArchived ? 'unarchive' : 'archive';
+  showConfirmModal(`${isArchived ? 'Unarchive' : 'Archive'} this inspection?`, async () => {
+    try {
+      const r = await fetch(`/api/inspection/${id}/archive`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ archived: !isArchived }) });
+      const d = await r.json();
+      if (d.success) { toast(`Inspection ${action}d`); await renderRecords(); }
+    } catch { toast('Failed to ' + action); }
+  }, isArchived ? 'Unarchive' : 'Archive', isArchived ? 'var(--accent)' : '');
+}
+
 async function submitRectification(inspectionId) {
   const wo = document.getElementById('rect-wo-' + inspectionId)?.value.trim();
   const date = document.getElementById('rect-date-' + inspectionId)?.value;
@@ -4482,9 +4608,9 @@ async function submitWRNumber(inspectionId) {
   }
 }
 
-async function sendReportToPlanner(inspectionId, plannerEmail, plannerName) {
+async function sendReportToPlanner(inspectionId, plannerEmail, plannerName, rectId) {
   toast('Sending…');
-  const r = await fetch('/api/email/send-report', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ inspectionId, plannerEmail, plannerName }) });
+  const r = await fetch('/api/email/send-report', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ inspectionId, plannerEmail, plannerName, rectId }) });
   const d = await r.json();
   if (d.success) toast('Report sent to ' + plannerName + ' ✅');
   else alert('Failed to send: ' + d.error);

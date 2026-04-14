@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rectification Details</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --bg: #0d0d0d; --surface: #1a1a1a; --border: #2a2a2a; --accent: #e05c3a; --text: #e8e8e8; --text-dim: #888; --pass: #3aad5c; --fail: #e05c3a; }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; padding: 0; }
+    header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 16px; text-align: center; }
+    header h1 { font-size: 17px; font-weight: 700; }
+    .container { max-width: 600px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+    .label { font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-dim); letter-spacing: .5px; margin-bottom: 6px; }
+    input, select, textarea { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 12px; border-radius: 8px; font-size: 15px; font-family: inherit; outline: none; width: 100%; }
+    .btn { background: var(--accent); color: #fff; border: none; border-radius: 10px; padding: 14px; font-size: 16px; font-weight: 700; cursor: pointer; width: 100%; font-family: inherit; }
+    .btn:active { opacity: .8; }
+    .btn-pass { background: var(--pass); }
+    .status-badge { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 4px; text-transform: uppercase; }
+    .status-badge.open { background: var(--fail); color: #fff; }
+    .status-badge.in_progress { background: #ff9800; color: #fff; }
+    .status-badge.resolved { background: var(--pass); color: #fff; }
+    .status-badge.closed { background: var(--text-dim); color: #fff; }
+    .line-item { border: 1px solid var(--border); border-radius: 8px; padding: 10px; margin-bottom: 8px; }
+    .line-item.done { border-left: 3px solid var(--pass); }
+    .line-item.open { border-left: 3px solid var(--fail); }
+    .line-item.in_progress { border-left: 3px solid #ff9800; }
+    #toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 20px; padding: 10px 20px; font-size: 14px; opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 999; }
+    #toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+<header><h1>Rectification Details</h1></header>
+<div class="container" id="main">
+  <div style="text-align:center;padding:40px;color:var(--text-dim);">Loading...</div>
+</div>
+<div id="toast"></div>
+
+<script>
+const rectId = new URLSearchParams(window.location.search).get('id');
+let rect = null;
+
+async function load() {
+  if (!rectId) { document.getElementById('main').innerHTML = '<div style="text-align:center;padding:40px;color:var(--fail);">No rectification ID provided.</div>'; return; }
+  try {
+    const r = await fetch('/api/rectifications/' + rectId);
+    if (!r.ok) throw new Error('Not found');
+    rect = await r.json();
+    render();
+  } catch { document.getElementById('main').innerHTML = '<div style="text-align:center;padding:40px;color:var(--fail);">Rectification not found.</div>'; }
+}
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function render() {
+  const el = document.getElementById('main');
+  const dateStr = new Date(rect.createdAt).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' });
+
+  const lineItemsHtml = (rect.lineItems || []).map((li, i) => `
+    <div class="line-item ${li.status || 'open'}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+        <strong style="font-size:13px;">Q${li.questionNum}. ${esc(li.questionText)}</strong>
+        <span class="status-badge ${li.status||'open'}">${(li.status||'open').replace('_',' ')}</span>
+      </div>
+      <div style="font-size:13px;color:var(--text-dim);">${esc(li.finding || 'No notes')}</div>
+    </div>
+  `).join('');
+
+  el.innerHTML = `
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <span style="font-family:monospace;color:var(--text-dim);">${esc(rect.id)}</span>
+        <span class="status-badge ${rect.status}">${rect.status.replace('_',' ')}</span>
+      </div>
+      <div style="font-weight:700;font-size:18px;margin-bottom:6px;">${esc(rect.title)}</div>
+      <div style="font-size:13px;color:var(--text-dim);">
+        ${rect.location ? `📍 ${esc(rect.location)}${rect.machine?' › '+esc(rect.machine):''}${rect.component?' › '+esc(rect.component):''}` : ''}
+        <br>Created: ${dateStr} by ${esc(rect.createdBy)}
+        ${rect.assignedTo ? `<br>Assigned to: <strong>${esc(rect.assignedTo.name)}</strong>` : ''}
+      </div>
+    </div>
+
+    ${lineItemsHtml ? `<div class="card">
+      <div class="label">Rectification Items (${rect.lineItems?.length || 0})</div>
+      ${lineItemsHtml}
+    </div>` : ''}
+
+    <div class="card">
+      <div class="label">Update Status</div>
+      <select id="rect-status" style="margin-bottom:10px;">
+        <option value="open"${rect.status==='open'?' selected':''}>Open</option>
+        <option value="in_progress"${rect.status==='in_progress'?' selected':''}>In Progress</option>
+        <option value="resolved"${rect.status==='resolved'?' selected':''}>Resolved</option>
+        <option value="closed"${rect.status==='closed'?' selected':''}>Closed</option>
+      </select>
+
+      <div class="label" style="margin-top:8px;">Work Order Number *</div>
+      <input type="text" id="rect-wo" placeholder="WO-12345" value="${esc(rect.workOrderNumber||'')}">
+
+      <div class="label" style="margin-top:8px;">Completion Date *</div>
+      <input type="date" id="rect-date" value="${rect.completionDate||''}">
+
+      <div class="label" style="margin-top:8px;">Notes (optional)</div>
+      <textarea id="rect-notes" placeholder="Describe work completed..." style="min-height:80px;">${esc(rect.closeoutNotes||'')}</textarea>
+
+      <button class="btn btn-pass" style="margin-top:12px;" onclick="submitUpdate()">Update Rectification</button>
+    </div>
+
+    ${rect.inspectionId ? `<a href="/api/report/${rect.inspectionId}" target="_blank" style="display:block;text-align:center;color:var(--accent);font-weight:600;text-decoration:none;padding:12px;">📄 View Inspection Report</a>` : ''}
+  `;
+}
+
+async function submitUpdate() {
+  const status = document.getElementById('rect-status').value;
+  const wo = document.getElementById('rect-wo').value.trim();
+  const date = document.getElementById('rect-date').value;
+  const notes = document.getElementById('rect-notes').value.trim();
+
+  // Require WO# and date to resolve/close
+  if ((status === 'resolved' || status === 'closed') && (!wo || !date)) {
+    return toast('Work Order # and Completion Date are required to close out');
+  }
+
+  try {
+    const r = await fetch('/api/rectifications/' + rectId, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status, workOrderNumber: wo, completionDate: date, closeoutNotes: notes, _updatedBy: rect.assignedTo?.name || 'Planner' })
+    });
+    const d = await r.json();
+    if (d.success) { rect = d.rect; render(); toast('Updated successfully'); }
+    else toast('Update failed');
+  } catch { toast('Network error'); }
+}
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+load();
+</script>
+</body>
+</html>

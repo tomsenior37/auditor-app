@@ -258,6 +258,7 @@ app.get('/', (req, res) => {
 // POST /api/inspection
 // GET /wr — work request entry page
 app.get('/wr', (req, res) => res.sendFile(path.join(__dirname, 'wr.html')));
+app.get('/rect.html', (req, res) => res.sendFile(path.join(__dirname, 'rect.html')));
 
 // GET /api/inspection/:id — single inspection
 app.get('/api/inspection/:id', (req, res) => {
@@ -291,6 +292,22 @@ app.patch('/api/inspection/:id/serviceable', (req, res) => {
   if (notes) inspections[idx].rectificationNotes = notes;
   if (completionDate) inspections[idx].completionDate = completionDate;
   if (workOrderNumber) inspections[idx].rectificationWorkOrder = workOrderNumber;
+  writeInspections(inspections);
+  res.json({ success: true });
+});
+
+// PATCH /api/inspection/:id/archive — archive/unarchive inspection
+app.patch('/api/inspection/:id/archive', (req, res) => {
+  const inspections = readInspections();
+  const idx = inspections.findIndex(i => i.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'not found' });
+  if (req.body.archived) {
+    inspections[idx].archived = true;
+    inspections[idx].archivedAt = new Date().toISOString();
+  } else {
+    delete inspections[idx].archived;
+    delete inspections[idx].archivedAt;
+  }
   writeInspections(inspections);
   res.json({ success: true });
 });
@@ -824,7 +841,7 @@ app.post('/api/email/test', async (req, res) => {
 });
 
 app.post('/api/email/send-report', async (req, res) => {
-  const { inspectionId, plannerEmail, plannerName } = req.body;
+  const { inspectionId, plannerEmail, plannerName, rectId } = req.body;
   if (!inspectionId || !plannerEmail) return res.status(400).json({ error: 'inspectionId and plannerEmail required' });
 
   const cfg = readEmailConfig();
@@ -866,9 +883,10 @@ app.post('/api/email/send-report', async (req, res) => {
         </table>
         <p style="margin-bottom:16px;">Please see the attached PDF inspection report. Defects have been identified that require rectification.</p>
         <h3 style="color:#e05c3a;margin-bottom:12px;">Action Required</h3>
-        <p style="margin-bottom:16px;">Raise a work request in your maintenance system to rectify the identified defects, then click the button below to record the work request number:</p>
+        <p style="margin-bottom:16px;">Raise a work request in your maintenance system to rectify the identified defects. Use the links below to update the rectification status.</p>
+        ${rectId ? `<p style="margin-bottom:16px;"><a href="${cfg.externalUrl}/rect.html?id=${rectId}" style="display:inline-block;background:#e05c3a;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:16px;">⚠️ View Rectification ${rectId}</a></p>` : ''}
         <p style="margin-bottom:24px;"><a href="${cfg.externalUrl}/wr?id=${insp.id}" style="display:inline-block;background:#ff9800;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:16px;">&#128295; Input Work Request Number</a></p>
-        <p style="font-size:12px;color:#888;">Clicking the button above will open a simple page where you enter the WR number. The inspection badge will update to <strong style="color:#ff9800;">WR Raised</strong> with the number displayed.<br><br>This email was sent from the Auditor inspection app.</p>
+        <p style="font-size:12px;color:#888;">Use the rectification link to update status, enter work order number and completion date to close out the work.<br><br>This email was sent from the Auditor inspection app.</p>
       `,
       attachments: [{ filename, content: pdfBuffer, contentType: 'application/pdf' }]
     });
