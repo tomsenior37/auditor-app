@@ -927,6 +927,33 @@
       font-size: 14px;
       cursor: pointer;
     }
+    /* ── Asset database ── */
+    .asset-tab {
+      background: none; border: none; color: var(--text-dim);
+      font-size: 14px; font-weight: 600; padding: 10px 14px;
+      cursor: pointer; font-family: inherit; border-bottom: 2px solid transparent;
+      margin-bottom: -2px; transition: color .15s, border-color .15s;
+    }
+    .asset-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .asset-card {
+      display: flex; justify-content: space-between; align-items: center;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 14px; cursor: pointer; gap: 12px;
+    }
+    .asset-card:active { opacity: 0.8; }
+    .asset-stat-row { display: flex; gap: 12px; font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+    .asset-stat-row span { display: flex; align-items: center; gap: 4px; }
+    .asset-photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .asset-photo-grid img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); cursor: pointer; }
+    .asset-doc-row {
+      display: flex; justify-content: space-between; align-items: center;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 12px; gap: 10px;
+    }
+    .asset-history-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 14px;
+    }
   </style>
 </head>
 <body>
@@ -942,6 +969,7 @@
   <div style="padding:16px; display:flex; flex-direction:column; gap:14px; flex:1;">
 
     <button class="btn-primary" onclick="showForm()">＋ New Audit</button>
+    <button class="btn-secondary" onclick="showAssets()">🏭 Asset Database</button>
     <button class="btn-secondary" onclick="showTemplates()">📋 Audit Templates</button>
     <button class="btn-secondary" onclick="showImportExport()">📦 Import / Export</button>
     <button class="btn-secondary" onclick="showSetup()">⚙️ Settings</button>
@@ -1115,6 +1143,35 @@
     </div>
   </div>
   <div class="results-body" id="results-body" style="padding-top:0;"></div>
+</div>
+
+<!-- ══════════════ ASSET DATABASE SCREEN ══════════════ -->
+<div class="screen" id="assets-screen">
+  <!-- Browse panel: locations → machines → components -->
+  <div id="asset-browse-panel" style="padding:16px;display:flex;flex-direction:column;gap:12px;">
+    <div id="asset-breadcrumb" style="display:flex;align-items:center;gap:6px;font-size:13px;flex-wrap:wrap;"></div>
+    <div id="asset-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+  </div>
+
+  <!-- Detail panel -->
+  <div id="asset-detail-panel" style="display:none;padding:16px;flex-direction:column;gap:0;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+      <button onclick="assetBackFromDetail()" style="background:none;border:none;color:var(--accent);font-size:22px;cursor:pointer;padding:0;">&#8592;</button>
+      <div id="asset-detail-title" style="font-weight:700;font-size:17px;flex:1;"></div>
+    </div>
+    <!-- Tabs -->
+    <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:14px;">
+      <button class="asset-tab active" data-tab="info" onclick="assetSetTab('info')">Info</button>
+      <button class="asset-tab" data-tab="photos" onclick="assetSetTab('photos')">Photos</button>
+      <button class="asset-tab" data-tab="docs" onclick="assetSetTab('docs')">Documents</button>
+      <button class="asset-tab" data-tab="history" onclick="assetSetTab('history')">History</button>
+    </div>
+    <!-- Tab content -->
+    <div id="asset-tab-info" class="asset-tab-content" style="display:flex;flex-direction:column;gap:12px;"></div>
+    <div id="asset-tab-photos" class="asset-tab-content" style="display:none;flex-direction:column;gap:12px;"></div>
+    <div id="asset-tab-docs" class="asset-tab-content" style="display:none;flex-direction:column;gap:12px;"></div>
+    <div id="asset-tab-history" class="asset-tab-content" style="display:none;flex-direction:column;gap:12px;"></div>
+  </div>
 </div>
 
 <!-- ══════════════ IMPORT / EXPORT SCREEN ══════════════ -->
@@ -2120,6 +2177,350 @@ function showRecordsFiltered(filterValue) {
 function showResults() {
   renderResults();
   switchScreen('results-screen', 'Results by Location');
+}
+
+// ══════════════════════════════════════════════════════
+// ASSET DATABASE
+// ══════════════════════════════════════════════════════
+let _assetNav = { level: 'locations', location: null, machine: null, component: null };
+let _assetMeta = null;
+
+function showAssets() {
+  _assetNav = { level: 'locations', location: null, machine: null, component: null };
+  switchScreen('assets-screen', 'Asset Database');
+  document.getElementById('asset-browse-panel').style.display = 'flex';
+  document.getElementById('asset-detail-panel').style.display = 'none';
+  renderAssetBrowse();
+}
+
+function renderAssetBrowse() {
+  const bc = document.getElementById('asset-breadcrumb');
+  const list = document.getElementById('asset-list');
+  const nav = _assetNav;
+
+  // Breadcrumb
+  let crumbs = `<span onclick="assetNavTo('locations')" style="cursor:pointer;color:var(--accent);font-weight:600;">All Locations</span>`;
+  if (nav.location) {
+    crumbs += ` <span style="color:var(--text-dim);">›</span> <span onclick="assetNavTo('machines')" style="cursor:pointer;color:var(--accent);font-weight:600;">${escHtml(nav.location)}</span>`;
+  }
+  if (nav.machine) {
+    crumbs += ` <span style="color:var(--text-dim);">›</span> <span style="font-weight:600;">${escHtml(nav.machine)}</span>`;
+  }
+  bc.innerHTML = crumbs;
+
+  if (nav.level === 'locations') {
+    if (!lists.locations.length) {
+      list.innerHTML = '<div style="color:var(--text-dim);text-align:center;padding:40px 0;">No locations. Add locations in Settings.</div>';
+      return;
+    }
+    list.innerHTML = lists.locations.map((loc, i) => {
+      const machineCount = loc.machines.length;
+      const guardCount = loc.machines.reduce((s, m) => s + (m.guards?.length || 0), 0);
+      return `<div class="asset-card" onclick="assetDrillLocation('${escHtml(loc.name)}')">
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;font-size:15px;">📍 ${escHtml(loc.name)}</div>
+          <div class="asset-stat-row">
+            <span>🔧 ${machineCount} machine${machineCount !== 1 ? 's' : ''}</span>
+            <span>🏷️ ${guardCount} component${guardCount !== 1 ? 's' : ''}</span>
+          </div>
+        </div>
+        <span style="color:var(--text-dim);font-size:18px;">›</span>
+      </div>`;
+    }).join('');
+  } else if (nav.level === 'machines') {
+    const loc = lists.locations.find(l => l.name === nav.location);
+    if (!loc || !loc.machines.length) {
+      list.innerHTML = `<div style="color:var(--text-dim);text-align:center;padding:20px 0;">No machines at this location.</div>
+        <div class="asset-card" onclick="openAssetDetail('${escHtml(nav.location)}','','')">
+          <div><div style="font-weight:600;">📍 ${escHtml(nav.location)}</div><div style="font-size:12px;color:var(--text-dim);">View location details</div></div>
+          <span style="color:var(--text-dim);font-size:18px;">›</span>
+        </div>`;
+      return;
+    }
+    // Location info card at top
+    list.innerHTML = `<div class="asset-card" onclick="openAssetDetail('${escHtml(nav.location)}','','')">
+        <div><div style="font-weight:600;">📍 ${escHtml(nav.location)}</div><div style="font-size:12px;color:var(--text-dim);">Location details, photos & docs</div></div>
+        <span style="color:var(--text-dim);font-size:14px;">info ›</span>
+      </div>
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text-dim);letter-spacing:.5px;margin-top:4px;">Machines</div>` +
+      loc.machines.map(m => {
+        const gCount = m.guards?.length || 0;
+        return `<div class="asset-card" onclick="assetDrillMachine('${escHtml(m.name)}')">
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:600;font-size:15px;">🔧 ${escHtml(m.name)}</div>
+            <div class="asset-stat-row"><span>🏷️ ${gCount} component${gCount !== 1 ? 's' : ''}</span></div>
+          </div>
+          <span style="color:var(--text-dim);font-size:18px;">›</span>
+        </div>`;
+      }).join('');
+  } else if (nav.level === 'components') {
+    const loc = lists.locations.find(l => l.name === nav.location);
+    const mac = loc?.machines.find(m => m.name === nav.machine);
+    // Machine info card at top
+    let html = `<div class="asset-card" onclick="openAssetDetail('${escHtml(nav.location)}','${escHtml(nav.machine)}','')">
+        <div><div style="font-weight:600;">🔧 ${escHtml(nav.machine)}</div><div style="font-size:12px;color:var(--text-dim);">Machine details, photos & docs</div></div>
+        <span style="color:var(--text-dim);font-size:14px;">info ›</span>
+      </div>`;
+    if (mac && mac.guards.length) {
+      html += `<div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text-dim);letter-spacing:.5px;margin-top:4px;">Components</div>`;
+      html += mac.guards.map(g => `
+        <div class="asset-card" onclick="openAssetDetail('${escHtml(nav.location)}','${escHtml(nav.machine)}','${escHtml(g)}')">
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:600;font-size:15px;font-family:monospace;">🏷️ ${escHtml(g)}</div>
+          </div>
+          <span style="color:var(--text-dim);font-size:14px;">info ›</span>
+        </div>`).join('');
+    } else {
+      html += '<div style="color:var(--text-dim);text-align:center;padding:20px 0;">No components on this machine.</div>';
+    }
+    list.innerHTML = html;
+  }
+}
+
+function assetDrillLocation(name) {
+  _assetNav.level = 'machines';
+  _assetNav.location = name;
+  _assetNav.machine = null;
+  _assetNav.component = null;
+  renderAssetBrowse();
+}
+
+function assetDrillMachine(name) {
+  _assetNav.level = 'components';
+  _assetNav.machine = name;
+  _assetNav.component = null;
+  renderAssetBrowse();
+}
+
+function assetNavTo(level) {
+  if (level === 'locations') { _assetNav = { level: 'locations', location: null, machine: null, component: null }; }
+  else if (level === 'machines') { _assetNav.level = 'machines'; _assetNav.machine = null; _assetNav.component = null; }
+  renderAssetBrowse();
+}
+
+// ── Asset Detail ─────────────────────────────────────
+async function openAssetDetail(location, machine, component) {
+  _assetNav.component = component;
+  _assetMeta = null;
+  document.getElementById('asset-browse-panel').style.display = 'none';
+  document.getElementById('asset-detail-panel').style.display = 'flex';
+  // Set title
+  let title = location;
+  if (machine) title = machine;
+  if (component) title = component;
+  document.getElementById('asset-detail-title').textContent = title;
+  // Store context
+  _assetNav._detailLoc = location;
+  _assetNav._detailMac = machine;
+  _assetNav._detailComp = component;
+  // Load metadata
+  const params = new URLSearchParams({ location: location || '', machine: machine || '', component: component || '' });
+  try {
+    const r = await fetch('/api/asset/meta?' + params);
+    _assetMeta = await r.json();
+  } catch { _assetMeta = { description: '', notes: '', status: 'active', photos: [], documents: [] }; }
+  assetSetTab('info');
+}
+
+function assetBackFromDetail() {
+  document.getElementById('asset-detail-panel').style.display = 'none';
+  document.getElementById('asset-browse-panel').style.display = 'flex';
+  renderAssetBrowse();
+}
+
+function assetSetTab(tab) {
+  document.querySelectorAll('.asset-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.querySelectorAll('.asset-tab-content').forEach(c => c.style.display = 'none');
+  const el = document.getElementById('asset-tab-' + tab);
+  if (el) el.style.display = 'flex';
+  if (tab === 'info') renderAssetInfo();
+  else if (tab === 'photos') renderAssetPhotos();
+  else if (tab === 'docs') renderAssetDocs();
+  else if (tab === 'history') loadAssetHistory();
+}
+
+function renderAssetInfo() {
+  const el = document.getElementById('asset-tab-info');
+  const m = _assetMeta || {};
+  const loc = _assetNav._detailLoc || '';
+  const mac = _assetNav._detailMac || '';
+  const comp = _assetNav._detailComp || '';
+  const levelLabel = comp ? 'Component' : (mac ? 'Machine' : 'Location');
+  el.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;gap:10px;">
+      <div style="font-size:12px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;font-weight:700;">${levelLabel} Information</div>
+      ${loc ? `<div style="font-size:13px;"><span style="color:var(--text-dim);">Location:</span> ${escHtml(loc)}</div>` : ''}
+      ${mac ? `<div style="font-size:13px;"><span style="color:var(--text-dim);">Machine:</span> ${escHtml(mac)}</div>` : ''}
+      ${comp ? `<div style="font-size:13px;"><span style="color:var(--text-dim);">Component:</span> <span style="font-family:monospace;">${escHtml(comp)}</span></div>` : ''}
+      <div style="font-size:13px;"><span style="color:var(--text-dim);">Status:</span>
+        <select id="asset-status" onchange="saveAssetMeta()" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px;font-family:inherit;outline:none;">
+          <option value="active"${m.status==='active'?' selected':''}>Active</option>
+          <option value="inactive"${m.status==='inactive'?' selected':''}>Inactive</option>
+          <option value="maintenance"${m.status==='maintenance'?' selected':''}>Under Maintenance</option>
+          <option value="decommissioned"${m.status==='decommissioned'?' selected':''}>Decommissioned</option>
+        </select>
+      </div>
+    </div>
+    <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text-dim);letter-spacing:.5px;">Description</div>
+    <textarea id="asset-description" placeholder="Add a description..." oninput="saveAssetMetaDebounced()"
+      style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:12px;border-radius:var(--radius);font-size:14px;font-family:inherit;resize:vertical;min-height:80px;width:100%;outline:none;">${escHtml(m.description||'')}</textarea>
+    <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text-dim);letter-spacing:.5px;">Notes</div>
+    <textarea id="asset-notes" placeholder="Add notes..." oninput="saveAssetMetaDebounced()"
+      style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:12px;border-radius:var(--radius);font-size:14px;font-family:inherit;resize:vertical;min-height:60px;width:100%;outline:none;">${escHtml(m.notes||'')}</textarea>`;
+}
+
+let _assetSaveTimer = null;
+function saveAssetMetaDebounced() { clearTimeout(_assetSaveTimer); _assetSaveTimer = setTimeout(saveAssetMeta, 800); }
+
+async function saveAssetMeta() {
+  const payload = {
+    location: _assetNav._detailLoc || '', machine: _assetNav._detailMac || '', component: _assetNav._detailComp || '',
+    description: document.getElementById('asset-description')?.value || '',
+    notes: document.getElementById('asset-notes')?.value || '',
+    status: document.getElementById('asset-status')?.value || 'active'
+  };
+  try {
+    const r = await fetch('/api/asset/meta', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const d = await r.json();
+    if (d.success) _assetMeta = d.meta;
+  } catch {}
+}
+
+// ── Asset Photos ─────────────────────────────────────
+function renderAssetPhotos() {
+  const el = document.getElementById('asset-tab-photos');
+  const photos = (_assetMeta?.photos || []);
+  el.innerHTML = `
+    <div style="display:flex;gap:8px;margin-bottom:8px;">
+      <label style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--surface);border:2px dashed var(--border);border-radius:var(--radius);padding:14px;cursor:pointer;font-size:14px;color:var(--text-dim);">
+        📷 Add Photo
+        <input type="file" accept="image/*" capture="environment" onchange="uploadAssetPhoto(this)" style="display:none;">
+      </label>
+    </div>
+    ${photos.length ? `<div class="asset-photo-grid">
+      ${photos.map(p => `
+        <div style="position:relative;">
+          <img src="/photos/${p.filename}" alt="${escHtml(p.originalName||'')}" onclick="window.open('/photos/${p.filename}','_blank')">
+          <button onclick="deleteAssetPhoto('${p.filename}')" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.7);border:none;color:#fff;width:22px;height:22px;border-radius:50%;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
+        </div>`).join('')}
+    </div>` : '<div style="color:var(--text-dim);text-align:center;padding:20px;">No photos yet</div>'}`;
+}
+
+async function uploadAssetPhoto(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const fd = new FormData();
+  fd.append('photo', file);
+  fd.append('location', _assetNav._detailLoc || '');
+  fd.append('machine', _assetNav._detailMac || '');
+  fd.append('component', _assetNav._detailComp || '');
+  try {
+    const r = await fetch('/api/asset/photo', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (d.success) { _assetMeta = d.meta; renderAssetPhotos(); toast('Photo added'); }
+  } catch { toast('Upload failed'); }
+}
+
+async function deleteAssetPhoto(filename) {
+  const r = await fetch('/api/asset/photo', { method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ location: _assetNav._detailLoc || '', machine: _assetNav._detailMac || '', component: _assetNav._detailComp || '', filename }) });
+  const d = await r.json();
+  if (d.success) { _assetMeta.photos = (_assetMeta.photos || []).filter(p => p.filename !== filename); renderAssetPhotos(); toast('Photo removed'); }
+}
+
+// ── Asset Documents ──────────────────────────────────
+function renderAssetDocs() {
+  const el = document.getElementById('asset-tab-docs');
+  const docs = (_assetMeta?.documents || []);
+  el.innerHTML = `
+    <div style="display:flex;gap:8px;margin-bottom:8px;">
+      <label style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--surface);border:2px dashed var(--border);border-radius:var(--radius);padding:14px;cursor:pointer;font-size:14px;color:var(--text-dim);">
+        📄 Upload Document
+        <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.png,.jpg,.jpeg" onchange="uploadAssetDoc(this)" style="display:none;">
+      </label>
+    </div>
+    ${docs.length ? docs.map(d => {
+      const sizeKb = Math.round((d.size || 0) / 1024);
+      const sizeStr = sizeKb > 1024 ? (sizeKb / 1024).toFixed(1) + ' MB' : sizeKb + ' KB';
+      const dateStr = d.uploadedAt ? new Date(d.uploadedAt).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+      return `<div class="asset-doc-row">
+        <div style="flex:1;min-width:0;">
+          <a href="/documents/${d.filename}" target="_blank" style="color:var(--accent);font-weight:600;font-size:14px;text-decoration:none;word-break:break-all;">${escHtml(d.originalName)}</a>
+          <div style="font-size:12px;color:var(--text-dim);margin-top:2px;">${sizeStr} · ${dateStr}</div>
+        </div>
+        <button onclick="deleteAssetDoc('${d.filename}')" style="background:none;border:none;color:var(--fail);font-size:18px;cursor:pointer;flex-shrink:0;">✕</button>
+      </div>`;
+    }).join('') : '<div style="color:var(--text-dim);text-align:center;padding:20px;">No documents yet</div>'}`;
+}
+
+async function uploadAssetDoc(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const fd = new FormData();
+  fd.append('document', file);
+  fd.append('location', _assetNav._detailLoc || '');
+  fd.append('machine', _assetNav._detailMac || '');
+  fd.append('component', _assetNav._detailComp || '');
+  try {
+    const r = await fetch('/api/asset/document', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (d.success) { _assetMeta = d.meta; renderAssetDocs(); toast('Document uploaded'); }
+  } catch { toast('Upload failed'); }
+}
+
+async function deleteAssetDoc(filename) {
+  showConfirmModal('Delete this document?', async () => {
+    const r = await fetch('/api/asset/document', { method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ location: _assetNav._detailLoc || '', machine: _assetNav._detailMac || '', component: _assetNav._detailComp || '', filename }) });
+    const d = await r.json();
+    if (d.success) { _assetMeta.documents = (_assetMeta.documents || []).filter(doc => doc.filename !== filename); renderAssetDocs(); toast('Document deleted'); }
+  });
+}
+
+// ── Asset History ────────────────────────────────────
+async function loadAssetHistory() {
+  const el = document.getElementById('asset-tab-history');
+  el.innerHTML = '<div style="color:var(--text-dim);text-align:center;padding:20px;">Loading...</div>';
+  const params = new URLSearchParams();
+  if (_assetNav._detailLoc) params.set('location', _assetNav._detailLoc);
+  if (_assetNav._detailMac) params.set('machine', _assetNav._detailMac);
+  if (_assetNav._detailComp) params.set('component', _assetNav._detailComp);
+  try {
+    const r = await fetch('/api/asset/history?' + params);
+    const history = await r.json();
+    if (!history.length) {
+      el.innerHTML = '<div style="color:var(--text-dim);text-align:center;padding:30px;">No inspection history for this asset.</div>';
+      return;
+    }
+    el.innerHTML = `<div style="font-size:13px;color:var(--text-dim);margin-bottom:4px;">${history.length} inspection${history.length !== 1 ? 's' : ''} found</div>` +
+      history.map(insp => {
+        const date = new Date(insp.timestamp);
+        const dateStr = date.toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' });
+        const timeStr = date.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', hour12: false });
+        const isPast = insp.result === 'PASS';
+        const resultBadge = isPast
+          ? '<span style="background:var(--pass);color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:4px;">PASS</span>'
+          : '<span style="background:var(--fail);color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:4px;">FAIL</span>';
+        const wrBadge = insp.workRequestNumber ? `<span style="background:#ff9800;color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;">WR# ${escHtml(insp.workRequestNumber)}</span>` : '';
+        const rectBadge = insp.serviceableDate ? `<span style="background:var(--pass);color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;">Rectified</span>` : '';
+        const scoreTxt = insp.score ? ` · Score: ${insp.score.score}/${insp.score.max} (${insp.score.pct}%)` : '';
+        return `<div class="asset-history-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <div style="font-weight:600;font-size:14px;">${dateStr} ${timeStr}</div>
+            <div style="display:flex;gap:6px;align-items:center;">${wrBadge} ${rectBadge} ${resultBadge}</div>
+          </div>
+          <div style="font-size:13px;color:var(--text-dim);">
+            ${insp.templateName ? `<div>Template: ${escHtml(insp.templateName)}</div>` : ''}
+            <div>Inspector: ${escHtml(insp.inspector || 'Unknown')}${scoreTxt}</div>
+            ${insp.location ? `<div>Location: ${escHtml(insp.location)}${insp.machine ? ' › ' + escHtml(insp.machine) : ''}${insp.guardId ? ' › ' + escHtml(insp.guardId) : ''}</div>` : ''}
+            ${insp.notes ? `<div style="margin-top:4px;font-style:italic;">"${escHtml(insp.notes)}"</div>` : ''}
+          </div>
+          ${insp.result === 'FAIL' ? `<div style="margin-top:8px;">
+            <a href="/api/report/${insp.id}" target="_blank" style="color:var(--accent);font-size:13px;font-weight:600;text-decoration:none;">📄 View Report</a>
+          </div>` : ''}
+        </div>`;
+      }).join('');
+  } catch { el.innerHTML = '<div style="color:var(--fail);text-align:center;padding:20px;">Failed to load history.</div>'; }
 }
 
 // ── Import / Export ───────────────────────────────────────

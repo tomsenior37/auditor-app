@@ -13,10 +13,13 @@ const LISTS_FILE = path.join(__dirname, 'lists.json');
 const ARCHIVE_FILE = path.join(__dirname, 'archive.json');
 const TEMPLATES_FILE = path.join(__dirname, 'templates.json');
 const EMAIL_CONFIG_FILE = path.join(__dirname, 'emailConfig.json');
+const ASSETS_FILE = path.join(__dirname, 'assets.json');
 const PHOTOS_DIR = path.join(__dirname, 'photos');
+const DOCS_DIR = path.join(__dirname, 'documents');
 
-// Ensure photos dir exists
+// Ensure dirs exist
 if (!fs.existsSync(PHOTOS_DIR)) fs.mkdirSync(PHOTOS_DIR, { recursive: true });
+if (!fs.existsSync(DOCS_DIR)) fs.mkdirSync(DOCS_DIR, { recursive: true });
 
 // Multer storage
 const storage = multer.diskStorage({
@@ -91,6 +94,19 @@ function readLists() {
 
 function writeLists(data) {
   fs.writeFileSync(LISTS_FILE, JSON.stringify(data, null, 2), 'utf8');
+}
+
+function readAssets() {
+  if (!fs.existsSync(ASSETS_FILE)) return {};
+  try { return JSON.parse(fs.readFileSync(ASSETS_FILE, 'utf8')); } catch { return {}; }
+}
+
+function writeAssets(data) {
+  fs.writeFileSync(ASSETS_FILE, JSON.stringify(data, null, 2), 'utf8');
+}
+
+function assetKey(location, machine, component) {
+  return [location || '', machine || '', component || ''].join('::');
 }
 
 function readArchive() {
@@ -528,6 +544,98 @@ app.post('/api/import/assets', (req, res) => {
   lists.locations.sort((a, b) => a.name.localeCompare(b.name));
   writeLists(lists);
   res.json({ success: true, locations: lists.locations, stats: { locations: locCount, machines: macCount, components: compCount } });
+});
+
+// ── Asset Database API ─────────────────────────────────
+// Get metadata for a specific asset
+app.get('/api/asset/meta', (req, res) => {
+  const key = assetKey(req.query.location, req.query.machine, req.query.component);
+  const assets = readAssets();
+  res.json(assets[key] || { description: '', notes: '', status: 'active', photos: [], documents: [] });
+});
+
+// Save metadata for a specific asset
+app.post('/api/asset/meta', (req, res) => {
+  const { location, machine, component, description, notes, status } = req.body;
+  const key = assetKey(location, machine, component);
+  const assets = readAssets();
+  if (!assets[key]) assets[key] = { description: '', notes: '', status: 'active', photos: [], documents: [], createdAt: new Date().toISOString() };
+  if (description !== undefined) assets[key].description = description;
+  if (notes !== undefined) assets[key].notes = notes;
+  if (status !== undefined) assets[key].status = status;
+  assets[key].updatedAt = new Date().toISOString();
+  writeAssets(assets);
+  res.json({ success: true, meta: assets[key] });
+});
+
+// Upload photo to an asset
+app.post('/api/asset/photo', upload.single('photo'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file' });
+  const key = assetKey(req.body.location, req.body.machine, req.body.component);
+  const assets = readAssets();
+  if (!assets[key]) assets[key] = { description: '', notes: '', status: 'active', photos: [], documents: [], createdAt: new Date().toISOString() };
+  assets[key].photos.push({ filename: req.file.filename, originalName: req.file.originalname, uploadedAt: new Date().toISOString() });
+  writeAssets(assets);
+  res.json({ success: true, photo: req.file.filename, meta: assets[key] });
+});
+
+// Delete photo from asset
+app.delete('/api/asset/photo', (req, res) => {
+  const key = assetKey(req.body.location, req.body.machine, req.body.component);
+  const assets = readAssets();
+  if (assets[key]) {
+    assets[key].photos = (assets[key].photos || []).filter(p => p.filename !== req.body.filename);
+    writeAssets(assets);
+  }
+  res.json({ success: true });
+});
+
+// Upload document to an asset
+const docUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, DOCS_DIR),
+    filename: (req, file, cb) => cb(null, `${uuidv4()}-${file.originalname}`)
+  }),
+  limits: { fileSize: 50 * 1024 * 1024 }
+});
+
+app.post('/api/asset/document', docUpload.single('document'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file' });
+  const key = assetKey(req.body.location, req.body.machine, req.body.component);
+  const assets = readAssets();
+  if (!assets[key]) assets[key] = { description: '', notes: '', status: 'active', photos: [], documents: [], createdAt: new Date().toISOString() };
+  assets[key].documents.push({ filename: req.file.filename, originalName: req.file.originalname, size: req.file.size, uploadedAt: new Date().toISOString() });
+  writeAssets(assets);
+  res.json({ success: true, document: req.file.filename, meta: assets[key] });
+});
+
+// Delete document from asset
+app.delete('/api/asset/document', (req, res) => {
+  const key = assetKey(req.body.location, req.body.machine, req.body.component);
+  const assets = readAssets();
+  if (assets[key]) {
+    assets[key].documents = (assets[key].documents || []).filter(d => d.filename !== req.body.filename);
+    writeAssets(assets);
+  }
+  // Try to delete the file
+  try { fs.unlinkSync(path.join(DOCS_DIR, req.body.filename)); } catch {}
+  res.json({ success: true });
+});
+
+// Serve documents
+app.use('/documents', express.static(DOCS_DIR));
+
+// Get inspection history for an asset
+app.get('/api/asset/history', (req, res) => {
+  const { location, machine, component } = req.query;
+  const inspections = readInspections();
+  const filtered = inspections.filter(r => {
+    if (location && r.location !== location) return false;
+    if (machine && r.machine !== machine) return false;
+    if (component && r.guardId !== component && r.componentId !== component) return false;
+    return true;
+  });
+  res.json(filtered);
 });
 
 // ── Planners API ────────────────────────────────────
