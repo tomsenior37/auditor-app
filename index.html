@@ -70,8 +70,48 @@
     }
 
     /* ── Screen containers ── */
-    .screen { display: none; flex-direction: column; min-height: calc(100vh - 57px); }
+    .screen { display: none; flex-direction: column; min-height: calc(100vh - 57px); padding-bottom: 68px; }
     .screen.active { display: flex; }
+
+    /* ── Bottom nav bar ── */
+    .bottom-nav {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+      background: var(--surface); border-top: 1px solid var(--border);
+      display: flex; justify-content: space-around; align-items: stretch;
+      padding: 0; padding-bottom: env(safe-area-inset-bottom, 0);
+      height: 60px;
+    }
+    .bottom-nav button {
+      flex: 1; background: none; border: none; color: var(--text-dim);
+      font-size: 10px; font-weight: 600; font-family: inherit;
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 2px; cursor: pointer;
+      padding: 6px 0; transition: color .15s; touch-action: manipulation;
+      min-height: 44px;
+    }
+    .bottom-nav button .nav-icon { font-size: 22px; line-height: 1; }
+    .bottom-nav button.active { color: var(--accent); }
+    .bottom-nav button:active { color: var(--accent); }
+
+    /* ── Progress bar ── */
+    .progress-bar-wrap {
+      position: sticky; top: 57px; z-index: 50; background: var(--bg);
+      padding: 8px 16px 6px; border-bottom: 1px solid var(--border);
+    }
+    .progress-bar-track {
+      width: 100%; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%; background: var(--accent); border-radius: 3px;
+      transition: width .3s ease;
+    }
+    .progress-bar-label {
+      font-size: 12px; color: var(--text-dim); margin-top: 4px; text-align: right;
+    }
+
+    /* ── Screen transitions ── */
+    .screen { animation: fadeIn .15s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 
     /* ── Home screen ── */
     #home-screen {
@@ -968,12 +1008,46 @@
 <div class="screen active" id="home-screen">
   <div style="padding:16px; display:flex; flex-direction:column; gap:14px; flex:1;">
 
+    <!-- Template selector -->
+    <select id="dashboard-template" onchange="onDashboardTemplateChange()" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:11px;border-radius:var(--radius);font-size:14px;font-family:inherit;outline:none;">
+      <option value="">All Templates</option>
+    </select>
+
+    <!-- Stats row -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
+      <div onclick="showRecordsFiltered('PASS')" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 6px;text-align:center;cursor:pointer;">
+        <div style="font-size:22px;font-weight:800;color:var(--pass);" id="stat-pass">0</div>
+        <div style="font-size:10px;color:var(--text-dim);margin-top:2px;">Pass</div>
+      </div>
+      <div onclick="showRecordsFiltered('FAIL')" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 6px;text-align:center;cursor:pointer;">
+        <div style="font-size:22px;font-weight:800;color:var(--fail);" id="stat-fail">0</div>
+        <div style="font-size:10px;color:var(--text-dim);margin-top:2px;">Fail</div>
+      </div>
+      <div onclick="showRecordsFiltered('WR_RAISED')" style="background:var(--surface);border:1px solid #ff9800;border-radius:var(--radius);padding:10px 6px;text-align:center;cursor:pointer;">
+        <div style="font-size:22px;font-weight:800;color:#ff9800;" id="stat-wr">0</div>
+        <div style="font-size:10px;color:var(--text-dim);margin-top:2px;">WR</div>
+      </div>
+      <div onclick="showRecordsFiltered('SERVICEABLE')" style="background:var(--surface);border:1px solid var(--pass);border-radius:var(--radius);padding:10px 6px;text-align:center;cursor:pointer;">
+        <div style="font-size:22px;font-weight:800;color:var(--pass);" id="stat-rect">0</div>
+        <div style="font-size:10px;color:var(--text-dim);margin-top:2px;">Fixed</div>
+      </div>
+    </div>
+
     <button class="btn-primary" onclick="showForm()">＋ New Audit</button>
-    <button class="btn-secondary" onclick="showAssets()">🏭 Asset Database</button>
-    <button class="btn-secondary" onclick="showTemplates()">📋 Audit Templates</button>
-    <button class="btn-secondary" onclick="showImportExport()">📦 Import / Export</button>
-    <button class="btn-secondary" onclick="showSetup()">⚙️ Settings</button>
-    <button class="btn-secondary" style="font-size:14px;padding:10px 16px;" onclick="showArchive()">🗄️ Archive</button>
+
+    <!-- Recent activity -->
+    <div>
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text-dim);letter-spacing:.5px;margin-bottom:8px;">Recent Activity</div>
+      <div id="dashboard-recent" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:2px 14px;">
+        <div style="color:var(--text-dim);font-size:14px;padding:14px 0;">Loading...</div>
+      </div>
+    </div>
+
+    <!-- Secondary actions -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <button class="btn-secondary" style="font-size:14px;padding:12px;" onclick="showImportExport()">📦 Import / Export</button>
+      <button class="btn-secondary" style="font-size:14px;padding:12px;" onclick="showArchive()">🗄️ Archive</button>
+    </div>
   </div>
 </div>
 
@@ -1058,8 +1132,18 @@
       <img id="photo-preview" alt="Photo preview">
     </div>
 
+    <!-- Progress bar -->
+    <div class="progress-bar-wrap" id="audit-progress-wrap" style="display:none;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div class="section-title" style="border:none;padding:0;margin:0;font-size:14px;">Inspection Checklist</div>
+        <div class="progress-bar-label" id="audit-progress-label">0 / 0</div>
+      </div>
+      <div class="progress-bar-track">
+        <div class="progress-bar-fill" id="audit-progress-fill" style="width:0%;"></div>
+      </div>
+    </div>
+
     <!-- Checklist -->
-    <div class="section-title">Inspection Checklist</div>
     <div id="checklist-container"></div>
 
     <!-- Notes -->
@@ -1092,12 +1176,12 @@
     <!-- Result banner -->
     <div id="result-banner"></div>
 
-    <!-- Submit -->
-    <div class="submit-row">
-      <button class="btn-primary" id="submit-btn" onclick="submitInspection()">Check &amp; Submit</button>
-      <button class="btn-secondary" onclick="goHome()">Cancel</button>
-    </div>
+  </div>
 
+  <!-- Sticky submit bar -->
+  <div style="position:sticky;bottom:60px;background:var(--bg);border-top:1px solid var(--border);padding:12px 16px;display:flex;gap:8px;z-index:50;">
+    <button class="btn-primary" id="submit-btn" onclick="submitInspection()" style="flex:3;padding:14px;">Check &amp; Submit</button>
+    <button class="btn-secondary" onclick="goHome()" style="flex:1;padding:14px;">Cancel</button>
   </div>
 </div>
 
@@ -1875,6 +1959,7 @@ function captureSignature(inspectorName) {
 function buildChecklist() {
   if (selectedTemplate && selectedTemplate.version === 2 && selectedTemplate.items) {
     buildChecklistV2(selectedTemplate.items);
+    updateAuditProgress();
     return;
   }
   const container = document.getElementById('checklist-container');
@@ -1907,6 +1992,7 @@ function buildChecklist() {
     // Attach photo change listener
     card.querySelector(`#finding-photo-${n}`).addEventListener('change', handleFindingPhotoSelect);
   });
+  updateAuditProgress();
 }
 
 function setAnswer(n, val) {
@@ -1923,7 +2009,7 @@ function setAnswer(n, val) {
   if (panel) panel.style.display = val === 'no' ? 'flex' : 'none';
   document.getElementById('result-banner').style.display = 'none';
   resultComputed = null;
-  evaluateLogicV2();
+  evaluateLogicV2(); updateAuditProgress();
 }
 
 function onFindingComment(n) {
@@ -1991,6 +2077,36 @@ async function handlePhotoSelect(e) {
     toast('Photo upload failed — will save without photo');
     uploadedPhoto = null;
   }
+}
+
+// ── Progress indicator ────────────────────────────────────
+function updateAuditProgress() {
+  const wrap = document.getElementById('audit-progress-wrap');
+  if (!wrap) return;
+  let total = 0, answered = 0;
+  if (selectedTemplate && selectedTemplate.version === 2 && selectedTemplate.items) {
+    const qs = selectedTemplate.items.filter(i => i.itemType === 'question' && i.type !== 'instruction');
+    qs.forEach((q, idx) => {
+      const card = document.getElementById(`qcard-${idx + 1}`);
+      if (card && card.dataset.logicHidden === '1') return;
+      total++;
+      const val = answers[`q${idx + 1}`];
+      if (val !== undefined && val !== null && val !== '') answered++;
+    });
+  } else {
+    total = QUESTIONS.length;
+    for (let i = 1; i <= total; i++) {
+      if (answers[`q${i}`] !== undefined) answered++;
+    }
+  }
+  if (total === 0) { wrap.style.display = 'none'; return; }
+  wrap.style.display = '';
+  const pct = Math.round((answered / total) * 100);
+  document.getElementById('audit-progress-fill').style.width = pct + '%';
+  document.getElementById('audit-progress-label').textContent = `${answered} / ${total}`;
+  // Color transition: accent → pass as it approaches 100%
+  const fill = document.getElementById('audit-progress-fill');
+  fill.style.background = pct === 100 ? 'var(--pass)' : 'var(--accent)';
 }
 
 // ── Compute result ─────────────────────────────────────────
@@ -2766,6 +2882,13 @@ function switchScreen(id, title) {
   } else {
     backBtn.classList.add('visible');
   }
+  // Update bottom nav active state
+  document.querySelectorAll('.bottom-nav button').forEach(b => {
+    b.classList.toggle('active', b.dataset.nav === id);
+  });
+  // Hide bottom nav on builder screen
+  const nav = document.getElementById('bottom-nav');
+  if (nav) nav.style.display = (id === 'builder-screen') ? 'none' : 'flex';
   window.scrollTo(0, 0);
 }
 
@@ -4393,14 +4516,14 @@ function setMcAnswer(n, optId, optIdx, qItemId) {
   if (panel) panel.style.display = isFail ? 'flex' : 'none';
   document.getElementById('result-banner').style.display = 'none';
   resultComputed = null;
-  evaluateLogicV2();
+  evaluateLogicV2(); updateAuditProgress();
 }
 
 function setTextAnswer(n, value) {
   answers[`q${n}`] = value;
   const card = document.getElementById(`qcard-${n}`);
   if (card) { card.classList.remove('answered-yes','answered-no','answered-na'); if (value.trim()) card.classList.add('answered-yes'); }
-  evaluateLogicV2();
+  evaluateLogicV2(); updateAuditProgress();
 }
 
 function setNumberAnswer(n, value) {
@@ -4409,7 +4532,7 @@ function setNumberAnswer(n, value) {
   const card = document.getElementById(`qcard-${n}`);
   if (card) { card.classList.remove('answered-yes','answered-no','answered-na'); if (!isNaN(num)) card.classList.add('answered-yes'); }
   resultComputed = null;
-  evaluateLogicV2();
+  evaluateLogicV2(); updateAuditProgress();
 }
 
 function setSliderAnswer(n, value, unit) {
@@ -4419,7 +4542,7 @@ function setSliderAnswer(n, value, unit) {
   const card = document.getElementById(`qcard-${n}`);
   if (card) { card.classList.remove('answered-yes','answered-no','answered-na'); card.classList.add('answered-yes'); }
   resultComputed = null;
-  evaluateLogicV2();
+  evaluateLogicV2(); updateAuditProgress();
 }
 
 // ── V2 Logic Engine ──────────────────────────────────
@@ -4936,5 +5059,26 @@ async function doRestoreGuard(guardId, location, machine) {
 }
 
 </script>
+
+<!-- Bottom navigation -->
+<nav class="bottom-nav" id="bottom-nav">
+  <button onclick="goHome()" data-nav="home-screen">
+    <span class="nav-icon">🏠</span>Home
+  </button>
+  <button onclick="showAssets()" data-nav="assets-screen">
+    <span class="nav-icon">🏭</span>Assets
+  </button>
+  <button onclick="showForm()" data-nav="form-screen" style="position:relative;">
+    <span class="nav-icon" style="background:var(--accent);color:#fff;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;margin-top:-12px;">＋</span>
+    <span style="margin-top:-2px;">Audit</span>
+  </button>
+  <button onclick="showTemplates()" data-nav="templates-screen">
+    <span class="nav-icon">📋</span>Templates
+  </button>
+  <button onclick="showSetup()" data-nav="setup-screen">
+    <span class="nav-icon">⚙️</span>Settings
+  </button>
+</nav>
+
 </body>
 </html>
