@@ -1314,6 +1314,10 @@ Building B,CNC Mill,</div>
       <select id="bld-comp" class="bld-meta-input" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:11px;border-radius:8px;font-size:15px;font-family:inherit;outline:none;">
         <option value="">No component required</option>
       </select>
+      <label class="bld-toggle-row" style="padding:4px 0;">
+        <span style="font-size:14px;">Enable Scoring</span>
+        <label class="toggle-switch"><input type="checkbox" id="bld-scoring" onchange="bs.scoringEnabled=this.checked;bs.dirty=true;"><span class="toggle-slider"></span></label>
+      </label>
     </div>
     <div id="bld-canvas"></div>
     <button onclick="bAddSection()" class="bld-add-section-btn">＋ Add Section</button>
@@ -1862,6 +1866,7 @@ function setAnswer(n, val) {
   if (panel) panel.style.display = val === 'no' ? 'flex' : 'none';
   document.getElementById('result-banner').style.display = 'none';
   resultComputed = null;
+  evaluateLogicV2();
 }
 
 function onFindingComment(n) {
@@ -1972,6 +1977,9 @@ async function submitInspection() {
     const qs = selectedTemplate.items.filter(i => i.itemType === 'question' && i.type !== 'instruction');
     qs.forEach((q, idx) => {
       if (q.required === false) return; // optional — skip
+      // Skip logic-hidden questions
+      const card = document.getElementById(`qcard-${idx + 1}`);
+      if (card && card.dataset.logicHidden === '1') return;
       const val = answers[`q${idx + 1}`];
       if (val === undefined || val === null || val === '') unanswered.push(idx + 1);
     });
@@ -1987,9 +1995,13 @@ async function submitInspection() {
   const result = computeResult();
   resultComputed = result;
 
+  // Compute score if scoring enabled
+  const scoreData = (selectedTemplate?.version === 2 && selectedTemplate?.items) ? computeScoreV2(selectedTemplate.items) : null;
   const banner = document.getElementById('result-banner');
   banner.className = result === 'PASS' ? 'pass' : 'fail';
-  banner.textContent = result === 'PASS' ? '✅ PASS — Guard compliant' : '❌ FAIL — Action required';
+  let bannerText = result === 'PASS' ? '✅ PASS' : '❌ FAIL — Action required';
+  if (scoreData) bannerText += ` — Score: ${scoreData.score}/${scoreData.max} (${scoreData.pct}%)`;
+  banner.textContent = bannerText;
   banner.style.display = 'block';
   banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
@@ -2026,7 +2038,8 @@ async function submitInspection() {
       notes: document.getElementById('f-notes').value.trim(),
       photo: uploadedPhoto,
       signature,
-      result
+      result,
+      score: scoreData || undefined
     };
     const res = await fetch('/api/inspection', {
       method: 'POST',
@@ -3261,6 +3274,8 @@ function bEnterBuilder() {
   compSel.innerHTML = '<option value="">No component required</option>' +
     types.map(t => `<option value="${escHtml(t)}"${t === bs.componentType ? ' selected' : ''}>${escHtml(t)}</option>`).join('');
   compSel.value = bs.componentType;
+  const scoringCb = document.getElementById('bld-scoring');
+  if (scoringCb) scoringCb.checked = bs.scoringEnabled;
   builderSetTab('build');
   bRenderCanvas();
 }
@@ -3317,7 +3332,9 @@ function bQCardHtml(q) {
   const preview = escHtml(q.text) || '<em style="color:var(--text-dim);font-style:italic;">Empty question</em>';
   const badges = [
     q.required === false ? '<span style="font-size:10px;color:var(--text-dim);background:rgba(255,255,255,0.06);border-radius:4px;padding:1px 5px;">optional</span>' : '',
-    q.allowPhoto ? '<span style="font-size:10px;color:var(--text-dim);">📷</span>' : ''
+    q.allowPhoto ? '<span style="font-size:10px;color:var(--text-dim);">📷</span>' : '',
+    (q.logic && q.logic.length) ? '<span style="font-size:10px;color:var(--accent);background:rgba(224,92,58,0.1);border-radius:4px;padding:1px 5px;">logic</span>' : '',
+    (bs.scoringEnabled && q.weight && q.weight !== 1) ? `<span style="font-size:10px;color:var(--text-dim);">×${q.weight}</span>` : ''
   ].filter(Boolean).join(' ');
   return `
     <div class="bld-q-card${sel ? ' selected' : ''}" id="bq-${q.id}" data-id="${q.id}" draggable="true">
@@ -3507,6 +3524,74 @@ function bDeleteItem(id) {
   bRenderCanvas();
 }
 
+// ── Logic rule helpers ────────────────────────────────
+function bGetConditionOptions(item) {
+  if (item.type === 'yesno') return [
+    { id: 'is_yes', label: 'is YES' }, { id: 'is_no', label: 'is NO' }
+  ];
+  if (item.type === 'multichoice') {
+    const opts = (item.options || []).map(o => ({ id: 'is_' + (o.id || o.label), label: 'is "' + o.label + '"' }));
+    return [{ id: 'is_fail', label: 'is any Fail option' }, ...opts];
+  }
+  if (item.type === 'number' || item.type === 'slider') return [
+    { id: 'less_than', label: 'less than' }, { id: 'equal_to', label: 'equal to' },
+    { id: 'greater_than', label: 'greater than' }, { id: 'between', label: 'between (min,max)' }
+  ];
+  if (item.type === 'text') return [
+    { id: 'is_empty', label: 'is empty' }, { id: 'is_not_empty', label: 'is not empty' },
+    { id: 'contains', label: 'contains' }
+  ];
+  return [{ id: 'answered', label: 'is answered' }, { id: 'not_answered', label: 'is not answered' }];
+}
+
+function bNeedsConditionValue(condition) {
+  return ['less_than','equal_to','greater_than','between','contains'].includes(condition);
+}
+
+function bAddLogicRule(qId) {
+  const item = bs.items.find(i => i.id === qId);
+  if (!item) return;
+  if (!item.logic) item.logic = [];
+  const conds = bGetConditionOptions(item);
+  item.logic.push({ condition: conds[0]?.id || 'answered', conditionValue: '', action: 'show_question', targetIds: [], actionTitle: '' });
+  bs.dirty = true;
+  bRenderSettings();
+}
+
+function bRemoveLogicRule(qId, idx) {
+  const item = bs.items.find(i => i.id === qId);
+  if (item && item.logic) { item.logic.splice(idx, 1); bs.dirty = true; bRenderSettings(); }
+}
+
+function bUpdateLogicRule(qId, idx, field, value) {
+  const item = bs.items.find(i => i.id === qId);
+  if (item && item.logic && item.logic[idx]) {
+    item.logic[idx][field] = value;
+    bs.dirty = true;
+    bRenderSettings();
+  }
+}
+
+function bToggleLogicTarget(qId, ruleIdx, targetId, checked) {
+  const item = bs.items.find(i => i.id === qId);
+  if (!item || !item.logic || !item.logic[ruleIdx]) return;
+  const rule = item.logic[ruleIdx];
+  if (!rule.targetIds) rule.targetIds = [];
+  if (checked && !rule.targetIds.includes(targetId)) rule.targetIds.push(targetId);
+  if (!checked) rule.targetIds = rule.targetIds.filter(t => t !== targetId);
+  bs.dirty = true;
+  bRenderSettings();
+}
+
+// Scoring: add per-option score config for multichoice
+function bUpdateOptionScore(qId, idx, score) {
+  const item = bs.items.find(i => i.id === qId);
+  if (item && item.options && item.options[idx]) {
+    item.options[idx].score = parseFloat(score) || 0;
+    bs.dirty = true;
+  }
+}
+
 // ── Settings panel ────────────────────────────────────
 function bSelectQ(id) {
   bs.selectedId = id;
@@ -3551,6 +3636,8 @@ function bRenderSettings() {
           <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--fail);cursor:pointer;white-space:nowrap;">
             <input type="checkbox" ${o.flagFail?'checked':''} onchange="bUpdateOption('${item.id}',${i},'flagFail',this.checked)" style="accent-color:var(--fail);"> Fail
           </label>
+          ${bs.scoringEnabled ? `<input type="number" value="${o.score??0}" placeholder="Pts" oninput="bUpdateOptionScore('${item.id}',${i},this.value)"
+            title="Score points" style="width:50px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px;border-radius:6px;font-size:12px;text-align:center;outline:none;">` : ''}
           <button onclick="bRemoveOption('${item.id}',${i})" style="background:none;border:none;color:var(--text-dim);font-size:16px;cursor:pointer;padding:0 4px;">✕</button>
         </div>`).join('')}
       <button onclick="bAddOption('${item.id}')" style="background:none;border:1px dashed var(--border);color:var(--text-dim);border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;width:100%;font-family:inherit;">＋ Add Option</button>
@@ -3585,6 +3672,69 @@ function bRenderSettings() {
     </div>`;
   }
 
+  // Scoring config (weight)
+  const scoringHtml = bs.scoringEnabled ? `
+    <div style="margin-top:12px;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text-dim);letter-spacing:.5px;margin-bottom:6px;">Score Weight</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="number" value="${item.weight??1}" min="0" max="100" step="0.5" oninput="bUpdateItem('${item.id}','weight',parseFloat(this.value)||1)"
+          style="width:80px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
+        <span style="font-size:12px;color:var(--text-dim);">× response score = weighted points</span>
+      </div>
+    </div>` : '';
+
+  // Logic rules section
+  const logicRules = item.logic || [];
+  const otherQs = bs.items.filter(i => i.itemType === 'question' && i.id !== item.id);
+  const conditionOpts = bGetConditionOptions(item);
+  const logicHtml = `
+    <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--accent);letter-spacing:.5px;">Logic Rules</div>
+        <button onclick="bAddLogicRule('${item.id}')" style="background:none;border:1px dashed var(--border);color:var(--text-dim);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:inherit;">＋ Add Rule</button>
+      </div>
+      ${logicRules.length === 0 ? '<div style="font-size:13px;color:var(--text-dim);padding:6px 0;">No logic rules. Add a rule to show/hide questions or trigger actions based on the answer.</div>' : ''}
+      ${logicRules.map((rule, ri) => `
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <span style="font-size:12px;font-weight:700;color:var(--text-dim);">Rule ${ri + 1}</span>
+            <button onclick="bRemoveLogicRule('${item.id}',${ri})" style="background:none;border:none;color:var(--fail);font-size:14px;cursor:pointer;">✕</button>
+          </div>
+          <div style="font-size:12px;color:var(--text-dim);margin-bottom:4px;">When answer…</div>
+          <div style="display:flex;gap:6px;margin-bottom:8px;">
+            <select onchange="bUpdateLogicRule('${item.id}',${ri},'condition',this.value)" style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:6px;font-size:13px;font-family:inherit;outline:none;">
+              ${conditionOpts.map(c => `<option value="${c.id}"${rule.condition===c.id?' selected':''}>${c.label}</option>`).join('')}
+            </select>
+            ${bNeedsConditionValue(rule.condition) ? `
+            <input type="text" value="${escHtml(rule.conditionValue||'')}" placeholder="Value" oninput="bUpdateLogicRule('${item.id}',${ri},'conditionValue',this.value)"
+              style="width:80px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:6px;font-size:13px;font-family:inherit;outline:none;">` : ''}
+          </div>
+          <div style="font-size:12px;color:var(--text-dim);margin-bottom:4px;">Then…</div>
+          <select onchange="bUpdateLogicRule('${item.id}',${ri},'action',this.value)" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:6px;font-size:13px;font-family:inherit;outline:none;margin-bottom:6px;">
+            <option value="show_question"${rule.action==='show_question'?' selected':''}>Show question(s)</option>
+            <option value="require_photo"${rule.action==='require_photo'?' selected':''}>Require photo</option>
+            <option value="require_note"${rule.action==='require_note'?' selected':''}>Require note/comment</option>
+            <option value="set_fail"${rule.action==='set_fail'?' selected':''}>Auto-fail inspection</option>
+            <option value="require_action"${rule.action==='require_action'?' selected':''}>Require action</option>
+          </select>
+          ${rule.action === 'show_question' ? `
+          <div style="font-size:12px;color:var(--text-dim);margin-bottom:4px;">Select question(s) to show:</div>
+          <div style="max-height:150px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;">
+            ${otherQs.map(q => {
+              const checked = (rule.targetIds || []).includes(q.id);
+              return `<label style="display:flex;align-items:center;gap:6px;font-size:13px;padding:4px 6px;cursor:pointer;border-radius:4px;background:${checked?'rgba(224,92,58,0.1)':'transparent'};">
+                <input type="checkbox" ${checked?'checked':''} onchange="bToggleLogicTarget('${item.id}',${ri},'${q.id}',this.checked)" style="accent-color:var(--accent);">
+                <span style="color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(q.text || 'Untitled')}</span>
+              </label>`;
+            }).join('')}
+          </div>` : ''}
+          ${rule.action === 'require_action' ? `
+          <input type="text" value="${escHtml(rule.actionTitle||'')}" placeholder="Action title (e.g. Fix issue)" oninput="bUpdateLogicRule('${item.id}',${ri},'actionTitle',this.value)"
+            style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:6px;font-size:13px;font-family:inherit;outline:none;">` : ''}
+        </div>
+      `).join('')}
+    </div>`;
+
   const baseToggles = `
     <div style="margin-top:14px;display:flex;flex-direction:column;gap:2px;">
       <label class="bld-toggle-row"><span>Required</span>
@@ -3597,7 +3747,9 @@ function bRenderSettings() {
       <label class="bld-toggle-row"><span>Comment box on fail</span>
         <label class="toggle-switch"><input type="checkbox" ${item.commentOnFail!==false?'checked':''} onchange="bUpdateItem('${item.id}','commentOnFail',this.checked)"><span class="toggle-slider"></span></label>
       </label>` : ''}
-    </div>`;
+    </div>
+    ${scoringHtml}
+    ${logicHtml}`;
 
   panel.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-top:4px;">
@@ -3731,6 +3883,7 @@ function buildChecklistV2(items) {
       const card = document.createElement('div');
       card.className = 'question-card';
       card.id = `qcard-${n}`;
+      card.dataset.itemId = item.id;
       const isOptional = item.required === false;
       const optionalTag = isOptional ? `<span style="font-size:11px;color:var(--text-dim);font-weight:400;margin-left:6px;">(optional)</span>` : '';
       let ansHtml = '';
@@ -3805,6 +3958,21 @@ function buildChecklistV2(items) {
       }
     }
   });
+  // Hide questions that are logic targets (initially hidden until condition met)
+  const logicTargetIds = new Set();
+  items.forEach(item => {
+    (item.logic || []).forEach(rule => {
+      if (rule.action === 'show_question') (rule.targetIds || []).forEach(tid => logicTargetIds.add(tid));
+    });
+  });
+  if (logicTargetIds.size > 0) {
+    container.querySelectorAll('.question-card').forEach(card => {
+      if (logicTargetIds.has(card.dataset.itemId)) {
+        card.style.display = 'none';
+        card.dataset.logicHidden = '1';
+      }
+    });
+  }
 }
 
 // ── V2 answer setters ─────────────────────────────────
@@ -3824,12 +3992,14 @@ function setMcAnswer(n, optId, optIdx, qItemId) {
   if (panel) panel.style.display = isFail ? 'flex' : 'none';
   document.getElementById('result-banner').style.display = 'none';
   resultComputed = null;
+  evaluateLogicV2();
 }
 
 function setTextAnswer(n, value) {
   answers[`q${n}`] = value;
   const card = document.getElementById(`qcard-${n}`);
   if (card) { card.classList.remove('answered-yes','answered-no','answered-na'); if (value.trim()) card.classList.add('answered-yes'); }
+  evaluateLogicV2();
 }
 
 function setNumberAnswer(n, value) {
@@ -3838,6 +4008,7 @@ function setNumberAnswer(n, value) {
   const card = document.getElementById(`qcard-${n}`);
   if (card) { card.classList.remove('answered-yes','answered-no','answered-na'); if (!isNaN(num)) card.classList.add('answered-yes'); }
   resultComputed = null;
+  evaluateLogicV2();
 }
 
 function setSliderAnswer(n, value, unit) {
@@ -3847,27 +4018,185 @@ function setSliderAnswer(n, value, unit) {
   const card = document.getElementById(`qcard-${n}`);
   if (card) { card.classList.remove('answered-yes','answered-no','answered-na'); card.classList.add('answered-yes'); }
   resultComputed = null;
+  evaluateLogicV2();
+}
+
+// ── V2 Logic Engine ──────────────────────────────────
+let _logicActions = {}; // tracks triggered actions per question: { qItemId: { require_photo, require_note, set_fail, require_action } }
+
+function evaluateLogicV2() {
+  if (!selectedTemplate || selectedTemplate.version !== 2 || !selectedTemplate.items) return;
+  const items = selectedTemplate.items;
+  const qs = items.filter(i => i.itemType === 'question' && i.type !== 'instruction');
+  const container = document.getElementById('checklist-container');
+  if (!container) return;
+
+  // Collect all show_question targets — initially hide all, then show matched
+  const allLogicTargets = new Set();
+  const shownTargets = new Set();
+  _logicActions = {};
+
+  qs.forEach((q, qIdx) => {
+    const n = qIdx + 1;
+    const val = answers[`q${n}`];
+    (q.logic || []).forEach(rule => {
+      if (rule.action === 'show_question') {
+        (rule.targetIds || []).forEach(tid => allLogicTargets.add(tid));
+      }
+      if (!evaluateCondition(q, val, rule)) return;
+      // Condition met — execute action
+      if (rule.action === 'show_question') {
+        (rule.targetIds || []).forEach(tid => shownTargets.add(tid));
+      } else if (rule.action === 'require_photo' || rule.action === 'require_note' || rule.action === 'set_fail' || rule.action === 'require_action') {
+        if (!_logicActions[q.id]) _logicActions[q.id] = {};
+        _logicActions[q.id][rule.action] = rule;
+      }
+    });
+  });
+
+  // Show/hide logic-target questions
+  container.querySelectorAll('.question-card').forEach(card => {
+    const itemId = card.dataset.itemId;
+    if (allLogicTargets.has(itemId)) {
+      if (shownTargets.has(itemId)) {
+        card.style.display = '';
+        card.dataset.logicHidden = '';
+      } else {
+        card.style.display = 'none';
+        card.dataset.logicHidden = '1';
+      }
+    }
+  });
+
+  // Show require_note panels and require_photo indicators
+  qs.forEach((q, qIdx) => {
+    const n = qIdx + 1;
+    const actions = _logicActions[q.id] || {};
+    // Require note: show finding panel
+    const findingPanel = document.getElementById(`finding-panel-${n}`);
+    if (findingPanel && actions.require_note && !findingPanel.style.display.includes('flex')) {
+      findingPanel.style.display = 'flex';
+    }
+    // Require photo indicator
+    const card = document.getElementById(`qcard-${n}`);
+    if (card) {
+      let badge = card.querySelector('.logic-require-badge');
+      if (actions.require_photo || actions.require_action) {
+        if (!badge) {
+          badge = document.createElement('div');
+          badge.className = 'logic-require-badge';
+          badge.style.cssText = 'font-size:12px;color:var(--accent);font-weight:600;margin-top:6px;';
+          card.appendChild(badge);
+        }
+        const parts = [];
+        if (actions.require_photo) parts.push('📷 Photo required');
+        if (actions.require_action) parts.push('⚡ Action: ' + (actions.require_action.actionTitle || 'Required'));
+        badge.innerHTML = parts.join(' &nbsp;|&nbsp; ');
+      } else if (badge) {
+        badge.remove();
+      }
+    }
+  });
+}
+
+function evaluateCondition(q, val, rule) {
+  const cond = rule.condition;
+  const cv = rule.conditionValue || '';
+
+  if (q.type === 'yesno') {
+    if (cond === 'is_yes') return val === true;
+    if (cond === 'is_no') return val === false;
+  }
+  if (q.type === 'multichoice') {
+    if (cond === 'is_fail') {
+      const opt = (q.options || []).find(o => (o.id || o.label) === val);
+      return !!opt?.flagFail;
+    }
+    // is_<optId> pattern
+    if (cond.startsWith('is_')) return val === cond.slice(3);
+  }
+  if (q.type === 'number' || q.type === 'slider') {
+    const numVal = parseFloat(val);
+    if (isNaN(numVal)) return false;
+    if (cond === 'less_than') return numVal < parseFloat(cv);
+    if (cond === 'equal_to') return numVal === parseFloat(cv);
+    if (cond === 'greater_than') return numVal > parseFloat(cv);
+    if (cond === 'between') {
+      const parts = cv.split(',').map(s => parseFloat(s.trim()));
+      return parts.length === 2 && numVal >= parts[0] && numVal <= parts[1];
+    }
+  }
+  if (q.type === 'text') {
+    const sv = (val || '').toString();
+    if (cond === 'is_empty') return !sv.trim();
+    if (cond === 'is_not_empty') return !!sv.trim();
+    if (cond === 'contains') return sv.toLowerCase().includes(cv.toLowerCase());
+  }
+  if (cond === 'answered') return val !== undefined && val !== null && val !== '';
+  if (cond === 'not_answered') return val === undefined || val === null || val === '';
+  return false;
 }
 
 // ── V2 result compute ─────────────────────────────────
 function computeResultV2(items) {
   const qs = items.filter(i => i.itemType === 'question' && i.type !== 'instruction');
+
+  // Check logic-triggered auto-fails
+  for (const qId in _logicActions) {
+    if (_logicActions[qId].set_fail) return 'FAIL';
+  }
+
   for (let i = 0; i < qs.length; i++) {
     const q = qs[i]; const val = answers[`q${i+1}`];
+    // Skip logic-hidden questions
+    const card = document.getElementById(`qcard-${i+1}`);
+    if (card && card.dataset.logicHidden === '1') continue;
     if (q.type === 'yesno' && val === false) return 'FAIL';
     if (q.type === 'multichoice' && val !== undefined && val !== 'na') {
       const opt = q.options?.find(o => (o.id || o.label) === val);
       if (opt?.flagFail) return 'FAIL';
     }
   }
-  const requiredQs = qs.filter(q => q.required !== false);
-  const answered = requiredQs.filter((q, i) => {
+  const visibleRequired = qs.filter((q, i) => {
+    if (q.required === false) return false;
+    const card = document.getElementById(`qcard-${i+1}`);
+    return !card || card.dataset.logicHidden !== '1';
+  });
+  const answered = visibleRequired.filter((q, i) => {
     const idx = qs.indexOf(q);
     const val = answers[`q${idx+1}`];
     return val !== undefined && val !== null && val !== '';
   }).length;
-  if (answered === 0 && requiredQs.length > 0) return null;
+  if (answered === 0 && visibleRequired.length > 0) return null;
   return 'PASS';
+}
+
+function computeScoreV2(items) {
+  if (!selectedTemplate?.scoringEnabled) return null;
+  const qs = items.filter(i => i.itemType === 'question' && i.type !== 'instruction');
+  let totalScore = 0, maxScore = 0;
+  qs.forEach((q, i) => {
+    const card = document.getElementById(`qcard-${i+1}`);
+    if (card && card.dataset.logicHidden === '1') return;
+    const weight = q.weight ?? 1;
+    const val = answers[`q${i+1}`];
+    if (q.type === 'yesno') {
+      maxScore += weight;
+      if (val === true) totalScore += weight;
+    } else if (q.type === 'multichoice') {
+      const maxOpt = Math.max(0, ...(q.options || []).map(o => o.score ?? 0));
+      maxScore += maxOpt * weight;
+      if (val !== undefined) {
+        const opt = (q.options || []).find(o => (o.id || o.label) === val);
+        if (opt) totalScore += (opt.score ?? 0) * weight;
+      }
+    } else if (q.type === 'slider') {
+      maxScore += (q.max ?? 100) * weight;
+      if (val !== undefined) totalScore += parseFloat(val) * weight;
+    }
+  });
+  if (maxScore === 0) return null;
+  return { score: totalScore, max: maxScore, pct: Math.round((totalScore / maxScore) * 100) };
 }
 
 // ── Confirm modal ─────────────────────────
