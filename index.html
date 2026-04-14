@@ -967,30 +967,30 @@
       font-size: 14px;
       cursor: pointer;
     }
-    /* ── Issues ── */
-    .issue-card {
+    /* ── Rectifications ── */
+    .rect-card {
       background: var(--surface); border: 1px solid var(--border);
       border-radius: var(--radius); padding: 14px; cursor: pointer;
     }
-    .issue-card:active { opacity: 0.8; }
-    .issue-status {
+    .rect-card:active { opacity: 0.8; }
+    .rect-status {
       font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px;
       text-transform: uppercase; letter-spacing: .3px;
     }
-    .issue-status.open { background: var(--fail); color: #fff; }
-    .issue-status.in_progress { background: #ff9800; color: #fff; }
-    .issue-status.resolved { background: var(--pass); color: #fff; }
-    .issue-status.closed { background: var(--text-dim); color: #fff; }
-    .issue-priority { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
-    .issue-priority.critical { background: rgba(224,92,58,0.2); color: var(--fail); }
-    .issue-priority.high { background: rgba(255,152,0,0.2); color: #ff9800; }
-    .issue-priority.medium { background: rgba(255,255,255,0.06); color: var(--text-dim); }
-    .issue-priority.low { background: rgba(58,173,92,0.1); color: var(--pass); }
-    .issue-timeline-item {
+    .rect-status.open { background: var(--fail); color: #fff; }
+    .rect-status.in_progress { background: #ff9800; color: #fff; }
+    .rect-status.resolved { background: var(--pass); color: #fff; }
+    .rect-status.closed { background: var(--text-dim); color: #fff; }
+    .rect-priority { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
+    .rect-priority.critical { background: rgba(224,92,58,0.2); color: var(--fail); }
+    .rect-priority.high { background: rgba(255,152,0,0.2); color: #ff9800; }
+    .rect-priority.medium { background: rgba(255,255,255,0.06); color: var(--text-dim); }
+    .rect-priority.low { background: rgba(58,173,92,0.1); color: var(--pass); }
+    .rect-timeline-item {
       display: flex; gap: 10px; font-size: 13px; padding: 8px 0;
       border-bottom: 1px solid var(--border);
     }
-    .issue-timeline-dot {
+    .rect-timeline-dot {
       width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0;
     }
 
@@ -1058,9 +1058,9 @@
         <div style="font-size:22px;font-weight:800;color:var(--pass);" id="stat-rect">0</div>
         <div style="font-size:10px;color:var(--text-dim);margin-top:2px;">Fixed</div>
       </div>
-      <div onclick="showIssues()" style="background:var(--surface);border:1px solid var(--fail);border-radius:var(--radius);padding:10px 4px;text-align:center;cursor:pointer;">
-        <div style="font-size:22px;font-weight:800;color:var(--fail);" id="stat-issues">0</div>
-        <div style="font-size:10px;color:var(--text-dim);margin-top:2px;">Issues</div>
+      <div onclick="showRects()" style="background:var(--surface);border:1px solid var(--fail);border-radius:var(--radius);padding:10px 4px;text-align:center;cursor:pointer;">
+        <div style="font-size:22px;font-weight:800;color:var(--fail);" id="stat-rects">0</div>
+        <div style="font-size:10px;color:var(--text-dim);margin-top:2px;">Rects</div>
       </div>
     </div>
 
@@ -1261,27 +1261,27 @@
 </div>
 
 <!-- ══════════════ ISSUES SCREEN ══════════════ -->
-<div class="screen" id="issues-screen">
+<div class="screen" id="rects-screen">
   <div style="padding:16px;display:flex;flex-direction:column;gap:12px;">
     <!-- Filter bar -->
     <div style="display:flex;gap:8px;">
-      <select id="issues-filter-status" onchange="renderIssuesList()" style="flex:1;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
+      <select id="rects-filter-status" onchange="renderRectsList()" style="flex:1;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
         <option value="active">Open & In Progress</option>
-        <option value="all">All Issues</option>
+        <option value="all">All Rectifications</option>
         <option value="open">Open</option>
         <option value="in_progress">In Progress</option>
         <option value="resolved">Resolved</option>
         <option value="closed">Closed</option>
       </select>
-      <button onclick="createIssueManual()" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">＋ New</button>
+      <button onclick="createRectManual()" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">＋ New</button>
     </div>
-    <div id="issues-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+    <div id="rects-list" style="display:flex;flex-direction:column;gap:8px;"></div>
   </div>
 </div>
 
 <!-- ══════════════ ISSUE DETAIL SCREEN ══════════════ -->
-<div class="screen" id="issue-detail-screen">
-  <div style="padding:16px;display:flex;flex-direction:column;gap:12px;" id="issue-detail-body"></div>
+<div class="screen" id="rect-detail-screen">
+  <div style="padding:16px;display:flex;flex-direction:column;gap:12px;" id="rect-detail-body"></div>
 </div>
 
 <!-- ══════════════ ASSET DATABASE SCREEN ══════════════ -->
@@ -1546,6 +1546,32 @@ Building B,CNC Mill,</div>
 </div>
 
 <!-- SEND TO PLANNER AFTER FAIL MODAL -->
+<!-- ══════════════ PHOTO ANNOTATION OVERLAY ══════════════ -->
+<div id="annotate-overlay" style="display:none;position:fixed;inset:0;background:#000;z-index:998;flex-direction:column;overflow:hidden;touch-action:none;">
+  <div style="background:var(--surface);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+    <span style="font-weight:700;font-size:15px;">✏️ Annotate Photo</span>
+    <div style="display:flex;gap:6px;">
+      <button onclick="annotateSetColor('var(--fail)')" style="width:28px;height:28px;border-radius:50%;background:var(--fail);border:2px solid #fff;cursor:pointer;" id="ann-c-red"></button>
+      <button onclick="annotateSetColor('#ff9800')" style="width:28px;height:28px;border-radius:50%;background:#ff9800;border:2px solid transparent;cursor:pointer;" id="ann-c-orange"></button>
+      <button onclick="annotateSetColor('#3aad5c')" style="width:28px;height:28px;border-radius:50%;background:#3aad5c;border:2px solid transparent;cursor:pointer;" id="ann-c-green"></button>
+      <button onclick="annotateSetColor('#fff')" style="width:28px;height:28px;border-radius:50%;background:#fff;border:2px solid transparent;cursor:pointer;" id="ann-c-white"></button>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button onclick="annotateUndo()" style="background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;">Undo</button>
+      <button onclick="annotateClear()" style="background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;">Clear</button>
+      <button onclick="annotateSave()" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;">Save</button>
+    </div>
+  </div>
+  <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:8px;overflow:hidden;">
+    <canvas id="annotate-canvas" style="touch-action:none;cursor:crosshair;max-width:100%;max-height:100%;display:block;"></canvas>
+  </div>
+  <div style="padding:8px 16px;display:flex;gap:10px;justify-content:center;align-items:center;flex-shrink:0;">
+    <span style="font-size:12px;color:var(--text-dim);">Stroke:</span>
+    <input type="range" id="ann-stroke" min="2" max="12" value="4" style="width:100px;accent-color:var(--accent);">
+    <button onclick="annotateCancel()" style="background:var(--surface);color:var(--text-dim);border:1px solid var(--border);border-radius:8px;padding:6px 14px;font-size:13px;cursor:pointer;margin-left:auto;">Cancel</button>
+  </div>
+</div>
+
 <div id="send-planner-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;align-items:center;justify-content:center;padding:20px;pointer-events:auto;touch-action:auto;">
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px 20px;max-width:420px;width:100%;display:flex;flex-direction:column;gap:14px;">
     <div style="font-size:18px;font-weight:700;color:var(--fail);">&#x274C; Inspection Failed</div>
@@ -1559,21 +1585,21 @@ Building B,CNC Mill,</div>
 </div>
 
 <!-- ══════════════ CREATE ISSUE MODAL ══════════════ -->
-<div id="create-issue-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9999;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto;pointer-events:auto;touch-action:auto;">
+<div id="create-rect-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9999;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto;pointer-events:auto;touch-action:auto;">
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;max-width:480px;width:100%;display:flex;flex-direction:column;gap:12px;margin:auto;">
-    <div style="font-size:17px;font-weight:700;color:var(--accent);">⚠️ Create Issue</div>
+    <div style="font-size:17px;font-weight:700;color:var(--accent);">⚠️ Create Rectification</div>
     <div class="field-group">
       <label>Title *</label>
-      <input id="create-issue-title" type="text" placeholder="Brief description of the issue">
+      <input id="create-rect-title" type="text" placeholder="Brief description">
     </div>
-    <div class="field-group">
-      <label>Description</label>
-      <textarea id="create-issue-desc" placeholder="Details, findings, observations..." style="min-height:80px;"></textarea>
+    <div>
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--fail);letter-spacing:.5px;margin-bottom:6px;">Failed Items</div>
+      <div id="create-rect-lineitems"></div>
     </div>
     <div style="display:flex;gap:8px;">
       <div class="field-group" style="flex:1;">
         <label>Priority</label>
-        <select id="create-issue-priority" style="width:100%;">
+        <select id="create-rect-priority" style="width:100%;">
           <option value="low">Low</option>
           <option value="medium" selected>Medium</option>
           <option value="high">High</option>
@@ -1582,18 +1608,18 @@ Building B,CNC Mill,</div>
       </div>
       <div class="field-group" style="flex:1;">
         <label>Due Date</label>
-        <input id="create-issue-due" type="date" style="width:100%;">
+        <input id="create-rect-due" type="date" style="width:100%;">
       </div>
     </div>
     <div class="field-group">
       <label>Assign To (Planner)</label>
-      <select id="create-issue-assignee" style="width:100%;">
+      <select id="create-rect-assignee" style="width:100%;">
         <option value="">— Select —</option>
       </select>
     </div>
     <div style="display:flex;gap:8px;margin-top:4px;">
-      <button onclick="closeCreateIssueModal()" style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:14px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
-      <button onclick="submitCreateIssue()" style="flex:1;background:var(--accent);border:none;color:#fff;border-radius:10px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;">Create Issue</button>
+      <button onclick="closeCreateRectModal()" style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:14px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
+      <button onclick="submitCreateRect()" style="flex:1;background:var(--accent);border:none;color:#fff;border-radius:10px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;">Create Rectification</button>
     </div>
   </div>
 </div>
@@ -1880,7 +1906,7 @@ document.addEventListener('DOMContentLoaded', () => {
   loadStats();
   loadLists();
   loadPlanners();
-  loadIssues();
+  loadRects();
 
   document.getElementById('new-location').addEventListener('keydown', e => { if (e.key === 'Enter') addLocation(); });
   document.getElementById('new-machine').addEventListener('keydown', e => { if (e.key === 'Enter') addMachine(); });
@@ -2076,7 +2102,7 @@ function buildChecklist() {
         <button class="q-btn na"  data-q="${n}" data-val="na"  onclick="setAnswer(${n},'na')">N/A</button>
       </div>
       <div class="finding-panel" id="finding-panel-${n}" style="display:none;">
-        <textarea id="finding-comment-${n}" placeholder="Describe the issue..." oninput="onFindingComment(${n})"></textarea>
+        <textarea id="finding-comment-${n}" placeholder="Describe the finding..." oninput="onFindingComment(${n})"></textarea>
         <div class="finding-photo-row">
           <label class="finding-photo-label" for="finding-photo-${n}">📷 Add photo</label>
           <input type="file" class="finding-photo-input" id="finding-photo-${n}" accept="image/*" capture="environment" data-q="${n}">
@@ -2129,7 +2155,12 @@ async function handleFindingPhotoSelect(e) {
     const key = `q${n}`;
     if (!findings[key]) findings[key] = { comment: '', photo: null };
     findings[key].photo = data.filename;
-    toast('Finding photo uploaded ✓');
+    // Show annotate button
+    const annBtn = document.getElementById(`finding-annotate-${n}`);
+    if (annBtn) annBtn.style.display = 'inline';
+    // Update preview src to server URL for annotation
+    preview.src = '/photos/' + data.filename;
+    toast('Photo uploaded — tap to annotate');
   } catch (err) {
     toast('Finding photo upload failed');
   }
@@ -2153,6 +2184,146 @@ async function handleQuestionPhotoSelect(e) {
   } catch (err) {
     toast('Photo upload failed');
   }
+}
+
+// ── Photo Annotation ──────────────────────────────────────
+let _annCtx = null, _annDrawing = false, _annColor = 'var(--fail)', _annPaths = [], _annCurrentPath = [];
+let _annImg = null, _annCallback = null;
+
+function openAnnotation(imgSrc, callback) {
+  _annCallback = callback;
+  _annPaths = [];
+  _annCurrentPath = [];
+  _annColor = '#e05c3a';
+  const overlay = document.getElementById('annotate-overlay');
+  overlay.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+
+  const canvas = document.getElementById('annotate-canvas');
+  _annCtx = canvas.getContext('2d');
+  _annImg = new Image();
+  _annImg.crossOrigin = 'anonymous';
+  _annImg.onload = () => {
+    // Scale canvas to image
+    const maxW = window.innerWidth - 16;
+    const maxH = window.innerHeight - 120;
+    let w = _annImg.width, h = _annImg.height;
+    if (w > maxW) { h = h * maxW / w; w = maxW; }
+    if (h > maxH) { w = w * maxH / h; h = maxH; }
+    canvas.width = w; canvas.height = h;
+    _annCtx.drawImage(_annImg, 0, 0, w, h);
+  };
+  _annImg.src = imgSrc;
+
+  // Drawing events
+  const getPos = (e) => {
+    const r = canvas.getBoundingClientRect();
+    const t = e.touches ? e.touches[0] : e;
+    return { x: t.clientX - r.left, y: t.clientY - r.top };
+  };
+  canvas.onpointerdown = (e) => {
+    e.preventDefault();
+    _annDrawing = true;
+    _annCurrentPath = [getPos(e)];
+    canvas.setPointerCapture(e.pointerId);
+  };
+  canvas.onpointermove = (e) => {
+    if (!_annDrawing) return;
+    e.preventDefault();
+    const p = getPos(e);
+    _annCurrentPath.push(p);
+    annotateRedraw();
+    // Draw current stroke
+    const stroke = parseInt(document.getElementById('ann-stroke').value) || 4;
+    _annCtx.strokeStyle = _annColor;
+    _annCtx.lineWidth = stroke;
+    _annCtx.lineCap = 'round';
+    _annCtx.lineJoin = 'round';
+    _annCtx.beginPath();
+    _annCurrentPath.forEach((pt, i) => { i === 0 ? _annCtx.moveTo(pt.x, pt.y) : _annCtx.lineTo(pt.x, pt.y); });
+    _annCtx.stroke();
+  };
+  canvas.onpointerup = (e) => {
+    if (!_annDrawing) return;
+    _annDrawing = false;
+    if (_annCurrentPath.length > 1) {
+      _annPaths.push({ points: [..._annCurrentPath], color: _annColor, width: parseInt(document.getElementById('ann-stroke').value) || 4 });
+    }
+    _annCurrentPath = [];
+    annotateRedraw();
+  };
+}
+
+function annotateRedraw() {
+  if (!_annCtx || !_annImg) return;
+  const c = document.getElementById('annotate-canvas');
+  _annCtx.clearRect(0, 0, c.width, c.height);
+  _annCtx.drawImage(_annImg, 0, 0, c.width, c.height);
+  _annPaths.forEach(path => {
+    _annCtx.strokeStyle = path.color;
+    _annCtx.lineWidth = path.width;
+    _annCtx.lineCap = 'round';
+    _annCtx.lineJoin = 'round';
+    _annCtx.beginPath();
+    path.points.forEach((pt, i) => { i === 0 ? _annCtx.moveTo(pt.x, pt.y) : _annCtx.lineTo(pt.x, pt.y); });
+    _annCtx.stroke();
+  });
+}
+
+function annotateSetColor(color) {
+  _annColor = color.replace('var(--fail)', '#e05c3a').replace('var(--pass)', '#3aad5c');
+  document.querySelectorAll('#annotate-overlay [id^="ann-c-"]').forEach(b => b.style.borderColor = 'transparent');
+  event.target.style.borderColor = '#fff';
+}
+
+function annotateUndo() {
+  _annPaths.pop();
+  annotateRedraw();
+}
+
+function annotateClear() {
+  _annPaths = [];
+  annotateRedraw();
+}
+
+function annotateCancel() {
+  document.getElementById('annotate-overlay').style.display = 'none';
+  document.body.style.overflow = '';
+  _annCallback = null;
+}
+
+async function annotateSave() {
+  // Draw final version
+  annotateRedraw();
+  const canvas = document.getElementById('annotate-canvas');
+  canvas.toBlob(async (blob) => {
+    if (!blob) return;
+    // Upload the annotated image
+    const fd = new FormData();
+    fd.append('photo', blob, 'annotated.jpg');
+    try {
+      const r = await fetch('/api/photo', { method: 'POST', body: fd });
+      const d = await r.json();
+      document.getElementById('annotate-overlay').style.display = 'none';
+      document.body.style.overflow = '';
+      if (_annCallback) _annCallback(d.filename);
+      _annCallback = null;
+      toast('Annotated photo saved');
+    } catch { toast('Save failed'); }
+  }, 'image/jpeg', 0.9);
+}
+
+// Helper: open annotation from any photo element
+function annotatePhoto(imgSrc, targetPreviewId, findingKey) {
+  openAnnotation(imgSrc, (filename) => {
+    // Update the preview image
+    const prev = document.getElementById(targetPreviewId);
+    if (prev) { prev.src = '/photos/' + filename; }
+    // Update finding if applicable
+    if (findingKey && findings[findingKey]) {
+      findings[findingKey].photo = filename;
+    }
+  });
 }
 
 // ── Photo ──────────────────────────────────────────────────
@@ -2319,8 +2490,8 @@ async function submitInspection() {
     const saved = await res.json();
     await loadStats();
     if (result === 'FAIL') {
-      // Create issue for failed inspection
-      createIssueFromInspection(saved.id || null);
+      // Create rectification for failed inspection
+      createRectFromInspection(saved.id || null);
     } else {
       toast('✅ Inspection saved — PASS');
       setTimeout(() => goHome(), 1200);
@@ -2394,63 +2565,63 @@ function showResults() {
 // ══════════════════════════════════════════════════════
 // ISSUES & ACTIONS
 // ══════════════════════════════════════════════════════
-let _issues = [];
+let _rects = [];
 
-async function loadIssues() {
-  try { const r = await fetch('/api/issues'); _issues = await r.json(); } catch { _issues = []; }
-  updateIssuesBadge();
+async function loadRects() {
+  try { const r = await fetch('/api/rectifications'); _rects = await r.json(); } catch { _rects = []; }
+  updateRectsBadge();
 }
 
-function updateIssuesBadge() {
-  const openCount = _issues.filter(i => i.status === 'open' || i.status === 'in_progress').length;
-  const badge = document.getElementById('issues-badge');
+function updateRectsBadge() {
+  const openCount = _rects.filter(i => i.status === 'open' || i.status === 'in_progress').length;
+  const badge = document.getElementById('rects-badge');
   if (badge) {
     badge.textContent = openCount;
     badge.style.display = openCount > 0 ? 'flex' : 'none';
   }
   // Also update home dashboard
-  const homeEl = document.getElementById('stat-issues');
+  const homeEl = document.getElementById('stat-rects');
   if (homeEl) homeEl.textContent = openCount;
 }
 
-function showIssues() {
-  switchScreen('issues-screen', 'Issues & Actions');
-  loadIssues().then(() => renderIssuesList());
+function showRects() {
+  switchScreen('rects-screen', 'Rectifications');
+  loadRects().then(() => renderRectsList());
 }
 
-function renderIssuesList() {
-  const filter = document.getElementById('issues-filter-status')?.value || 'active';
-  let filtered = _issues;
-  if (filter === 'active') filtered = _issues.filter(i => i.status === 'open' || i.status === 'in_progress');
-  else if (filter !== 'all') filtered = _issues.filter(i => i.status === filter);
+function renderRectsList() {
+  const filter = document.getElementById('rects-filter-status')?.value || 'active';
+  let filtered = _rects;
+  if (filter === 'active') filtered = _rects.filter(i => i.status === 'open' || i.status === 'in_progress');
+  else if (filter !== 'all') filtered = _rects.filter(i => i.status === filter);
 
-  const el = document.getElementById('issues-list');
+  const el = document.getElementById('rects-list');
   if (!filtered.length) {
-    el.innerHTML = `<div style="color:var(--text-dim);text-align:center;padding:30px 0;">${filter === 'active' ? 'No open issues' : 'No issues found'}</div>`;
+    el.innerHTML = `<div style="color:var(--text-dim);text-align:center;padding:30px 0;">${filter === 'active' ? 'No open rectifications' : 'No rectifications found'}</div>`;
     return;
   }
-  el.innerHTML = filtered.map(issue => {
-    const age = timeAgo(issue.createdAt);
-    const assignee = issue.assignedTo ? escHtml(issue.assignedTo.name) : '<span style="color:var(--text-dim);">Unassigned</span>';
-    const dueBadge = issue.dueDate ? dueLabel(issue.dueDate) : '';
-    return `<div class="issue-card" onclick="openIssueDetail('${issue.id}')">
+  el.innerHTML = filtered.map(rect => {
+    const age = timeAgo(rect.createdAt);
+    const assignee = rect.assignedTo ? escHtml(rect.assignedTo.name) : '<span style="color:var(--text-dim);">Unassigned</span>';
+    const dueBadge = rect.dueDate ? dueLabel(rect.dueDate) : '';
+    return `<div class="rect-card" onclick="openRectDetail('${rect.id}')">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px;">
-        <div style="font-weight:700;font-size:14px;flex:1;min-width:0;">${escHtml(issue.title)}</div>
+        <div style="font-weight:700;font-size:14px;flex:1;min-width:0;">${escHtml(rect.title)}</div>
         <div style="display:flex;gap:4px;flex-shrink:0;">
-          <span class="issue-priority ${issue.priority}">${issue.priority}</span>
-          <span class="issue-status ${issue.status}">${issue.status.replace('_', ' ')}</span>
+          <span class="rect-priority ${rect.priority}">${rect.priority}</span>
+          <span class="rect-status ${rect.status}">${rect.status.replace('_', ' ')}</span>
         </div>
       </div>
       <div style="font-size:12px;color:var(--text-dim);display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
-        <span>${escHtml(issue.id)}</span>
+        <span>${escHtml(rect.id)}</span>
         <span>·</span>
         <span>${assignee}</span>
         <span>·</span>
         <span>${age}</span>
         ${dueBadge}
-        ${issue.comments?.length ? `<span>· 💬 ${issue.comments.length}</span>` : ''}
+        ${rect.comments?.length ? `<span>· 💬 ${rect.comments.length}</span>` : ''}
       </div>
-      <div style="font-size:12px;color:var(--text-dim);margin-top:4px;">${escHtml(issue.location || '')}${issue.machine ? ' › ' + escHtml(issue.machine) : ''}${issue.component ? ' › ' + escHtml(issue.component) : ''}</div>
+      <div style="font-size:12px;color:var(--text-dim);margin-top:4px;">${escHtml(rect.location || '')}${rect.machine ? ' › ' + escHtml(rect.machine) : ''}${rect.component ? ' › ' + escHtml(rect.component) : ''}</div>
     </div>`;
   }).join('');
 }
@@ -2476,35 +2647,35 @@ function dueLabel(dateStr) {
   return `<span>Due in ${diffDays}d</span>`;
 }
 
-// ── Issue Detail ─────────────────────────────────────
-async function openIssueDetail(id) {
-  switchScreen('issue-detail-screen', 'Issue Detail');
-  const body = document.getElementById('issue-detail-body');
+// ── Rectification Detail ─────────────────────────────────────
+async function openRectDetail(id) {
+  switchScreen('rect-detail-screen', 'Rectification Detail');
+  const body = document.getElementById('rect-detail-body');
   body.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-dim);">Loading...</div>';
   try {
-    const r = await fetch('/api/issues/' + id);
-    const issue = await r.json();
-    renderIssueDetail(issue);
-  } catch { body.innerHTML = '<div style="color:var(--fail);text-align:center;padding:30px;">Failed to load issue</div>'; }
+    const r = await fetch('/api/rectifications/' + id);
+    const rect = await r.json();
+    renderRectDetail(rect);
+  } catch { body.innerHTML = '<div style="color:var(--fail);text-align:center;padding:30px;">Failed to load rectification</div>'; }
 }
 
-function renderIssueDetail(issue) {
-  const body = document.getElementById('issue-detail-body');
+function renderRectDetail(rect) {
+  const body = document.getElementById('rect-detail-body');
   const statusOpts = ['open', 'in_progress', 'resolved', 'closed'].map(s =>
-    `<option value="${s}"${issue.status === s ? ' selected' : ''}>${s.replace('_', ' ').toUpperCase()}</option>`).join('');
+    `<option value="${s}"${rect.status === s ? ' selected' : ''}>${s.replace('_', ' ').toUpperCase()}</option>`).join('');
   const priorityOpts = ['low', 'medium', 'high', 'critical'].map(p =>
-    `<option value="${p}"${issue.priority === p ? ' selected' : ''}>${p.charAt(0).toUpperCase() + p.slice(1)}</option>`).join('');
+    `<option value="${p}"${rect.priority === p ? ' selected' : ''}>${p.charAt(0).toUpperCase() + p.slice(1)}</option>`).join('');
   const plannerOpts = '<option value="">Unassigned</option>' + planners.map(p =>
-    `<option value="${escHtml(p.email)}" data-name="${escHtml(p.name)}"${issue.assignedTo?.email === p.email ? ' selected' : ''}>${escHtml(p.name)}</option>`).join('');
+    `<option value="${escHtml(p.email)}" data-name="${escHtml(p.name)}"${rect.assignedTo?.email === p.email ? ' selected' : ''}>${escHtml(p.name)}</option>`).join('');
 
-  const dateStr = new Date(issue.createdAt).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const dateStr = new Date(rect.createdAt).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
   // Photos section
-  const photosHtml = (issue.photos || []).map(p => `
+  const photosHtml = (rect.photos || []).map(p => `
     <img src="/photos/${p.filename}" alt="" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:1px solid var(--border);cursor:pointer;" onclick="window.open('/photos/${p.filename}','_blank')">`).join('');
 
   // Comments
-  const commentsHtml = (issue.comments || []).map(c => {
+  const commentsHtml = (rect.comments || []).map(c => {
     const cDate = new Date(c.timestamp).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
     return `<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;">
       <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
@@ -2516,18 +2687,18 @@ function renderIssueDetail(issue) {
   }).join('');
 
   // History timeline
-  const historyHtml = (issue.history || []).map(h => {
+  const historyHtml = (rect.history || []).map(h => {
     const hDate = new Date(h.at).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
     let desc = '';
     const dotColor = 'var(--text-dim)';
-    if (h.action === 'created') desc = `Issue created by ${escHtml(h.by)}`;
+    if (h.action === 'created') desc = `Created by ${escHtml(h.by)}`;
     else if (h.action === 'status_changed') desc = `Status: ${h.from} → <strong>${h.to}</strong> by ${escHtml(h.by)}`;
     else if (h.action === 'assigned') desc = `Assigned to <strong>${escHtml(h.to)}</strong> by ${escHtml(h.by)}`;
     else if (h.action === 'priority_changed') desc = `Priority: ${h.from} → <strong>${h.to}</strong> by ${escHtml(h.by)}`;
     else if (h.action === 'comment_added') desc = `Comment by ${escHtml(h.by)}`;
     else desc = `${h.action} by ${escHtml(h.by || 'System')}`;
-    return `<div class="issue-timeline-item">
-      <div class="issue-timeline-dot" style="background:${dotColor};"></div>
+    return `<div class="rect-timeline-item">
+      <div class="rect-timeline-dot" style="background:${dotColor};"></div>
       <div style="flex:1;"><div>${desc}</div><div style="font-size:11px;color:var(--text-dim);">${hDate}</div></div>
     </div>`;
   }).join('');
@@ -2535,48 +2706,68 @@ function renderIssueDetail(issue) {
   body.innerHTML = `
     <!-- Header -->
     <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-      <span style="font-family:monospace;font-size:13px;color:var(--text-dim);">${escHtml(issue.id)}</span>
-      <span class="issue-status ${issue.status}">${issue.status.replace('_', ' ')}</span>
-      <span class="issue-priority ${issue.priority}">${issue.priority}</span>
+      <span style="font-family:monospace;font-size:13px;color:var(--text-dim);">${escHtml(rect.id)}</span>
+      <span class="rect-status ${rect.status}">${rect.status.replace('_', ' ')}</span>
+      <span class="rect-priority ${rect.priority}">${rect.priority}</span>
     </div>
-    <div style="font-weight:700;font-size:18px;line-height:1.3;">${escHtml(issue.title)}</div>
-    <div style="font-size:12px;color:var(--text-dim);">Created ${dateStr} by ${escHtml(issue.createdBy || 'System')}</div>
+    <div style="font-weight:700;font-size:18px;line-height:1.3;">${escHtml(rect.title)}</div>
+    <div style="font-size:12px;color:var(--text-dim);">Created ${dateStr} by ${escHtml(rect.createdBy || 'System')}</div>
 
     <!-- Location info -->
-    ${issue.location ? `<div style="font-size:13px;color:var(--text-dim);background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;">
-      📍 ${escHtml(issue.location)}${issue.machine ? ' › ' + escHtml(issue.machine) : ''}${issue.component ? ' › ' + escHtml(issue.component) : ''}
-      ${issue.templateName ? `<br>📋 ${escHtml(issue.templateName)}` : ''}
-      ${issue.inspectionId ? `<br><a href="/api/report/${issue.inspectionId}" target="_blank" style="color:var(--accent);text-decoration:none;">📄 View inspection report</a>` : ''}
+    ${rect.location ? `<div style="font-size:13px;color:var(--text-dim);background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;">
+      📍 ${escHtml(rect.location)}${rect.machine ? ' › ' + escHtml(rect.machine) : ''}${rect.component ? ' › ' + escHtml(rect.component) : ''}
+      ${rect.templateName ? `<br>📋 ${escHtml(rect.templateName)}` : ''}
+      ${rect.inspectionId ? `<br><a href="/api/report/${rect.inspectionId}" target="_blank" style="color:var(--accent);text-decoration:none;">📄 View inspection report</a>` : ''}
     </div>` : ''}
 
-    <!-- Description -->
-    ${issue.description ? `<div style="font-size:14px;line-height:1.5;padding:10px;background:var(--surface);border:1px solid var(--border);border-radius:8px;">${escHtml(issue.description)}</div>` : ''}
+    <!-- Line Items -->
+    ${(rect.lineItems && rect.lineItems.length) ? `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;">
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--fail);letter-spacing:.5px;margin-bottom:8px;">Rectification Items (${rect.lineItems.length})</div>
+      ${rect.lineItems.map((li, idx) => {
+        const liStatus = li.status || 'open';
+        const statusColor = liStatus === 'done' ? 'var(--pass)' : (liStatus === 'in_progress' ? '#ff9800' : 'var(--fail)');
+        return `<div style="border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:6px;border-left:3px solid ${statusColor};">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+            <div style="font-size:13px;font-weight:700;">Q${li.questionNum}. ${escHtml(li.questionText)}</div>
+            <select onchange="updateRectLineItem('${rect.id}',${idx},this.value)" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:6px;font-size:11px;font-family:inherit;outline:none;">
+              <option value="open"${liStatus==='open'?' selected':''}>Open</option>
+              <option value="in_progress"${liStatus==='in_progress'?' selected':''}>In Progress</option>
+              <option value="done"${liStatus==='done'?' selected':''}>Done</option>
+            </select>
+          </div>
+          <div style="font-size:13px;color:var(--text-dim);">${escHtml(li.finding || 'No finding notes')}</div>
+          ${li.photo ? `<img src="/photos/${li.photo}" style="max-width:120px;border-radius:6px;margin-top:6px;border:1px solid var(--border);cursor:pointer;" onclick="window.open('/photos/${li.photo}','_blank')">` : ''}
+        </div>`;
+      }).join('')}
+    </div>` : ''}
+    ${rect.description ? `<div style="font-size:14px;line-height:1.5;padding:10px;background:var(--surface);border:1px solid var(--border);border-radius:8px;">${escHtml(rect.description)}</div>` : ''}
 
     <!-- Controls -->
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;gap:10px;">
       <div style="display:flex;gap:8px;">
         <div style="flex:1;">
           <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;margin-bottom:4px;">Status</div>
-          <select onchange="updateIssueField('${issue.id}','status',this.value)" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">${statusOpts}</select>
+          <select onchange="updateRectField('${rect.id}','status',this.value)" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">${statusOpts}</select>
         </div>
         <div style="flex:1;">
           <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;margin-bottom:4px;">Priority</div>
-          <select onchange="updateIssueField('${issue.id}','priority',this.value)" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">${priorityOpts}</select>
+          <select onchange="updateRectField('${rect.id}','priority',this.value)" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">${priorityOpts}</select>
         </div>
       </div>
       <div>
         <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;margin-bottom:4px;">Assigned To</div>
-        <select onchange="updateIssueAssignee('${issue.id}',this)" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">${plannerOpts}</select>
+        <select onchange="updateRectAssignee('${rect.id}',this)" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">${plannerOpts}</select>
       </div>
       <div style="display:flex;gap:8px;">
         <div style="flex:1;">
           <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;margin-bottom:4px;">Due Date</div>
-          <input type="date" value="${issue.dueDate || ''}" onchange="updateIssueField('${issue.id}','dueDate',this.value)"
+          <input type="date" value="${rect.dueDate || ''}" onchange="updateRectField('${rect.id}','dueDate',this.value)"
             style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
         </div>
         <div style="flex:1;">
           <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;margin-bottom:4px;">Work Order #</div>
-          <input type="text" value="${escHtml(issue.workOrderNumber || '')}" placeholder="WO-..." onchange="updateIssueField('${issue.id}','workOrderNumber',this.value)"
+          <input type="text" value="${escHtml(rect.workOrderNumber || '')}" placeholder="WO-..." onchange="updateRectField('${rect.id}','workOrderNumber',this.value)"
             style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
         </div>
       </div>
@@ -2588,17 +2779,17 @@ function renderIssueDetail(issue) {
       <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;">${photosHtml || '<span style="color:var(--text-dim);font-size:13px;">No photos</span>'}</div>
       <label style="display:inline-flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--text-dim);cursor:pointer;">
         📷 Add Photo
-        <input type="file" accept="image/*" capture="environment" onchange="uploadIssuePhoto('${issue.id}',this)" style="display:none;">
+        <input type="file" accept="image/*" capture="environment" onchange="uploadRectPhoto('${rect.id}',this)" style="display:none;">
       </label>
     </div>
 
     <!-- Comments -->
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;">
-      <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text-dim);margin-bottom:8px;">Comments (${issue.comments?.length || 0})</div>
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text-dim);margin-bottom:8px;">Comments (${rect.comments?.length || 0})</div>
       <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;">${commentsHtml || '<div style="color:var(--text-dim);font-size:13px;">No comments yet</div>'}</div>
       <div style="display:flex;gap:8px;">
-        <input type="text" id="issue-comment-input" placeholder="Add a comment..." style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
-        <button onclick="addIssueComment('${issue.id}')" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:10px 14px;font-size:14px;font-weight:700;cursor:pointer;">Send</button>
+        <input type="text" id="rect-comment-input" placeholder="Add a comment..." style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
+        <button onclick="addRectComment('${rect.id}')" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:10px 14px;font-size:14px;font-weight:700;cursor:pointer;">Send</button>
       </div>
     </div>
 
@@ -2609,163 +2800,232 @@ function renderIssueDetail(issue) {
     </div>
 
     <!-- Email report to assignee -->
-    ${issue.assignedTo ? `<button onclick="emailIssueReport('${issue.id}')" class="btn-secondary" style="font-size:14px;">📧 Email Report to ${escHtml(issue.assignedTo.name)}</button>` : ''}
+    ${rect.assignedTo ? `<button onclick="emailRectReport('${rect.id}')" class="btn-secondary" style="font-size:14px;">📧 Email Report to ${escHtml(rect.assignedTo.name)}</button>` : ''}
 
     <!-- Delete -->
-    <button onclick="deleteIssue('${issue.id}')" style="background:none;border:1px solid var(--fail);color:var(--fail);border-radius:var(--radius);padding:12px;font-size:14px;font-weight:600;cursor:pointer;width:100%;font-family:inherit;">Delete Issue</button>
+    <button onclick="deleteRect('${rect.id}')" style="background:none;border:1px solid var(--fail);color:var(--fail);border-radius:var(--radius);padding:12px;font-size:14px;font-weight:600;cursor:pointer;width:100%;font-family:inherit;">Delete Rectification</button>
   `;
 }
 
-async function updateIssueField(id, field, value) {
+async function updateRectLineItem(id, idx, status) {
   const inspector = localStorage.getItem('inspector_name') || 'User';
-  const payload = { [field]: value, _updatedBy: inspector };
   try {
-    const r = await fetch('/api/issues/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-    const d = await r.json();
-    if (d.success) { renderIssueDetail(d.issue); loadIssues(); toast('Updated'); }
+    const r = await fetch('/api/rectifications/' + id);
+    const rect = await r.json();
+    if (rect.lineItems && rect.lineItems[idx]) {
+      rect.lineItems[idx].status = status;
+      // If all line items done, suggest resolving
+      const allDone = rect.lineItems.every(li => li.status === 'done');
+      const payload = { lineItems: rect.lineItems, _updatedBy: inspector };
+      if (allDone && rect.status === 'open') payload.status = 'in_progress';
+      const r2 = await fetch('/api/rectifications/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const d = await r2.json();
+      if (d.success) {
+        renderRectDetail(d.rect);
+        if (allDone) toast('All items done — consider resolving');
+      }
+    }
   } catch { toast('Update failed'); }
 }
 
-async function updateIssueAssignee(id, select) {
+async function updateRectField(id, field, value) {
+  const inspector = localStorage.getItem('inspector_name') || 'User';
+  const payload = { [field]: value, _updatedBy: inspector };
+  try {
+    const r = await fetch('/api/rectifications/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const d = await r.json();
+    if (d.success) { renderRectDetail(d.rect); loadRects(); toast('Updated'); }
+  } catch { toast('Update failed'); }
+}
+
+async function updateRectAssignee(id, select) {
   const email = select.value;
   const name = select.options[select.selectedIndex]?.dataset?.name || '';
   const assignedTo = email ? { name, email } : null;
   const inspector = localStorage.getItem('inspector_name') || 'User';
   try {
-    const r = await fetch('/api/issues/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ assignedTo, _updatedBy: inspector }) });
+    const r = await fetch('/api/rectifications/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ assignedTo, _updatedBy: inspector }) });
     const d = await r.json();
-    if (d.success) { renderIssueDetail(d.issue); toast('Assigned'); }
+    if (d.success) { renderRectDetail(d.rect); toast('Assigned'); }
   } catch { toast('Update failed'); }
 }
 
-async function addIssueComment(id) {
-  const input = document.getElementById('issue-comment-input');
+async function addRectComment(id) {
+  const input = document.getElementById('rect-comment-input');
   const text = input?.value.trim();
   if (!text) return;
   const author = localStorage.getItem('inspector_name') || 'User';
   try {
-    const r = await fetch(`/api/issues/${id}/comment`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ author, text }) });
+    const r = await fetch(`/api/rectifications/${id}/comment`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ author, text }) });
     const d = await r.json();
-    if (d.success) { renderIssueDetail(d.issue); }
+    if (d.success) { renderRectDetail(d.rect); }
   } catch { toast('Failed to add comment'); }
 }
 
-async function uploadIssuePhoto(id, input) {
+async function uploadRectPhoto(id, input) {
   const file = input.files[0];
   if (!file) return;
   const fd = new FormData();
   fd.append('photo', file);
   try {
-    const r = await fetch(`/api/issues/${id}/photo`, { method: 'POST', body: fd });
+    const r = await fetch(`/api/rectifications/${id}/photo`, { method: 'POST', body: fd });
     const d = await r.json();
-    if (d.success) { renderIssueDetail(d.issue); toast('Photo added'); }
+    if (d.success) { renderRectDetail(d.rect); toast('Photo added'); }
   } catch { toast('Upload failed'); }
 }
 
-async function deleteIssue(id) {
-  showConfirmModal('Delete this issue permanently?', async () => {
-    await fetch('/api/issues/' + id, { method: 'DELETE' });
-    loadIssues();
-    showIssues();
-    toast('Issue deleted');
+async function deleteRect(id) {
+  showConfirmModal('Delete this rectification permanently?', async () => {
+    await fetch('/api/rectifications/' + id, { method: 'DELETE' });
+    loadRects();
+    showRects();
+    toast('Rectification deleted');
   });
 }
 
-async function emailIssueReport(id) {
-  const issue = _issues.find(i => i.id === id);
-  if (!issue || !issue.assignedTo || !issue.inspectionId) return toast('No inspection report to send');
+async function emailRectReport(id) {
+  const rect = _rects.find(i => i.id === id);
+  if (!rect || !rect.assignedTo || !rect.inspectionId) return toast('No inspection report to send');
   toast('Sending...');
   try {
     const r = await fetch('/api/email/send-report', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ inspectionId: issue.inspectionId, plannerEmail: issue.assignedTo.email, plannerName: issue.assignedTo.name }) });
+      body: JSON.stringify({ inspectionId: rect.inspectionId, plannerEmail: rect.assignedTo.email, plannerName: rect.assignedTo.name }) });
     const d = await r.json();
-    if (d.success) toast('Report sent to ' + issue.assignedTo.name);
+    if (d.success) toast('Report sent to ' + rect.assignedTo.name);
     else toast('Send failed: ' + d.error);
   } catch { toast('Send failed'); }
 }
 
-// ── Create issue from failed inspection ──────────────
-function createIssueFromInspection(inspectionId) {
+// ── Create rectification from failed inspection ──────────────
+let _rectLineItems = [];
+
+function createRectFromInspection(inspectionId) {
   _pendingFailInspectionId = inspectionId;
-  // Find the inspection data
   const insp = inspections?.find(r => r.id === inspectionId);
-  // Build description from findings
-  let desc = '';
-  if (insp?.findings) {
-    Object.entries(insp.findings).forEach(([key, f]) => {
-      if (f.comment) desc += `${key}: ${f.comment}\n`;
-    });
+  // Build line items from failed questions
+  _rectLineItems = [];
+  if (insp && selectedTemplate) {
+    const tpl = selectedTemplate;
+    if (tpl.version === 2 && tpl.items) {
+      const qs = tpl.items.filter(i => i.itemType === 'question' && i.type !== 'instruction');
+      qs.forEach((q, idx) => {
+        const key = `q${idx + 1}`;
+        const val = insp.answers?.[key];
+        let failed = false;
+        if (q.type === 'yesno' && val === false) failed = true;
+        if (q.type === 'multichoice' && val !== undefined) {
+          const opt = (q.options || []).find(o => (o.id || o.label) === val);
+          if (opt?.flagFail) failed = true;
+        }
+        if (failed) {
+          const finding = insp.findings?.[key];
+          _rectLineItems.push({
+            questionNum: idx + 1,
+            questionText: q.text || '',
+            finding: finding?.comment || '',
+            photo: finding?.photo || null,
+            status: 'open'
+          });
+        }
+      });
+    } else {
+      // v1 template
+      (tpl.questions || []).forEach((q, idx) => {
+        const key = `q${idx + 1}`;
+        if (insp.answers?.[key] === false) {
+          const finding = insp.findings?.[key];
+          _rectLineItems.push({ questionNum: idx + 1, questionText: q.text || '', finding: finding?.comment || '', photo: finding?.photo || null, status: 'open' });
+        }
+      });
+    }
   }
-  // Populate the create issue modal
-  document.getElementById('create-issue-title').value = `Failed audit — ${insp?.machine || ''} ${insp?.guardId ? '(' + insp.guardId + ')' : ''}`.trim();
-  document.getElementById('create-issue-desc').value = desc.trim();
-  document.getElementById('create-issue-priority').value = 'high';
-  // Due date default: 7 days from now
+  // Populate modal
+  document.getElementById('create-rect-title').value = `Failed audit — ${insp?.machine || ''} ${insp?.guardId ? '(' + insp.guardId + ')' : ''}`.trim();
+  document.getElementById('create-rect-priority').value = 'high';
   const due = new Date(); due.setDate(due.getDate() + 7);
-  document.getElementById('create-issue-due').value = due.toISOString().split('T')[0];
-  // Planner dropdown
-  const sel = document.getElementById('create-issue-assignee');
+  document.getElementById('create-rect-due').value = due.toISOString().split('T')[0];
+  const sel = document.getElementById('create-rect-assignee');
   sel.innerHTML = '<option value="">— Select —</option>' + planners.map(p =>
     `<option value="${escHtml(p.email)}" data-name="${escHtml(p.name)}">${escHtml(p.name)}</option>`).join('');
+  // Render line items preview
+  renderRectLineItemsPreview();
   // Store context
-  document.getElementById('create-issue-modal').dataset.inspectionId = inspectionId;
-  document.getElementById('create-issue-modal').dataset.location = insp?.location || '';
-  document.getElementById('create-issue-modal').dataset.machine = insp?.machine || '';
-  document.getElementById('create-issue-modal').dataset.component = insp?.guardId || '';
-  document.getElementById('create-issue-modal').dataset.templateName = insp?.templateName || '';
-  document.getElementById('create-issue-modal').dataset.createdBy = insp?.inspector || '';
-  document.getElementById('create-issue-modal').style.display = 'flex';
+  const modal = document.getElementById('create-rect-modal');
+  modal.dataset.inspectionId = inspectionId;
+  modal.dataset.location = insp?.location || '';
+  modal.dataset.machine = insp?.machine || '';
+  modal.dataset.component = insp?.guardId || '';
+  modal.dataset.templateName = insp?.templateName || '';
+  modal.dataset.createdBy = insp?.inspector || '';
+  modal.style.display = 'flex';
 }
 
-function closeCreateIssueModal() {
-  document.getElementById('create-issue-modal').style.display = 'none';
+function renderRectLineItemsPreview() {
+  const el = document.getElementById('create-rect-lineitems');
+  if (!el) return;
+  if (!_rectLineItems.length) {
+    el.innerHTML = '<div style="color:var(--text-dim);font-size:13px;">No failed questions detected.</div>';
+    return;
+  }
+  el.innerHTML = _rectLineItems.map((li, i) => `
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:6px;">
+      <div style="font-size:12px;color:var(--fail);font-weight:700;margin-bottom:4px;">Q${li.questionNum}. ${escHtml(li.questionText)}</div>
+      <input type="text" value="${escHtml(li.finding)}" placeholder="Describe what needs fixing..." oninput="_rectLineItems[${i}].finding=this.value"
+        style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:6px;font-size:13px;font-family:inherit;outline:none;">
+      ${li.photo ? `<div style="font-size:11px;color:var(--text-dim);margin-top:4px;">📷 Photo attached</div>` : ''}
+    </div>`).join('');
 }
 
-async function submitCreateIssue() {
-  const modal = document.getElementById('create-issue-modal');
-  const title = document.getElementById('create-issue-title').value.trim();
+function closeCreateRectModal() {
+  document.getElementById('create-rect-modal').style.display = 'none';
+}
+
+async function submitCreateRect() {
+  const modal = document.getElementById('create-rect-modal');
+  const title = document.getElementById('create-rect-title').value.trim();
   if (!title) return toast('Title required');
-  const assigneeSel = document.getElementById('create-issue-assignee');
+  const assigneeSel = document.getElementById('create-rect-assignee');
   const email = assigneeSel.value;
   const name = assigneeSel.options[assigneeSel.selectedIndex]?.dataset?.name || '';
   const payload = {
     inspectionId: modal.dataset.inspectionId || null,
     templateName: modal.dataset.templateName || '',
     title,
-    description: document.getElementById('create-issue-desc').value.trim(),
+    description: '',
+    lineItems: _rectLineItems,
     location: modal.dataset.location || '',
     machine: modal.dataset.machine || '',
     component: modal.dataset.component || '',
-    priority: document.getElementById('create-issue-priority').value,
+    priority: document.getElementById('create-rect-priority').value,
     assignedTo: email ? { name, email } : null,
-    dueDate: document.getElementById('create-issue-due').value || null,
+    dueDate: document.getElementById('create-rect-due').value || null,
     createdBy: modal.dataset.createdBy || localStorage.getItem('inspector_name') || 'Inspector'
   };
   try {
-    const r = await fetch('/api/issues', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const r = await fetch('/api/rectifications', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     const d = await r.json();
     if (d.success) {
-      closeCreateIssueModal();
-      loadIssues();
-      toast('Issue ' + d.issue.id + ' created');
+      closeCreateRectModal();
+      loadRects();
+      toast('Rectification ' + d.rect.id + ' created');
       // Send email if planner assigned and inspection exists
       if (payload.assignedTo && payload.inspectionId) {
         sendReportToPlanner(payload.inspectionId, payload.assignedTo.email, payload.assignedTo.name);
       }
       setTimeout(() => goHome(), 1200);
     }
-  } catch { toast('Failed to create issue'); }
+  } catch { toast('Failed to create rectification'); }
 }
 
-function createIssueManual() {
-  document.getElementById('create-issue-title').value = '';
-  document.getElementById('create-issue-desc').value = '';
-  document.getElementById('create-issue-priority').value = 'medium';
-  document.getElementById('create-issue-due').value = '';
-  const sel = document.getElementById('create-issue-assignee');
+function createRectManual() {
+  document.getElementById('create-rect-title').value = '';
+  document.getElementById('create-rect-desc').value = '';
+  document.getElementById('create-rect-priority').value = 'medium';
+  document.getElementById('create-rect-due').value = '';
+  const sel = document.getElementById('create-rect-assignee');
   sel.innerHTML = '<option value="">— Select —</option>' + planners.map(p =>
     `<option value="${escHtml(p.email)}" data-name="${escHtml(p.name)}">${escHtml(p.name)}</option>`).join('');
-  const modal = document.getElementById('create-issue-modal');
+  const modal = document.getElementById('create-rect-modal');
   modal.dataset.inspectionId = '';
   modal.dataset.location = '';
   modal.dataset.machine = '';
@@ -3112,28 +3372,28 @@ async function loadAssetHistory() {
             ${insp.notes ? `<div style="margin-top:4px;font-style:italic;">"${escHtml(insp.notes)}"</div>` : ''}
           </div>
           ${insp.result === 'FAIL' ? (() => {
-            const linkedIssue = _issues.find(iss => iss.inspectionId === insp.id);
+            const linkedRect = _rects.find(iss => iss.inspectionId === insp.id);
             return `<div style="margin-top:8px;display:flex;gap:10px;align-items:center;">
               <a href="/api/report/${insp.id}" target="_blank" style="color:var(--accent);font-size:13px;font-weight:600;text-decoration:none;">📄 View Report</a>
-              ${linkedIssue ? `<span onclick="openIssueDetail('${linkedIssue.id}')" style="color:var(--fail);font-size:13px;font-weight:600;cursor:pointer;">⚠️ ${linkedIssue.id} (${linkedIssue.status.replace('_',' ')})</span>` : ''}
+              ${linkedRect ? `<span onclick="openRectDetail('${linkedRect.id}')" style="color:var(--fail);font-size:13px;font-weight:600;cursor:pointer;">⚠️ ${linkedRect.id} (${linkedRect.status.replace('_',' ')})</span>` : ''}
             </div>`;
           })() : ''}
         </div>`;
       }).join('');
 
-    // Show linked issues section
-    const assetIssues = _issues.filter(iss => {
+    // Show linked rectifications section
+    const assetRects = _rects.filter(iss => {
       if (_assetNav._detailComp && iss.component === _assetNav._detailComp) return true;
       if (!_assetNav._detailComp && _assetNav._detailMac && iss.machine === _assetNav._detailMac && iss.location === _assetNav._detailLoc) return true;
       if (!_assetNav._detailMac && iss.location === _assetNav._detailLoc) return true;
       return false;
     });
-    if (assetIssues.length) {
-      el.innerHTML = `<div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--accent);letter-spacing:.5px;margin-bottom:6px;">Open Issues (${assetIssues.filter(i=>i.status==='open'||i.status==='in_progress').length})</div>` +
-        assetIssues.slice(0, 10).map(iss => `<div class="issue-card" onclick="openIssueDetail('${iss.id}')" style="margin-bottom:8px;">
+    if (assetRects.length) {
+      el.innerHTML = `<div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--accent);letter-spacing:.5px;margin-bottom:6px;">Open Rectifications (${assetRects.filter(i=>i.status==='open'||i.status==='in_progress').length})</div>` +
+        assetRects.slice(0, 10).map(iss => `<div class="rect-card" onclick="openRectDetail('${iss.id}')" style="margin-bottom:8px;">
           <div style="display:flex;justify-content:space-between;align-items:center;">
             <span style="font-weight:600;font-size:13px;">${escHtml(iss.title)}</span>
-            <span class="issue-status ${iss.status}">${iss.status.replace('_',' ')}</span>
+            <span class="rect-status ${iss.status}">${iss.status.replace('_',' ')}</span>
           </div>
           <div style="font-size:12px;color:var(--text-dim);">${escHtml(iss.id)} · ${timeAgo(iss.createdAt)}</div>
         </div>`).join('') +
@@ -4756,7 +5016,7 @@ function bRenderSettings() {
             }).join('')}
           </div>` : ''}
           ${rule.action === 'require_action' ? `
-          <input type="text" value="${escHtml(rule.actionTitle||'')}" placeholder="Action title (e.g. Fix issue)" oninput="bUpdateLogicRule('${item.id}',${ri},'actionTitle',this.value)"
+          <input type="text" value="${escHtml(rule.actionTitle||'')}" placeholder="Action title (e.g. Fix problem)" oninput="bUpdateLogicRule('${item.id}',${ri},'actionTitle',this.value)"
             style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:6px;font-size:13px;font-family:inherit;outline:none;">` : ''}
         </div>
       `).join('')}
@@ -4920,11 +5180,12 @@ function buildChecklistV2(items) {
           <button class="q-btn no"  data-q="${n}" data-val="no"  onclick="setAnswer(${n},'no')">NO</button>
         </div>
         <div class="finding-panel" id="finding-panel-${n}" style="display:none;">
-          <textarea id="finding-comment-${n}" placeholder="Describe the issue..." oninput="onFindingComment(${n})"></textarea>
+          <textarea id="finding-comment-${n}" placeholder="Describe the finding..." oninput="onFindingComment(${n})"></textarea>
           <div class="finding-photo-row">
             <label class="finding-photo-label" for="finding-photo-${n}">📷 Add photo</label>
             <input type="file" class="finding-photo-input" id="finding-photo-${n}" accept="image/*" capture="environment" data-q="${n}">
-            <img id="finding-photo-preview-${n}" class="finding-photo-thumb" style="display:none;" alt="">
+            <img id="finding-photo-preview-${n}" class="finding-photo-thumb" style="display:none;" alt="" onclick="annotatePhoto(this.src,'finding-photo-preview-${n}','q${n}')">
+            <span id="finding-annotate-${n}" style="display:none;font-size:12px;color:var(--accent);cursor:pointer;margin-top:4px;" onclick="annotatePhoto(document.getElementById('finding-photo-preview-${n}').src,'finding-photo-preview-${n}','q${n}')">✏️ Annotate</span>
           </div>
         </div>`;
       } else if (item.type === 'multichoice') {
@@ -4932,7 +5193,7 @@ function buildChecklistV2(items) {
           ${(item.options||[]).map((o,oi) => `<button class="q-btn" id="mc-opt-${n}-${oi}" style="text-align:left;padding:10px 14px;font-size:14px;font-weight:600;" onclick="setMcAnswer(${n},'${escHtml(o.id||o.label)}',${oi},'${item.id}')">${escHtml(o.label)}</button>`).join('')}
         </div>
         <div class="finding-panel" id="finding-panel-${n}" style="display:none;">
-          <textarea id="finding-comment-${n}" placeholder="Describe the issue..." oninput="onFindingComment(${n})"></textarea>
+          <textarea id="finding-comment-${n}" placeholder="Describe the finding..." oninput="onFindingComment(${n})"></textarea>
         </div>`;
       } else if (item.type === 'text') {
         ansHtml = `<textarea id="text-ans-${n}" placeholder="Enter your answer…" oninput="setTextAnswer(${n},this.value)" maxlength="${item.maxLength||500}"
@@ -5575,8 +5836,8 @@ async function doRestoreGuard(guardId, location, machine) {
     <span class="nav-icon" style="background:var(--accent);color:#fff;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;margin-top:-12px;">＋</span>
     <span style="margin-top:-2px;">Audit</span>
   </button>
-  <button onclick="showIssues()" data-nav="issues-screen">
-    <span class="nav-icon" style="position:relative;">⚠️<span id="issues-badge" style="display:none;position:absolute;top:-4px;right:-8px;background:var(--fail);color:#fff;font-size:9px;font-weight:800;min-width:16px;height:16px;border-radius:8px;display:none;align-items:center;justify-content:center;padding:0 4px;">0</span></span>Issues
+  <button onclick="showRects()" data-nav="rects-screen">
+    <span class="nav-icon" style="position:relative;">⚠️<span id="rects-badge" style="display:none;position:absolute;top:-4px;right:-8px;background:var(--fail);color:#fff;font-size:9px;font-weight:800;min-width:16px;height:16px;border-radius:8px;display:none;align-items:center;justify-content:center;padding:0 4px;">0</span></span>Rects
   </button>
   <button onclick="showSetup()" data-nav="setup-screen">
     <span class="nav-icon">⚙️</span>More

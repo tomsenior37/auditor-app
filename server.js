@@ -14,7 +14,7 @@ const ARCHIVE_FILE = path.join(__dirname, 'archive.json');
 const TEMPLATES_FILE = path.join(__dirname, 'templates.json');
 const EMAIL_CONFIG_FILE = path.join(__dirname, 'emailConfig.json');
 const ASSETS_FILE = path.join(__dirname, 'assets.json');
-const ISSUES_FILE = path.join(__dirname, 'issues.json');
+const RECTS_FILE = path.join(__dirname, 'rectifications.json');
 const PHOTOS_DIR = path.join(__dirname, 'photos');
 const DOCS_DIR = path.join(__dirname, 'documents');
 
@@ -110,18 +110,18 @@ function assetKey(location, machine, component) {
   return [location || '', machine || '', component || ''].join('::');
 }
 
-function readIssues() {
-  if (!fs.existsSync(ISSUES_FILE)) return [];
-  try { return JSON.parse(fs.readFileSync(ISSUES_FILE, 'utf8')); } catch { return []; }
+function readRects() {
+  if (!fs.existsSync(RECTS_FILE)) return [];
+  try { return JSON.parse(fs.readFileSync(RECTS_FILE, 'utf8')); } catch { return []; }
 }
 
-function writeIssues(data) {
-  fs.writeFileSync(ISSUES_FILE, JSON.stringify(data, null, 2), 'utf8');
+function writeRects(data) {
+  fs.writeFileSync(RECTS_FILE, JSON.stringify(data, null, 2), 'utf8');
 }
 
-function nextIssueId(issues) {
-  const nums = issues.map(i => parseInt((i.id || '').replace('ISS-', '')) || 0);
-  return 'ISS-' + String(Math.max(0, ...nums) + 1).padStart(4, '0');
+function nextRectId(rects) {
+  const nums = rects.map(i => parseInt((i.id || '').replace('REC-', '')) || 0);
+  return 'REC-' + String(Math.max(0, ...nums) + 1).padStart(4, '0');
 }
 
 function readArchive() {
@@ -653,26 +653,26 @@ app.get('/api/asset/history', (req, res) => {
   res.json(filtered);
 });
 
-// ── Issues & Actions API ───────────────────────────────
-app.get('/api/issues', (req, res) => {
-  res.json(readIssues());
+// ── Rectifications API ───────────────────────────────
+app.get('/api/rectifications', (req, res) => {
+  res.json(readRects());
 });
 
-app.get('/api/issues/:id', (req, res) => {
-  const issues = readIssues();
-  const issue = issues.find(i => i.id === req.params.id);
-  if (!issue) return res.status(404).json({ error: 'Not found' });
-  res.json(issue);
+app.get('/api/rectifications/:id', (req, res) => {
+  const rects = readRects();
+  const rect = rects.find(i => i.id === req.params.id);
+  if (!rect) return res.status(404).json({ error: 'Not found' });
+  res.json(rect);
 });
 
-app.post('/api/issues', (req, res) => {
-  const issues = readIssues();
-  const id = nextIssueId(issues);
-  const issue = {
+app.post('/api/rectifications', (req, res) => {
+  const rects = readRects();
+  const id = nextRectId(rects);
+  const rect = {
     id,
     inspectionId: req.body.inspectionId || null,
     templateName: req.body.templateName || '',
-    title: req.body.title || 'Untitled Issue',
+    title: req.body.title || 'Untitled Rectification',
     description: req.body.description || '',
     location: req.body.location || '',
     machine: req.body.machine || '',
@@ -686,76 +686,77 @@ app.post('/api/issues', (req, res) => {
     resolvedAt: null,
     workOrderNumber: '',
     photos: req.body.photos || [],
+    lineItems: req.body.lineItems || [],
     findings: req.body.findings || {},
     comments: [],
     history: [{ action: 'created', by: req.body.createdBy || 'System', at: new Date().toISOString() }]
   };
-  issues.unshift(issue);
-  writeIssues(issues);
-  res.json({ success: true, issue });
+  rects.unshift(rect);
+  writeRects(rects);
+  res.json({ success: true, rect });
 });
 
-app.patch('/api/issues/:id', (req, res) => {
-  const issues = readIssues();
-  const idx = issues.findIndex(i => i.id === req.params.id);
+app.patch('/api/rectifications/:id', (req, res) => {
+  const rects = readRects();
+  const idx = rects.findIndex(i => i.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'Not found' });
-  const issue = issues[idx];
+  const rect = rects[idx];
   const changes = req.body;
   const by = changes._updatedBy || 'System';
   delete changes._updatedBy;
 
   // Track status changes in history
-  if (changes.status && changes.status !== issue.status) {
-    issue.history.push({ action: 'status_changed', from: issue.status, to: changes.status, by, at: new Date().toISOString() });
+  if (changes.status && changes.status !== rect.status) {
+    rect.history.push({ action: 'status_changed', from: rect.status, to: changes.status, by, at: new Date().toISOString() });
     if (changes.status === 'resolved' || changes.status === 'closed') {
-      issue.resolvedAt = new Date().toISOString();
+      rect.resolvedAt = new Date().toISOString();
     }
   }
-  if (changes.assignedTo && (!issue.assignedTo || changes.assignedTo.email !== issue.assignedTo.email)) {
-    issue.history.push({ action: 'assigned', to: changes.assignedTo.name, by, at: new Date().toISOString() });
+  if (changes.assignedTo && (!rect.assignedTo || changes.assignedTo.email !== rect.assignedTo.email)) {
+    rect.history.push({ action: 'assigned', to: changes.assignedTo.name, by, at: new Date().toISOString() });
   }
-  if (changes.priority && changes.priority !== issue.priority) {
-    issue.history.push({ action: 'priority_changed', from: issue.priority, to: changes.priority, by, at: new Date().toISOString() });
+  if (changes.priority && changes.priority !== rect.priority) {
+    rect.history.push({ action: 'priority_changed', from: rect.priority, to: changes.priority, by, at: new Date().toISOString() });
   }
 
-  Object.assign(issue, changes);
-  issue.updatedAt = new Date().toISOString();
-  writeIssues(issues);
-  res.json({ success: true, issue });
+  Object.assign(rect, changes);
+  rect.updatedAt = new Date().toISOString();
+  writeRects(rects);
+  res.json({ success: true, rect });
 });
 
-app.post('/api/issues/:id/comment', (req, res) => {
-  const issues = readIssues();
-  const issue = issues.find(i => i.id === req.params.id);
-  if (!issue) return res.status(404).json({ error: 'Not found' });
+app.post('/api/rectifications/:id/comment', (req, res) => {
+  const rects = readRects();
+  const rect = rects.find(i => i.id === req.params.id);
+  if (!rect) return res.status(404).json({ error: 'Not found' });
   const comment = {
     id: uuidv4().slice(0, 8),
     author: req.body.author || 'Unknown',
     text: req.body.text || '',
     timestamp: new Date().toISOString()
   };
-  issue.comments.push(comment);
-  issue.history.push({ action: 'comment_added', by: comment.author, at: comment.timestamp });
-  issue.updatedAt = new Date().toISOString();
-  writeIssues(issues);
-  res.json({ success: true, comment, issue });
+  rect.comments.push(comment);
+  rect.history.push({ action: 'comment_added', by: comment.author, at: comment.timestamp });
+  rect.updatedAt = new Date().toISOString();
+  writeRects(rects);
+  res.json({ success: true, comment, rect });
 });
 
-app.post('/api/issues/:id/photo', upload.single('photo'), (req, res) => {
+app.post('/api/rectifications/:id/photo', upload.single('photo'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file' });
-  const issues = readIssues();
-  const issue = issues.find(i => i.id === req.params.id);
-  if (!issue) return res.status(404).json({ error: 'Not found' });
-  issue.photos.push({ filename: req.file.filename, originalName: req.file.originalname, uploadedAt: new Date().toISOString() });
-  issue.updatedAt = new Date().toISOString();
-  writeIssues(issues);
-  res.json({ success: true, photo: req.file.filename, issue });
+  const rects = readRects();
+  const rect = rects.find(i => i.id === req.params.id);
+  if (!rect) return res.status(404).json({ error: 'Not found' });
+  rect.photos.push({ filename: req.file.filename, originalName: req.file.originalname, uploadedAt: new Date().toISOString() });
+  rect.updatedAt = new Date().toISOString();
+  writeRects(rects);
+  res.json({ success: true, photo: req.file.filename, rect });
 });
 
-app.delete('/api/issues/:id', (req, res) => {
-  let issues = readIssues();
-  issues = issues.filter(i => i.id !== req.params.id);
-  writeIssues(issues);
+app.delete('/api/rectifications/:id', (req, res) => {
+  let rects = readRects();
+  rects = rects.filter(i => i.id !== req.params.id);
+  writeRects(rects);
   res.json({ success: true });
 });
 
