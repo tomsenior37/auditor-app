@@ -166,31 +166,93 @@ app.get('/api/users', (req, res, next) => requireRole('admin')(req, res, next), 
   res.json(readUsers().map(sanitizeUser));
 });
 
-app.post('/api/users', (req, res, next) => requireRole('admin')(req, res, next), (req, res) => {
-  const { username, role, password } = req.body;
+async function sendWelcomeEmail(user, initialPassword, appUrl) {
+  const cfg = readEmailConfig();
+  if (!cfg.host || !cfg.user || !user.email) return { sent: false, reason: 'email not configured or user has no email' };
+  const transporter = nodemailer.createTransport({
+    host: cfg.host, port: cfg.port, secure: cfg.secure,
+    auth: { user: cfg.user, pass: cfg.password }
+  });
+  const loginUrl = (appUrl || cfg.externalUrl || '').replace(/\/$/, '');
+  const safeUrl = loginUrl || '(your Auditor app URL)';
+  await transporter.sendMail({
+    from: `"${cfg.fromName || 'Auditor App'}" <${cfg.fromEmail || cfg.user}>`,
+    to: `"${user.displayName || user.username}" <${user.email}>`,
+    subject: `Your Auditor account has been created`,
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:600px;">
+        <h2 style="color:#01696f;">Welcome to Auditor 👋</h2>
+        <p>An account has been created for you. You can now log in to run inspections, manage assets, and generate reports.</p>
+        <table style="border-collapse:collapse;margin:18px 0;background:#f7f6f2;padding:12px;border-radius:8px;">
+          <tr><td style="padding:6px 14px 6px 12px;color:#555;">Username</td><td style="padding:6px 0;"><strong>${user.username}</strong></td></tr>
+          <tr><td style="padding:6px 14px 6px 12px;color:#555;">Role</td><td style="padding:6px 0;"><strong>${user.role}</strong></td></tr>
+          <tr><td style="padding:6px 14px 6px 12px;color:#555;">Temporary password</td><td style="padding:6px 0;font-family:monospace;background:#fff3d6;padding:4px 10px;border-radius:4px;"><strong>${initialPassword}</strong></td></tr>
+        </table>
+        ${safeUrl !== '(your Auditor app URL)' ? `<p style="margin:18px 0;"><a href="${safeUrl}" style="display:inline-block;background:#01696f;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:700;">🔐 Open Auditor</a></p>` : ''}
+        <h3 style="color:#01696f;">How to log in</h3>
+        <ol>
+          <li>Open the app at <strong>${safeUrl}</strong></li>
+          <li>Enter your username and the temporary password above</li>
+          <li>You'll be prompted to set a new password immediately — choose something at least 6 characters that only you know</li>
+          <li>From then on, sign in with your new password</li>
+        </ol>
+        <p style="color:#666;font-size:13px;margin-top:20px;">If you didn't expect this email, you can safely ignore it. Contact your administrator if you have questions.</p>
+      </div>`
+  });
+  return { sent: true };
+}
+
+app.post('/api/users', (req, res, next) => requireRole('admin')(req, res, next), async (req, res) => {
+  const { username, role, password, email, displayName } = req.body;
   if (!username || !role) return res.status(400).json({ error: 'username and role required' });
   if (!['admin', 'planner', 'inspector'].includes(role)) return res.status(400).json({ error: 'invalid role' });
   const users = readUsers();
   if (users.find(u => u.username.toLowerCase() === username.toLowerCase())) return res.status(400).json({ error: 'Username already exists' });
   const initial = password || Math.random().toString(36).slice(-10);
-  users.push({
+  const user = {
     id: uuidv4(),
     username: username.trim(),
+    email: (email || '').trim(),
+    displayName: (displayName || username).trim(),
     role,
     passwordHash: bcrypt.hashSync(initial, 10),
     mustChangePassword: true,
     createdAt: new Date().toISOString()
-  });
+  };
+  users.push(user);
   writeUsers(users);
-  res.json({ success: true, initialPassword: initial });
+  let emailResult = { sent: false };
+  if (user.email) {
+    try {
+      const appUrl = `${req.protocol}://${req.get('host')}`;
+      emailResult = await sendWelcomeEmail(user, initial, appUrl);
+    } catch (e) {
+      emailResult = { sent: false, reason: e.message };
+    }
+  }
+  res.json({ success: true, initialPassword: initial, emailSent: emailResult.sent, emailError: emailResult.reason });
+});
+
+// Directory of users suitable for inspector/planner dropdowns (auth required, any role)
+app.get('/api/users/public', (req, res) => {
+  const users = readUsers().map(u => ({
+    id: u.id,
+    username: u.username,
+    displayName: u.displayName || u.username,
+    email: u.email || '',
+    role: u.role
+  }));
+  res.json(users);
 });
 
 app.put('/api/users/:id', (req, res, next) => requireRole('admin')(req, res, next), (req, res) => {
   const users = readUsers();
   const idx = users.findIndex(u => u.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'not found' });
-  const { role, resetPassword } = req.body;
+  const { role, resetPassword, email, displayName } = req.body;
   if (role && ['admin', 'planner', 'inspector'].includes(role)) users[idx].role = role;
+  if (email !== undefined) users[idx].email = (email || '').trim();
+  if (displayName !== undefined) users[idx].displayName = (displayName || '').trim();
   let initialPassword;
   if (resetPassword) {
     initialPassword = Math.random().toString(36).slice(-10);

@@ -1484,14 +1484,16 @@ Building B,CNC Mill,,,,
         <div id="users-list" style="display:flex;flex-direction:column;gap:8px;"></div>
         <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:8px;">
           <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--accent);letter-spacing:.5px;">＋ New User</div>
-          <input type="text" id="new-username" placeholder="Username" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
+          <input type="text" id="new-username" placeholder="Username (e.g. tsenior)" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
+          <input type="text" id="new-user-displayname" placeholder="Full name (shown on reports)" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
+          <input type="email" id="new-user-email" placeholder="Email (used to send welcome + login instructions)" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
           <select id="new-user-role" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
             <option value="inspector">Inspector</option>
             <option value="planner">Planner</option>
             <option value="admin">Admin</option>
           </select>
           <input type="text" id="new-user-pwd" placeholder="Initial password (optional — auto-generated if blank)" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
-          <button onclick="createUser()" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:11px;font-size:14px;font-weight:700;cursor:pointer;">Create User</button>
+          <button onclick="createUser()" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:11px;font-size:14px;font-weight:700;cursor:pointer;">Create User &amp; Send Welcome Email</button>
         </div>
       </div>
     </div>
@@ -1522,29 +1524,14 @@ Building B,CNC Mill,,,,
     </div>
 
     <!-- ─── USERS SECTION ─── -->
-    <div onclick="toggleSettingsSection('settings-users')" style="display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;cursor:pointer;">
-      <div style="font-weight:700;font-size:15px;color:var(--accent);">👤 Users</div>
-      <span id="settings-users-arrow" style="color:var(--text-dim);font-size:18px;transition:transform .2s;">▾</span>
-    </div>
-    <div id="settings-users" style="display:none;flex-direction:column;gap:12px;">
-      <div class="section-title" style="font-size:13px;">👷 Inspectors</div>
-      <div id="inspector-list" style="display:flex;flex-direction:column;gap:8px;"></div>
-      <div style="display:flex;gap:8px;margin-top:4px;">
-        <input type="text" id="new-inspector" placeholder="New inspector name..." style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:13px;font-size:15px;outline:none;font-family:inherit;">
-        <button onclick="addInspector()" style="background:var(--accent);color:#fff;border:none;border-radius:var(--radius);padding:13px 18px;font-size:15px;font-weight:700;cursor:pointer;white-space:nowrap;">Add</button>
-      </div>
-
-      <hr style="border:none;border-top:1px solid var(--border);margin:8px 0;">
-
-      <div class="section-title" style="font-size:13px;">📅 Planners</div>
-      <div id="planner-list" style="display:flex;flex-direction:column;gap:8px;"></div>
-      <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px;">
-        <input type="text" id="new-planner-name" placeholder="Planner name..." style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:13px;font-size:15px;outline:none;font-family:inherit;width:100%;">
-        <div style="display:flex;gap:8px;">
-          <input type="email" id="new-planner-email" placeholder="Email address..." style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:13px;font-size:15px;outline:none;font-family:inherit;">
-          <button onclick="addPlanner()" style="background:var(--accent);color:#fff;border:none;border-radius:var(--radius);padding:13px 18px;font-size:15px;font-weight:700;cursor:pointer;white-space:nowrap;">Add</button>
-        </div>
-      </div>
+    <!-- Legacy Inspectors/Planners section removed — now unified under 🔐 User Accounts above. -->
+    <div id="settings-users" style="display:none;"><!-- retained hidden to avoid breaking JS references --></div>
+    <div style="display:none;"><!-- hidden legacy fields referenced by old JS -->
+      <input type="text" id="new-inspector">
+      <div id="inspector-list"></div>
+      <input type="text" id="new-planner-name">
+      <input type="email" id="new-planner-email">
+      <div id="planner-list"></div>
     </div>
 
     <!-- ─── SYSTEM SECTION ─── -->
@@ -2333,8 +2320,8 @@ async function renderUsers() {
     el.innerHTML = users.map(u => `
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;display:flex;gap:8px;align-items:center;">
         <div style="flex:1;min-width:0;">
-          <div style="font-weight:600;font-size:14px;">${escHtml(u.username)}${u.id === _me.id ? ' <span style="font-size:10px;color:var(--text-dim);">(you)</span>' : ''}${u.mustChangePassword ? ' <span style="font-size:10px;color:#ff9800;">[must change pw]</span>' : ''}</div>
-          <div style="font-size:12px;color:var(--text-dim);">${escHtml(u.role)}${u.lastLogin ? ' · last login ' + new Date(u.lastLogin).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : ' · never logged in'}</div>
+          <div style="font-weight:600;font-size:14px;">${escHtml(u.displayName || u.username)}${u.id === _me.id ? ' <span style="font-size:10px;color:var(--text-dim);">(you)</span>' : ''}${u.mustChangePassword ? ' <span style="font-size:10px;color:#ff9800;">[must change pw]</span>' : ''}</div>
+          <div style="font-size:12px;color:var(--text-dim);">${escHtml(u.username)} · ${escHtml(u.role)}${u.email ? ' · ' + escHtml(u.email) : ''}${u.lastLogin ? ' · last login ' + new Date(u.lastLogin).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : ' · never logged in'}</div>
         </div>
         <select onchange="changeUserRole('${u.id}', this.value)" ${u.id === _me.id ? 'disabled' : ''} style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px;border-radius:6px;font-size:12px;font-family:inherit;outline:none;">
           <option value="inspector"${u.role==='inspector'?' selected':''}>Inspector</option>
@@ -2349,17 +2336,22 @@ async function renderUsers() {
 
 async function createUser() {
   const username = document.getElementById('new-username').value.trim();
+  const displayName = document.getElementById('new-user-displayname').value.trim();
+  const email = document.getElementById('new-user-email').value.trim();
   const role = document.getElementById('new-user-role').value;
   const pwd = document.getElementById('new-user-pwd').value.trim();
   if (!username) return toast('Username required');
   try {
-    const r = await fetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, role, password: pwd || undefined }) });
+    const r = await fetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, displayName, email, role, password: pwd || undefined }) });
     const d = await r.json();
     if (!r.ok) return toast(d.error || 'Failed');
-    document.getElementById('new-username').value = '';
-    document.getElementById('new-user-pwd').value = '';
-    alert(`User "${username}" created.\n\nInitial password: ${d.initialPassword}\n\nThey must change it on first login. Share this securely.`);
-    renderUsers();
+    ['new-username','new-user-displayname','new-user-email','new-user-pwd'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    const emailLine = d.emailSent ? `\n\n✅ Welcome email sent to ${email}.` :
+      (email ? `\n\n⚠️ Email NOT sent (${d.emailError || 'check SMTP settings'}). Share the password below manually.` :
+               `\n\n(No email provided — share the password manually.)`);
+    alert(`User "${username}" created as ${role}.\n\nInitial password: ${d.initialPassword}${emailLine}`);
+    await renderUsers();
+    await loadUsersDirectory();
   } catch { toast('Network error'); }
 }
 async function changeUserRole(id, role) {
@@ -2391,8 +2383,7 @@ function initAppAfterAuth() {
   loadTemplates().then(() => buildChecklist());
   loadAnswerSets();
   loadStats();
-  loadLists();
-  loadPlanners();
+  loadLists().then(() => loadUsersDirectory());
   loadRects();
 }
 
@@ -4676,9 +4667,12 @@ function populateLocationDropdown() {
 
 function populateInspectorDropdown() {
   const sel = document.getElementById('f-inspector');
-  const saved = localStorage.getItem('inspector_name');
+  if (!sel) return;
+  const saved = _me?.displayName || _me?.username || localStorage.getItem('inspector_name') || '';
+  // Source from users directory — include inspectors, planners, admins
+  const names = (_allUsers || []).map(u => u.displayName || u.username);
   sel.innerHTML = '<option value="">— Select inspector —</option>' +
-    lists.inspectors.map(n => `<option value="${escHtml(n)}"${n === saved ? ' selected' : ''}>${escHtml(n)}</option>`).join('');
+    names.map(n => `<option value="${escHtml(n)}"${n === saved ? ' selected' : ''}>${escHtml(n)}</option>`).join('');
 }
 
 function updateMachineDropdown() {
@@ -5163,25 +5157,20 @@ function deleteInspector(idx) {
 // ── Confirm modal ─────────────────────────────────────────
 // ── Planners ───────────────────────────────────────────────
 let planners = [];
+let _allUsers = [];
 
-async function loadPlanners() {
-  try { const r = await fetch('/api/planners'); const d = await r.json(); planners = d.planners || []; renderPlannerList(); } catch {}
+async function loadUsersDirectory() {
+  try {
+    const r = await fetch('/api/users/public');
+    if (!r.ok) return;
+    _allUsers = await r.json();
+    planners = _allUsers.filter(u => u.role === 'planner' && u.email).map(u => ({ name: u.displayName || u.username, email: u.email }));
+    populateInspectorDropdown();
+  } catch {}
 }
+async function loadPlanners() { await loadUsersDirectory(); }
 
-function renderPlannerList() {
-  const el = document.getElementById('planner-list');
-  if (!el) return;
-  if (!planners.length) { el.innerHTML = '<div style="color:var(--text-dim);font-size:14px;">No planners added yet</div>'; return; }
-  el.innerHTML = planners.map(p => `
-    <div style="display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:11px 14px;">
-      <div>
-        <div style="font-weight:600;">${escHtml(p.name)}</div>
-        <div style="font-size:13px;color:var(--text-dim);">${escHtml(p.email)}</div>
-      </div>
-      <button onclick="deletePlanner('${escHtml(p.email)}')" style="background:none;border:none;color:var(--fail);font-size:20px;cursor:pointer;padding:0 4px;">&#x2715;</button>
-    </div>
-  `).join('');
-}
+function renderPlannerList() { /* deprecated — now managed via Users */ }
 
 async function addPlanner() {
   const name = document.getElementById('new-planner-name').value.trim();
