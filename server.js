@@ -328,7 +328,35 @@ app.get('/api/users/public', (req, res) => {
   res.json(users);
 });
 
-app.put('/api/users/:id', (req, res, next) => requireRole('admin')(req, res, next), (req, res) => {
+async function sendPasswordResetEmail(user, newPassword, appUrl) {
+  const cfg = readEmailConfig();
+  if (!cfg.host || !cfg.user || !user.email) return { sent: false, reason: 'email not configured or user has no email' };
+  const transporter = nodemailer.createTransport({
+    host: cfg.host, port: cfg.port, secure: cfg.secure,
+    auth: { user: cfg.user, pass: cfg.password }
+  });
+  const loginUrl = (appUrl || cfg.externalUrl || '').replace(/\/$/, '');
+  const safeUrl = loginUrl || '(your Auditor app URL)';
+  await transporter.sendMail({
+    from: `"${cfg.fromName || 'Auditor App'}" <${cfg.fromEmail || cfg.user}>`,
+    to: `"${user.displayName || user.username}" <${user.email}>`,
+    subject: `Your Auditor password has been reset`,
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:600px;">
+        <h2 style="color:#01696f;">🔑 Password reset</h2>
+        <p>An administrator has reset your Auditor password. Use the temporary password below to sign in — you'll be prompted to choose a new one immediately.</p>
+        <table style="border-collapse:collapse;margin:18px 0;background:#f7f6f2;padding:12px;border-radius:8px;">
+          <tr><td style="padding:6px 14px 6px 12px;color:#555;">Email</td><td style="padding:6px 0;"><strong>${user.email}</strong></td></tr>
+          <tr><td style="padding:6px 14px 6px 12px;color:#555;">Temporary password</td><td style="padding:6px 0;font-family:monospace;background:#fff3d6;padding:4px 10px;border-radius:4px;"><strong>${newPassword}</strong></td></tr>
+        </table>
+        ${safeUrl !== '(your Auditor app URL)' ? `<p style="margin:18px 0;"><a href="${safeUrl}" style="display:inline-block;background:#01696f;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:700;">🔐 Sign in</a></p>` : ''}
+        <p style="color:#666;font-size:13px;margin-top:20px;">If you didn't request this reset, contact your administrator immediately.</p>
+      </div>`
+  });
+  return { sent: true };
+}
+
+app.put('/api/users/:id', (req, res, next) => requireRole('admin')(req, res, next), async (req, res) => {
   const users = readUsers();
   const idx = users.findIndex(u => u.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'not found' });
@@ -337,13 +365,22 @@ app.put('/api/users/:id', (req, res, next) => requireRole('admin')(req, res, nex
   if (email !== undefined) users[idx].email = (email || '').trim();
   if (displayName !== undefined) users[idx].displayName = (displayName || '').trim();
   let initialPassword;
+  let emailResult = { sent: false };
   if (resetPassword) {
     initialPassword = Math.random().toString(36).slice(-10);
     users[idx].passwordHash = bcrypt.hashSync(initialPassword, 10);
     users[idx].mustChangePassword = true;
+    writeUsers(users);
+    if (users[idx].email) {
+      try {
+        const appUrl = `${req.protocol}://${req.get('host')}`;
+        emailResult = await sendPasswordResetEmail(users[idx], initialPassword, appUrl);
+      } catch (e) { emailResult = { sent: false, reason: e.message }; }
+    }
+  } else {
+    writeUsers(users);
   }
-  writeUsers(users);
-  res.json({ success: true, initialPassword });
+  res.json({ success: true, initialPassword, emailSent: emailResult.sent, emailError: emailResult.reason });
 });
 
 app.delete('/api/users/:id', (req, res, next) => requireRole('admin')(req, res, next), (req, res) => {

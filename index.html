@@ -2438,8 +2438,12 @@ async function resetUserPassword(id, username) {
     try {
       const r = await fetch('/api/users/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ resetPassword: true }) });
       const d = await r.json();
-      if (r.ok) { alert(`New password for ${username}: ${d.initialPassword}\n\nShare this securely.`); renderUsers(); }
-      else toast('Failed');
+      if (r.ok) {
+        const line = d.emailSent ? `\n\n✅ Reset email sent to the user.` :
+          `\n\n⚠️ Email NOT sent (${d.emailError || 'user may not have an email on file, or SMTP not configured'}). Share the password below securely.`;
+        alert(`New password for ${username}: ${d.initialPassword}${line}`);
+        renderUsers();
+      } else toast('Failed');
     } catch { toast('Network error'); }
   }, 'Reset', 'var(--accent)');
 }
