@@ -752,6 +752,21 @@ app.post('/api/import/assets', (req, res) => {
 });
 
 // ── Asset Database API ─────────────────────────────────
+// Summary of all asset metadata — used by the assets list to show main photos + status
+app.get('/api/assets/meta-summary', (req, res) => {
+  const assets = readAssets();
+  const out = {};
+  Object.keys(assets).forEach(k => {
+    const a = assets[k];
+    out[k] = {
+      status: a.status || 'active',
+      photo: (a.photos && a.photos[0]) ? a.photos[0].filename : null,
+      componentType: a.componentType || ''
+    };
+  });
+  res.json(out);
+});
+
 // Get metadata for a specific asset (enriched with last inspection + overdue flag)
 app.get('/api/asset/meta', (req, res) => {
   const { location, machine, component } = req.query;

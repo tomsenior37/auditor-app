@@ -3404,12 +3404,44 @@ function createRectManual() {
 let _assetNav = { level: 'locations', location: null, machine: null, component: null };
 let _assetMeta = null;
 
+function assetThumbHtml(photo, loc, mac, comp) {
+  const size = 'width:52px;height:52px;border-radius:8px;flex-shrink:0;';
+  if (photo) return `<img src="/photos/${escHtml(photo)}" alt="" style="${size}object-fit:cover;border:1px solid var(--border);" onclick="event.stopPropagation();window.open('/photos/${escHtml(photo)}','_blank')">`;
+  return `<label onclick="event.stopPropagation()" style="${size}display:flex;align-items:center;justify-content:center;background:var(--surface);border:1px dashed var(--border);color:var(--text-dim);font-size:22px;cursor:pointer;">
+    +<input type="file" accept="image/*" capture="environment" style="display:none;" onchange="quickAddAssetPhoto(event,'${escHtml(loc)}','${escHtml(mac)}','${escHtml(comp)}')">
+  </label>`;
+}
+
+async function quickAddAssetPhoto(ev, location, machine, component) {
+  const file = ev.target.files[0]; if (!file) return;
+  toast('Uploading…');
+  const fd = new FormData();
+  fd.append('photo', file);
+  fd.append('location', location);
+  fd.append('machine', machine);
+  fd.append('component', component);
+  try {
+    const r = await fetch('/api/asset/photo', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (d.success) { toast('Photo added'); await loadAssetMetaSummary(); renderAssetBrowse(); }
+    else toast('Upload failed');
+  } catch { toast('Upload error'); }
+}
+
+let _assetMetaSummary = {};
+async function loadAssetMetaSummary() {
+  try { const r = await fetch('/api/assets/meta-summary'); _assetMetaSummary = await r.json(); } catch { _assetMetaSummary = {}; }
+}
+function _assetSummary(loc, mac, comp) {
+  return _assetMetaSummary[[loc || '', mac || '', comp || ''].join('::')] || {};
+}
+
 function showAssets() {
   _assetNav = { level: 'locations', location: null, machine: null, component: null };
   switchScreen('assets-screen', 'Asset Database');
   document.getElementById('asset-browse-panel').style.display = 'flex';
   document.getElementById('asset-detail-panel').style.display = 'none';
-  renderAssetBrowse();
+  loadAssetMetaSummary().then(renderAssetBrowse);
 }
 
 function renderAssetBrowse() {
@@ -3471,7 +3503,10 @@ function renderAssetBrowse() {
       <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text-dim);letter-spacing:.5px;margin-top:4px;">Machines</div>` +
       loc.machines.filter(m => matches(m.name) || (m.guards || []).some(g => matches(g))).map(m => {
         const gCount = m.guards?.length || 0;
+        const s = _assetSummary(nav.location, m.name, '');
+        const thumb = assetThumbHtml(s.photo, nav.location, m.name, '');
         return `<div class="asset-card" onclick="assetDrillMachine('${escHtml(m.name)}')">
+          ${thumb}
           <div style="flex:1;min-width:0;">
             <div style="font-weight:600;font-size:15px;">🔧 ${escHtml(m.name)}</div>
             <div class="asset-stat-row"><span>🏷️ ${gCount} component${gCount !== 1 ? 's' : ''}</span></div>
@@ -3489,13 +3524,18 @@ function renderAssetBrowse() {
       </div>`;
     if (mac && mac.guards.length) {
       html += `<div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text-dim);letter-spacing:.5px;margin-top:4px;">Components</div>`;
-      html += mac.guards.filter(g => matches(g)).map(g => `
-        <div class="asset-card" onclick="openAssetDetail('${escHtml(nav.location)}','${escHtml(nav.machine)}','${escHtml(g)}')">
+      html += mac.guards.filter(g => matches(g)).map(g => {
+        const s = _assetSummary(nav.location, nav.machine, g);
+        const thumb = assetThumbHtml(s.photo, nav.location, nav.machine, g);
+        return `<div class="asset-card" onclick="openAssetDetail('${escHtml(nav.location)}','${escHtml(nav.machine)}','${escHtml(g)}')">
+          ${thumb}
           <div style="flex:1;min-width:0;">
             <div style="font-weight:600;font-size:15px;font-family:monospace;">🏷️ ${escHtml(g)}</div>
+            ${s.componentType ? `<div style="font-size:12px;color:var(--text-dim);">${escHtml(s.componentType)}</div>` : ''}
           </div>
           <span style="color:var(--text-dim);font-size:14px;">info ›</span>
-        </div>`).join('');
+        </div>`;
+      }).join('');
     } else {
       html += '<div style="color:var(--text-dim);text-align:center;padding:20px 0;">No components on this machine.</div>';
     }
@@ -3628,7 +3668,20 @@ function renderAssetInfo() {
 
   const qrBtn = comp ? `<button onclick="showAssetQr()" style="background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;width:100%;">🔲 Show QR Code</button>` : '';
 
+  const mainPhoto = (m.photos && m.photos[0]) ? m.photos[0] : null;
+  const mainPhotoHtml = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px;display:flex;gap:12px;align-items:center;">
+      ${mainPhoto
+        ? `<img src="/photos/${escHtml(mainPhoto.filename)}" alt="" style="width:96px;height:96px;border-radius:8px;object-fit:cover;cursor:pointer;border:1px solid var(--border);" onclick="window.open('/photos/${escHtml(mainPhoto.filename)}','_blank')">
+           <div style="flex:1;"><div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text-dim);letter-spacing:.5px;margin-bottom:4px;">Main Photo</div><button onclick="assetSetTab('photos')" style="background:none;border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;">Manage Photos</button></div>`
+        : `<label style="width:96px;height:96px;border-radius:8px;border:1px dashed var(--border);background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:28px;color:var(--text-dim);cursor:pointer;flex-shrink:0;">
+             +<input type="file" accept="image/*" capture="environment" style="display:none;" onchange="assetInfoAddPhoto(event)">
+           </label>
+           <div style="flex:1;"><div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text-dim);letter-spacing:.5px;margin-bottom:4px;">Main Photo</div><div style="font-size:13px;color:var(--text-dim);">Tap the + to add a reference photo.</div></div>`}
+    </div>`;
+
   el.innerHTML = `
+    ${mainPhotoHtml}
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;gap:10px;">
       <div style="font-size:12px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;font-weight:700;">${levelLabel} Information</div>
       ${loc ? `<div style="font-size:13px;"><span style="color:var(--text-dim);">Location:</span> ${escHtml(loc)}</div>` : ''}
@@ -3652,6 +3705,22 @@ function renderAssetInfo() {
     <textarea id="asset-notes" placeholder="Add notes..." oninput="saveAssetMetaDebounced()"
       style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:12px;border-radius:var(--radius);font-size:14px;font-family:inherit;resize:vertical;min-height:60px;width:100%;outline:none;">${escHtml(m.notes||'')}</textarea>
     ${qrBtn}`;
+}
+
+async function assetInfoAddPhoto(ev) {
+  const file = ev.target.files[0]; if (!file) return;
+  toast('Uploading…');
+  const fd = new FormData();
+  fd.append('photo', file);
+  fd.append('location', _assetNav._detailLoc || '');
+  fd.append('machine', _assetNav._detailMac || '');
+  fd.append('component', _assetNav._detailComp || '');
+  try {
+    const r = await fetch('/api/asset/photo', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (d.success) { _assetMeta = d.meta; toast('Photo added'); renderAssetInfo(); }
+    else toast('Upload failed');
+  } catch { toast('Upload error'); }
 }
 
 let _cfTimer = null;
