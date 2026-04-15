@@ -456,6 +456,11 @@ function readLists() {
     if (!Array.isArray(data.componentTypes)) data.componentTypes = [];
     // Migrate string componentTypes to objects { name, fields }
     data.componentTypes = data.componentTypes.map(ct => typeof ct === 'string' ? { name: ct, fields: [] } : { name: ct.name, fields: Array.isArray(ct.fields) ? ct.fields : [] });
+    // Seed default component types if none exist
+    if (data.componentTypes.length === 0) {
+      data.componentTypes = ['Guard', 'Gearbox', 'Motor', 'Pump'].map(name => ({ name, fields: [] }));
+      writeLists(data);
+    }
     // Migrate machines from strings to objects with guards array
     let dirty = false;
     data.locations.forEach(loc => {
@@ -1031,7 +1036,7 @@ app.delete('/api/lists/inspector', (req, res) => {
 });
 
 // ── Component Types API ────────────────────────────
-app.post('/api/lists/componentType', requireRole('admin'), (req, res) => {
+app.post('/api/lists/componentType', requireRole('admin', 'planner'), (req, res) => {
   const name = (req.body.name || '').trim();
   if (!name) return res.status(400).json({ error: 'name required' });
   const lists = readLists();
@@ -1043,7 +1048,7 @@ app.post('/api/lists/componentType', requireRole('admin'), (req, res) => {
   res.json({ success: true, componentTypes: lists.componentTypes });
 });
 
-app.delete('/api/lists/componentType', requireRole('admin'), (req, res) => {
+app.delete('/api/lists/componentType', requireRole('admin', 'planner'), (req, res) => {
   const name = (req.body.name || '').trim();
   const lists = readLists();
   lists.componentTypes = lists.componentTypes.filter(t => t.name !== name);
@@ -1052,7 +1057,7 @@ app.delete('/api/lists/componentType', requireRole('admin'), (req, res) => {
 });
 
 // Update the custom-fields schema on a component type
-app.put('/api/lists/componentType/fields', requireRole('admin'), (req, res) => {
+app.put('/api/lists/componentType/fields', requireRole('admin', 'planner'), (req, res) => {
   const { name, fields } = req.body;
   if (!name || !Array.isArray(fields)) return res.status(400).json({ error: 'name and fields[] required' });
   const lists = readLists();

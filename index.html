@@ -1210,7 +1210,7 @@
     </div>
 
     <div class="field-group">
-      <label id="guard-id-label">Guard ID</label>
+      <label id="guard-id-label">Component ID</label>
       <select id="f-guardId" onchange="onGuardChange()">
         <option value="">— Select machine first —</option>
       </select>
@@ -1608,7 +1608,7 @@ Building B,CNC Mill,,,,
     </div>
     <div id="guard-list" style="display:flex;flex-direction:column;gap:8px;"></div>
     <div style="margin-top:4px;">
-      <button onclick="addGuard()" style="background:var(--accent);color:#fff;border:none;border-radius:var(--radius);padding:14px 20px;font-size:15px;font-weight:700;cursor:pointer;width:100%;">&#43; Add Next Guard ID</button>
+      <button onclick="addGuard()" style="background:var(--accent);color:#fff;border:none;border-radius:var(--radius);padding:14px 20px;font-size:15px;font-weight:700;cursor:pointer;width:100%;">&#43; Add Next Component ID</button>
       <div id="next-guard-preview" style="color:var(--text-dim);font-size:13px;text-align:center;margin-top:6px;"></div>
     </div>
     <input type="text" id="new-guard" style="display:none;">
@@ -3821,19 +3821,39 @@ function renderAssetBrowse() {
         <span style="color:var(--text-dim);font-size:14px;">info ›</span>
       </div>`;
     if (mac && mac.guards.length) {
-      html += `<div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text-dim);letter-spacing:.5px;margin-top:4px;">Components</div>`;
-      html += mac.guards.filter(g => matches(g)).map(g => {
+      // Build list of components with resolved types
+      const comps = mac.guards.filter(g => matches(g)).map(g => {
         const s = _assetSummary(nav.location, nav.machine, g);
-        const thumb = assetThumbHtml(s.photo, nav.location, nav.machine, g);
-        return `<div class="asset-card" onclick="openAssetDetail('${escHtml(nav.location)}','${escHtml(nav.machine)}','${escHtml(g)}')">
-          ${thumb}
-          <div style="flex:1;min-width:0;">
-            <div style="font-weight:600;font-size:15px;font-family:monospace;">🏷️ ${escHtml(g)}</div>
-            ${s.componentType ? `<div style="font-size:12px;color:var(--text-dim);">${escHtml(s.componentType)}</div>` : ''}
-          </div>
-          <span style="color:var(--text-dim);font-size:14px;">info ›</span>
-        </div>`;
-      }).join('');
+        return { id: g, type: s.componentType || 'Untyped', photo: s.photo };
+      });
+      // Type filter
+      const typeFilter = document.getElementById('asset-type-filter')?.value || '';
+      const filtered = typeFilter ? comps.filter(c => c.type === typeFilter) : comps;
+      // Group by type
+      const groups = {};
+      filtered.forEach(c => { (groups[c.type] = groups[c.type] || []).push(c); });
+      const typeNames = Object.keys(groups).sort();
+      // Type filter dropdown
+      const allTypes = [...new Set(comps.map(c => c.type))].sort();
+      html += `<div style="display:flex;gap:8px;align-items:center;margin-top:6px;">
+        <select id="asset-type-filter" onchange="renderAssetBrowse()" style="flex:1;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:9px;border-radius:10px;font-size:13px;font-family:inherit;outline:none;">
+          <option value="">All types (${comps.length})</option>
+          ${allTypes.map(t => `<option value="${escHtml(t)}"${typeFilter===t?' selected':''}>${escHtml(t)} (${comps.filter(c=>c.type===t).length})</option>`).join('')}
+        </select>
+      </div>`;
+      typeNames.forEach(t => {
+        html += `<div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--accent);letter-spacing:.5px;margin-top:8px;">${escHtml(t)} (${groups[t].length})</div>`;
+        html += groups[t].map(c => {
+          const thumb = assetThumbHtml(c.photo, nav.location, nav.machine, c.id);
+          return `<div class="asset-card" onclick="openAssetDetail('${escHtml(nav.location)}','${escHtml(nav.machine)}','${escHtml(c.id)}')">
+            ${thumb}
+            <div style="flex:1;min-width:0;">
+              <div style="font-weight:600;font-size:15px;font-family:monospace;">🏷️ ${escHtml(c.id)}</div>
+            </div>
+            <span style="color:var(--text-dim);font-size:14px;">info ›</span>
+          </div>`;
+        }).join('');
+      });
     } else {
       html += '<div style="color:var(--text-dim);text-align:center;padding:20px 0;">No components on this machine.</div>';
     }
@@ -4893,7 +4913,7 @@ async function inlineAddGuard() {
     hideInline('f-guardId');
     updateGuardDropdown();
     document.getElementById('f-guardId').value = guard;
-    toast(`Guard ID "${guard}" added ✅`);
+    toast(`Component ID "${guard}" added ✅`);
   }
 }
 
@@ -5179,7 +5199,7 @@ async function addGuard() {
   const guard = nextGuardId(currentMachineName, mac?.guards || []);
   const r = await fetch('/api/lists/guard', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ location: currentLocationName, machine: currentMachineName, guard }) });
   const d = await r.json();
-  if (d.success) { lists.locations = d.locations; updateGuardDropdown(); renderSetupGuards(); updateNextGuardPreview(); toast(`Guard ID "${guard}" added ✅`); }
+  if (d.success) { lists.locations = d.locations; updateGuardDropdown(); renderSetupGuards(); updateNextGuardPreview(); toast(`Component ID "${guard}" added ✅`); }
 }
 
 async function deleteGuard(guard) {
