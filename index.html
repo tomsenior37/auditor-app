@@ -5518,9 +5518,9 @@ function bEnterBuilder() {
   document.getElementById('bld-standard').value = bs.standard;
   // Populate component type dropdown from settings
   const compSel = document.getElementById('bld-comp');
-  const types = (lists.componentTypes || []);
+  const types = (lists.componentTypes || []).map(t => typeof t === 'string' ? t : t.name);
   compSel.innerHTML = '<option value="">No component required</option>' +
-    types.map(t => `<option value="${escHtml(t)}"${t === bs.componentType ? ' selected' : ''}>${escHtml(t)}</option>`).join('');
+    types.map(name => `<option value="${escHtml(name)}"${name === bs.componentType ? ' selected' : ''}>${escHtml(name)}</option>`).join('');
   compSel.value = bs.componentType;
   const scoringCb = document.getElementById('bld-scoring');
   if (scoringCb) scoringCb.checked = bs.scoringEnabled;
