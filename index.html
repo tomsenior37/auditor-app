@@ -1214,10 +1214,19 @@
       <select id="f-guardId" onchange="onGuardChange()">
         <option value="">— Select machine first —</option>
       </select>
-      <div class="inline-add" id="f-guardId-inline" style="display:none;">
-        <input type="text" id="f-guardId-inline-input" placeholder="Auto-generated" readonly style="background:#111;color:var(--text-dim);">
-        <button class="inline-add-btn" onclick="inlineAddGuard()">Add</button>
-        <button class="inline-cancel-btn" onclick="cancelInline('f-guardId')">✕</button>
+      <div class="inline-add" id="f-guardId-inline" style="display:none;flex-direction:column;gap:6px;padding:10px;border:1px dashed var(--border);border-radius:8px;background:var(--surface);">
+        <select id="f-new-comp-type" onchange="updateAuditNewCompPreview()" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:9px;border-radius:6px;font-size:13px;font-family:inherit;outline:none;"></select>
+        <input type="text" id="f-new-comp-description" placeholder="Description (optional)" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:9px;border-radius:6px;font-size:13px;font-family:inherit;outline:none;">
+        <div style="display:flex;gap:6px;align-items:center;">
+          <span id="f-new-comp-prefix" style="font-family:monospace;font-size:12px;color:var(--text-dim);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+          <span style="font-family:monospace;font-size:13px;color:var(--text-dim);">-</span>
+          <input type="text" id="f-new-comp-seq" placeholder="001" maxlength="4" style="width:70px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:6px;font-size:13px;font-family:monospace;text-align:center;outline:none;">
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button class="inline-add-btn" onclick="inlineAddGuard()" style="flex:1;">Add Component</button>
+          <button class="inline-cancel-btn" onclick="cancelInline('f-guardId')">✕</button>
+        </div>
+        <input type="text" id="f-guardId-inline-input" style="display:none;">
       </div>
     </div>
 
@@ -4845,8 +4854,9 @@ function onMachineChange() {
 function onGuardChange() {
   const sel = document.getElementById('f-guardId');
   if (sel.value === '__add_new__') {
-    // Auto-generate and save immediately — no typing needed
-    inlineAddGuard();
+    // Open the inline form pre-populated from the template's component type
+    document.getElementById('f-guardId-inline').style.display = 'flex';
+    populateAuditNewCompTypes();
   } else {
     hideInline('f-guardId');
     loadComponentRefPhoto(sel.value);
@@ -4947,26 +4957,74 @@ function nextGuardId(macName, existingGuards, locName, typeName) {
   return `${prefix}-${String(max + 1).padStart(3, '0')}`;
 }
 
+function populateAuditNewCompTypes() {
+  const sel = document.getElementById('f-new-comp-type');
+  if (!sel) return;
+  const types = (lists.componentTypes || []).map(t => typeof t === 'string' ? { name: t, prefix: '' } : t);
+  const preselect = selectedTemplate?.componentType || (types[0]?.name || '');
+  sel.innerHTML = types.map(t => `<option value="${escHtml(t.name)}"${t.name === preselect ? ' selected' : ''}>${escHtml(t.name)}${t.prefix ? ' (' + t.prefix + ')' : ''}</option>`).join('');
+  const seqEl = document.getElementById('f-new-comp-seq');
+  if (seqEl) { seqEl.value = ''; delete seqEl.dataset.userEdited; seqEl.oninput = () => { seqEl.dataset.userEdited = '1'; updateAuditNewCompPreview(); }; }
+  updateAuditNewCompPreview();
+}
+
+function updateAuditNewCompPreview() {
+  const locName = document.getElementById('f-location').value;
+  const macName = document.getElementById('f-machine').value;
+  const type = document.getElementById('f-new-comp-type')?.value || '';
+  const prefEl = document.getElementById('f-new-comp-prefix');
+  const seqEl = document.getElementById('f-new-comp-seq');
+  if (!prefEl) return;
+  const prefix = buildComponentPrefix(type, locName, macName);
+  prefEl.textContent = prefix;
+  const loc = lists.locations.find(l => l.name === locName);
+  const mac = loc?.machines.find(m => m.name === macName);
+  let max = 0;
+  (mac?.guards || []).forEach(g => {
+    const m = String(g).match(new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-(\\d+)$`, 'i'));
+    if (m) max = Math.max(max, parseInt(m[1], 10));
+  });
+  const nextSeq = String(max + 1).padStart(3, '0');
+  if (seqEl && !seqEl.dataset.userEdited) seqEl.value = nextSeq;
+}
+
 async function inlineAddGuard() {
   const locName = document.getElementById('f-location').value;
   const macName = document.getElementById('f-machine').value;
   if (!locName || locName === '__add_new__') return toast('Select a location first');
   if (!macName || macName === '__add_new__') return toast('Select a machine first');
 
-  // Auto-generate the next guard ID
+  // Make sure the inline form is populated (first-time open path)
+  if (!document.getElementById('f-new-comp-type').options.length) populateAuditNewCompTypes();
+
+  const type = document.getElementById('f-new-comp-type')?.value || '';
+  const description = document.getElementById('f-new-comp-description')?.value.trim() || '';
+  const seqRaw = (document.getElementById('f-new-comp-seq')?.value || '').trim();
+  if (!seqRaw || !/^\d{1,4}$/.test(seqRaw)) return toast('Enter a numeric sequence (e.g. 001)');
+  const seq = seqRaw.padStart(3, '0');
+  const prefix = buildComponentPrefix(type, locName, macName);
+  const guard = `${prefix}-${seq}`;
+
   const loc = lists.locations.find(l => l.name === locName);
   const mac = loc?.machines.find(m => m.name === macName);
-  const guard = nextGuardId(macName, mac?.guards || [], locName, selectedTemplate?.componentType || '');
+  if ((mac?.guards || []).includes(guard)) return toast(`${guard} is already in use`);
 
   const r = await fetch('/api/lists/guard', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ location: locName, machine: macName, guard }) });
   const d = await r.json();
-  if (d.success) {
-    lists.locations = d.locations;
-    hideInline('f-guardId');
-    updateGuardDropdown();
-    document.getElementById('f-guardId').value = guard;
-    toast(`Component ID "${guard}" added ✅`);
-  }
+  if (!d.success) return toast('Failed to add');
+  lists.locations = d.locations;
+  try {
+    await fetch('/api/asset/meta', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ location: locName, machine: macName, component: guard, componentType: type || '', description }) });
+  } catch {}
+  await loadAssetMetaSummary();
+  hideInline('f-guardId');
+  updateGuardDropdown();
+  document.getElementById('f-guardId').value = guard;
+  loadComponentRefPhoto(guard);
+  document.getElementById('f-new-comp-description').value = '';
+  const seqEl = document.getElementById('f-new-comp-seq'); if (seqEl) { seqEl.value = ''; delete seqEl.dataset.userEdited; }
+  toast(`Component "${guard}" added ✅`);
 }
 
 function renderSetupLocations() {
