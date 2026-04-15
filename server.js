@@ -870,6 +870,174 @@ app.delete('/api/asset/document', (req, res) => {
 // Serve documents
 app.use('/documents', express.static(DOCS_DIR));
 
+// ── Asset CSV import / export ─────────────────────────────
+function csvParse(text) {
+  const rows = [];
+  let cur = [''], inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i], n = text[i + 1];
+    if (inQ) {
+      if (c === '"' && n === '"') { cur[cur.length - 1] += '"'; i++; }
+      else if (c === '"') { inQ = false; }
+      else cur[cur.length - 1] += c;
+    } else {
+      if (c === '"') inQ = true;
+      else if (c === ',') cur.push('');
+      else if (c === '\r') {}
+      else if (c === '\n') { rows.push(cur); cur = ['']; }
+      else cur[cur.length - 1] += c;
+    }
+  }
+  if (cur.length > 1 || cur[0]) rows.push(cur);
+  return rows;
+}
+function csvStringify(rows) {
+  return rows.map(r => r.map(v => {
+    const s = String(v ?? '');
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }).join(',')).join('\n');
+}
+
+// GET /api/assets/export.csv — full register dump
+app.get('/api/assets/export.csv', (req, res) => {
+  const assets = readAssets();
+  const header = ['location', 'machine', 'component', 'componentType', 'status', 'description', 'notes',
+    'frequencyDays', 'nextDueDate', 'lastInspectedAt', 'customFields'];
+  const rows = [header];
+  Object.keys(assets).forEach(k => {
+    const [loc, mac, comp] = k.split('::');
+    const a = assets[k];
+    rows.push([
+      loc, mac, comp,
+      a.componentType || '',
+      a.status || 'active',
+      a.description || '',
+      a.notes || '',
+      a.schedule?.intervalDays || '',
+      a.schedule?.nextDueDate || '',
+      a.lastInspectedAt || '',
+      a.customFields ? JSON.stringify(a.customFields) : ''
+    ]);
+  });
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename="assets.csv"');
+  res.send(csvStringify(rows));
+});
+
+// POST /api/assets/import-csv — accept CSV text in body { csv: "..." }
+app.post('/api/assets/import-csv', (req, res) => {
+  const { csv } = req.body;
+  if (!csv) return res.status(400).json({ error: 'csv body required' });
+  const rows = csvParse(csv).filter(r => r.some(c => (c || '').trim()));
+  if (rows.length < 2) return res.status(400).json({ error: 'need header + at least one row' });
+  const header = rows[0].map(h => h.trim().toLowerCase());
+  const col = (name) => header.indexOf(name);
+  const iLoc = col('location'), iMac = col('machine'), iComp = col('component');
+  if (iLoc < 0 || iMac < 0 || iComp < 0) return res.status(400).json({ error: 'header must include location, machine, component' });
+  const lists = readLists();
+  const assets = readAssets();
+  let newLoc = 0, newMac = 0, newComp = 0, updated = 0;
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    const location = (r[iLoc] || '').trim();
+    const machine = (r[iMac] || '').trim();
+    const component = (r[iComp] || '').trim();
+    if (!location || !machine || !component) continue;
+    // Ensure location/machine/guard exist
+    let loc = lists.locations.find(l => l.name === location);
+    if (!loc) { loc = { name: location, machines: [] }; lists.locations.push(loc); newLoc++; }
+    let mac = loc.machines.find(m => m.name === machine);
+    if (!mac) { mac = { name: machine, guards: [] }; loc.machines.push(mac); newMac++; }
+    if (!mac.guards.includes(component)) { mac.guards.push(component); newComp++; }
+    // Upsert asset meta
+    const key = assetKey(location, machine, component);
+    const existing = assets[key] || { photos: [], documents: [], createdAt: new Date().toISOString() };
+    const get = (name) => { const idx = col(name); return idx >= 0 ? (r[idx] || '').trim() : ''; };
+    const ct = get('componenttype'); if (ct) existing.componentType = ct;
+    const st = get('status'); if (st) existing.status = st;
+    const desc = get('description'); if (desc) existing.description = desc;
+    const notes = get('notes'); if (notes) existing.notes = notes;
+    const freq = parseInt(get('frequencydays'), 10);
+    if (freq) existing.schedule = { ...(existing.schedule || {}), intervalDays: freq };
+    const cf = get('customfields');
+    if (cf) { try { existing.customFields = { ...(existing.customFields || {}), ...JSON.parse(cf) }; } catch {} }
+    // Also support bare custom-field columns — anything not in the known set becomes a customField
+    const known = new Set(['location','machine','component','componenttype','status','description','notes','frequencydays','nextduedate','lastinspectedat','customfields']);
+    header.forEach((h, idx) => {
+      if (!known.has(h) && (r[idx] || '').trim()) {
+        if (!existing.customFields) existing.customFields = {};
+        existing.customFields[h] = r[idx].trim();
+      }
+    });
+    existing.updatedAt = new Date().toISOString();
+    assets[key] = existing;
+    updated++;
+  }
+  writeLists(lists);
+  writeAssets(assets);
+  res.json({ success: true, stats: { rows: rows.length - 1, updated, newLocations: newLoc, newMachines: newMac, newComponents: newComp } });
+});
+
+// ── Dashboard KPIs ────────────────────────────────────────
+app.get('/api/dashboard/kpis', (req, res) => {
+  const assets = readAssets();
+  const inspections = readInspections().filter(i => !i.archived);
+  const now = new Date(), thirtyDaysAgo = new Date(now - 30 * 86400000);
+
+  // Build latest-inspection lookup per component
+  const latestByKey = {};
+  inspections.forEach(i => {
+    const k = [i.location || '', i.machine || '', i.guardId || ''].join('::');
+    if (!latestByKey[k] || new Date(i.timestamp) > new Date(latestByKey[k].timestamp)) latestByKey[k] = i;
+  });
+
+  let overdueCount = 0;
+  const overdueAssets = [];
+  Object.keys(assets).forEach(k => {
+    const a = assets[k];
+    if (a.status === 'decommissioned') return;
+    const interval = a.schedule?.intervalDays;
+    if (!interval) return;
+    const last = latestByKey[k]?.timestamp || a.createdAt;
+    const due = new Date(last); due.setDate(due.getDate() + parseInt(interval, 10));
+    if (due < now) {
+      overdueCount++;
+      const [loc, mac, comp] = k.split('::');
+      overdueAssets.push({ location: loc, machine: mac, component: comp, nextDue: due.toISOString().slice(0, 10), lastInspectedAt: last });
+    }
+  });
+  overdueAssets.sort((a, b) => new Date(a.nextDue) - new Date(b.nextDue));
+
+  const recent = inspections.filter(i => new Date(i.timestamp) >= thirtyDaysAgo);
+  const failures30 = recent.filter(i => i.result === 'FAIL').length;
+  const passes30 = recent.filter(i => i.result === 'PASS').length;
+
+  // Top failing components
+  const failCounts = {};
+  inspections.filter(i => i.result === 'FAIL').forEach(i => {
+    const k = [i.location || '', i.machine || '', i.guardId || ''].join('::');
+    failCounts[k] = (failCounts[k] || 0) + 1;
+  });
+  const topFailing = Object.entries(failCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([k, count]) => {
+      const [loc, mac, comp] = k.split('::');
+      return { location: loc, machine: mac, component: comp, count };
+    });
+
+  res.json({
+    totalAssets: Object.keys(assets).length,
+    activeAssets: Object.values(assets).filter(a => (a.status || 'active') === 'active').length,
+    overdueCount,
+    overdueAssets: overdueAssets.slice(0, 10),
+    failures30,
+    passes30,
+    recentInspections: recent.length,
+    topFailing
+  });
+});
+
 // Get inspection history for an asset
 app.get('/api/asset/history', (req, res) => {
   const { location, machine, component } = req.query;
