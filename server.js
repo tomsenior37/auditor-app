@@ -16,6 +16,7 @@ const LISTS_FILE = path.join(__dirname, 'lists.json');
 const ARCHIVE_FILE = path.join(__dirname, 'archive.json');
 const TEMPLATES_FILE = path.join(__dirname, 'templates.json');
 const USERS_FILE = path.join(__dirname, 'users.json');
+const ROLES_FILE = path.join(__dirname, 'roles.json');
 const SESSION_SECRET_FILE = path.join(__dirname, '.session-secret');
 const ANSWER_SETS_FILE = path.join(__dirname, 'answer-sets.json');
 const EMAIL_CONFIG_FILE = path.join(__dirname, 'emailConfig.json');
@@ -51,6 +52,62 @@ function readUsers() {
 }
 function writeUsers(data) { fs.writeFileSync(USERS_FILE, JSON.stringify(data, null, 2), 'utf8'); }
 function sanitizeUser(u) { const { passwordHash, ...rest } = u || {}; return rest; }
+
+// ── Roles & permissions ──────────────────────────────────
+const PERMISSION_KEYS = [
+  'view_inspections', 'create_inspections', 'delete_inspections',
+  'view_templates', 'edit_templates',
+  'view_assets', 'edit_assets', 'import_assets',
+  'view_rectifications', 'create_rectifications', 'edit_rectifications',
+  'send_emails',
+  'manage_settings'  // locations, machines, component types, response sets, email config
+];
+const ROLE_DEFAULTS = {
+  admin: Object.fromEntries(PERMISSION_KEYS.map(k => [k, true])),
+  planner: {
+    view_inspections: true, create_inspections: true, delete_inspections: false,
+    view_templates: true, edit_templates: true,
+    view_assets: true, edit_assets: true, import_assets: true,
+    view_rectifications: true, create_rectifications: true, edit_rectifications: true,
+    send_emails: true,
+    manage_settings: false
+  },
+  inspector: {
+    view_inspections: true, create_inspections: true, delete_inspections: false,
+    view_templates: true, edit_templates: false,
+    view_assets: true, edit_assets: false, import_assets: false,
+    view_rectifications: true, create_rectifications: true, edit_rectifications: false,
+    send_emails: false,
+    manage_settings: false
+  }
+};
+function readRoles() {
+  if (!fs.existsSync(ROLES_FILE)) { writeRoles(ROLE_DEFAULTS); return JSON.parse(JSON.stringify(ROLE_DEFAULTS)); }
+  try {
+    const r = JSON.parse(fs.readFileSync(ROLES_FILE, 'utf8'));
+    // Merge in any missing keys from defaults
+    ['admin', 'planner', 'inspector'].forEach(role => {
+      if (!r[role]) r[role] = {};
+      PERMISSION_KEYS.forEach(k => { if (r[role][k] === undefined) r[role][k] = ROLE_DEFAULTS[role][k]; });
+    });
+    // Admin always has all
+    PERMISSION_KEYS.forEach(k => r.admin[k] = true);
+    return r;
+  } catch { return JSON.parse(JSON.stringify(ROLE_DEFAULTS)); }
+}
+function writeRoles(data) { fs.writeFileSync(ROLES_FILE, JSON.stringify(data, null, 2), 'utf8'); }
+function hasPermission(user, perm) {
+  if (!user) return false;
+  const roles = readRoles();
+  return !!(roles[user.role] && roles[user.role][perm]);
+}
+function requirePermission(perm) {
+  return (req, res, next) => {
+    if (!req.user) return res.status(401).json({ error: 'Authentication required' });
+    if (!hasPermission(req.user, perm)) return res.status(403).json({ error: `Missing permission: ${perm}` });
+    next();
+  };
+}
 
 // Bootstrap: ensure a default admin exists if no users
 (function bootstrapUsers() {
@@ -117,12 +174,16 @@ function requireRole(...roles) {
 
 // ── Auth API ─────────────────────────────────────────────
 app.post('/api/auth/login', (req, res) => {
-  const { username, password } = req.body;
-  if (!username || !password) return res.status(400).json({ error: 'username and password required' });
+  const { username, email, password } = req.body;
+  const identifier = (email || username || '').toString().trim().toLowerCase();
+  if (!identifier || !password) return res.status(400).json({ error: 'email and password required' });
   const users = readUsers();
-  const u = users.find(x => x.username.toLowerCase() === String(username).toLowerCase());
+  const u = users.find(x =>
+    x.username.toLowerCase() === identifier ||
+    (x.email && x.email.toLowerCase() === identifier)
+  );
   if (!u || !bcrypt.compareSync(password, u.passwordHash)) {
-    return res.status(401).json({ error: 'Invalid username or password' });
+    return res.status(401).json({ error: 'Invalid email or password' });
   }
   u.lastLogin = new Date().toISOString();
   writeUsers(users);
@@ -138,7 +199,26 @@ app.get('/api/auth/me', (req, res) => {
   if (!req.session.userId) return res.json({ authenticated: false });
   const u = readUsers().find(x => x.id === req.session.userId);
   if (!u) { req.session.destroy(() => {}); return res.json({ authenticated: false }); }
-  res.json({ authenticated: true, user: sanitizeUser(u) });
+  const roles = readRoles();
+  res.json({ authenticated: true, user: sanitizeUser(u), permissions: roles[u.role] || {} });
+});
+
+// ── Roles & Permissions API ─────────────────────────────
+app.get('/api/roles', (req, res) => {
+  res.json({ roles: readRoles(), permissionKeys: PERMISSION_KEYS });
+});
+app.put('/api/roles', requireRole('admin'), (req, res) => {
+  const body = req.body || {};
+  const current = readRoles();
+  ['planner', 'inspector'].forEach(role => {
+    if (body[role]) {
+      PERMISSION_KEYS.forEach(k => {
+        if (typeof body[role][k] === 'boolean') current[role][k] = body[role][k];
+      });
+    }
+  });
+  writeRoles(current);
+  res.json({ success: true, roles: current });
 });
 
 app.post('/api/auth/set-password', (req, res) => {
@@ -203,17 +283,20 @@ async function sendWelcomeEmail(user, initialPassword, appUrl) {
 }
 
 app.post('/api/users', (req, res, next) => requireRole('admin')(req, res, next), async (req, res) => {
-  const { username, role, password, email, displayName } = req.body;
-  if (!username || !role) return res.status(400).json({ error: 'username and role required' });
-  if (!['admin', 'planner', 'inspector'].includes(role)) return res.status(400).json({ error: 'invalid role' });
+  const { role, password, email, displayName } = req.body;
+  const cleanEmail = (email || '').trim();
+  if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) return res.status(400).json({ error: 'Valid email is required' });
+  if (!role || !['admin', 'planner', 'inspector'].includes(role)) return res.status(400).json({ error: 'invalid role' });
   const users = readUsers();
-  if (users.find(u => u.username.toLowerCase() === username.toLowerCase())) return res.status(400).json({ error: 'Username already exists' });
+  if (users.find(u => (u.email && u.email.toLowerCase() === cleanEmail.toLowerCase()) || u.username.toLowerCase() === cleanEmail.toLowerCase())) {
+    return res.status(400).json({ error: 'A user with that email already exists' });
+  }
   const initial = password || Math.random().toString(36).slice(-10);
   const user = {
     id: uuidv4(),
-    username: username.trim(),
-    email: (email || '').trim(),
-    displayName: (displayName || username).trim(),
+    username: cleanEmail,
+    email: cleanEmail,
+    displayName: (displayName || cleanEmail.split('@')[0]).trim(),
     role,
     passwordHash: bcrypt.hashSync(initial, 10),
     mustChangePassword: true,
@@ -411,7 +494,7 @@ function writeTemplates(data) {
 // ── Templates API ──────────────────────────────────────────
 app.get('/api/templates', (req, res) => res.json(readTemplates()));
 
-app.post('/api/templates', requireRole('admin', 'planner'), (req, res) => {
+app.post('/api/templates', requirePermission('edit_templates'), (req, res) => {
   const { name, standard, description, requiresComponent, componentType, questions, items, version, scoringEnabled } = req.body;
   if (!name || (!questions && !items)) return res.status(400).json({ error: 'name and questions required' });
   const data = readTemplates();
@@ -430,7 +513,7 @@ app.post('/api/templates', requireRole('admin', 'planner'), (req, res) => {
 });
 
 // Upload template from file (DOC, DOCX, XML, PDF, JSON)
-app.post('/api/templates/upload', requireRole('admin', 'planner'), upload.single('file'), (req, res) => {
+app.post('/api/templates/upload', requirePermission('edit_templates'), upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
   
   const fileBuffer = fs.readFileSync(req.file.path);
@@ -495,7 +578,7 @@ app.post('/api/templates/upload', requireRole('admin', 'planner'), upload.single
   }
 });
 
-app.put('/api/templates/:id', requireRole('admin', 'planner'), (req, res) => {
+app.put('/api/templates/:id', requirePermission('edit_templates'), (req, res) => {
   const data = readTemplates();
   const idx = data.templates.findIndex(t => t.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'not found' });
@@ -567,7 +650,7 @@ app.delete('/api/templates/media/:filename', (req, res) => {
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/templates/:id', requireRole('admin', 'planner'), (req, res) => {
+app.delete('/api/templates/:id', requirePermission('edit_templates'), (req, res) => {
   const data = readTemplates();
   const idx = data.templates.findIndex(t => t.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'not found' });

@@ -1041,7 +1041,7 @@
 <div id="login-overlay" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:99999;align-items:center;justify-content:center;padding:20px;">
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;max-width:380px;width:100%;display:flex;flex-direction:column;gap:14px;">
     <div style="text-align:center;font-size:22px;font-weight:800;color:var(--accent);">🔐 Auditor Login</div>
-    <input id="login-username" type="text" placeholder="Username" autocomplete="username" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:14px;border-radius:10px;font-size:15px;font-family:inherit;outline:none;">
+    <input id="login-username" type="email" placeholder="Email address" autocomplete="username" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:14px;border-radius:10px;font-size:15px;font-family:inherit;outline:none;">
     <input id="login-password" type="password" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:14px;border-radius:10px;font-size:15px;font-family:inherit;outline:none;">
     <div id="login-error" style="font-size:13px;color:var(--fail);min-height:18px;"></div>
     <button onclick="doLogin()" style="background:var(--accent);color:#fff;border:none;border-radius:10px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;">Sign in</button>
@@ -1094,7 +1094,7 @@
       </div>
     </div>
 
-    <button class="btn-primary" onclick="showForm()">＋ New Audit</button>
+    <button class="btn-primary" onclick="showForm()" data-perm="create_inspections">＋ New Audit</button>
 
     <!-- Asset KPIs -->
     <div id="kpi-row" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;">
@@ -1135,7 +1135,7 @@
 <!-- ══════════════ TEMPLATES SCREEN ══════════════ -->
 <div class="screen" id="templates-screen">
   <div class="form-body">
-    <button onclick="newBuilder()" class="btn-primary" style="margin-bottom:4px;">＋ New Template (Builder)</button>
+    <button onclick="newBuilder()" class="btn-primary" style="margin-bottom:4px;" data-perm="edit_templates">＋ New Template (Builder)</button>
     <div style="font-size:13px;color:var(--text-dim);margin-bottom:16px;">Templates define the questions for each type of audit. Use the builder above or upload a JSON file below.</div>
 
     <div id="template-list-body" style="margin-bottom:24px;"></div>
@@ -1473,6 +1473,19 @@ Building B,CNC Mill,,,,
       <span style="color:var(--text-dim);font-size:18px;">›</span>
     </div>
 
+    <!-- ─── ROLES & PERMISSIONS (admin only) ─── -->
+    <div id="settings-roles-section" style="display:none;">
+      <div onclick="toggleSettingsSection('settings-roles');renderRolesMatrix();" style="display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;cursor:pointer;">
+        <div style="font-weight:700;font-size:15px;color:var(--accent);">🛡️ Roles &amp; Permissions</div>
+        <span id="settings-roles-arrow" style="color:var(--text-dim);font-size:18px;transition:transform .2s;">▾</span>
+      </div>
+      <div id="settings-roles" style="display:none;flex-direction:column;gap:10px;margin-top:12px;">
+        <div style="font-size:12px;color:var(--text-dim);">Toggle what each role can do in the app. Admin has full access and can't be restricted.</div>
+        <div id="roles-matrix"></div>
+        <button onclick="saveRolesMatrix()" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:11px;font-size:14px;font-weight:700;cursor:pointer;">Save Permissions</button>
+      </div>
+    </div>
+
     <!-- ─── USERS SECTION (admin only) ─── -->
     <div id="settings-users-section" style="display:none;">
       <div onclick="toggleSettingsSection('settings-user-accounts');renderUsers();" style="display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;cursor:pointer;">
@@ -1484,9 +1497,8 @@ Building B,CNC Mill,,,,
         <div id="users-list" style="display:flex;flex-direction:column;gap:8px;"></div>
         <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:8px;">
           <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--accent);letter-spacing:.5px;">＋ New User</div>
-          <input type="text" id="new-username" placeholder="Username (e.g. tsenior)" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
+          <input type="email" id="new-user-email" placeholder="Email (used as login + sent welcome)" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
           <input type="text" id="new-user-displayname" placeholder="Full name (shown on reports)" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
-          <input type="email" id="new-user-email" placeholder="Email (used to send welcome + login instructions)" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
           <select id="new-user-role" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
             <option value="inspector">Inspector</option>
             <option value="planner">Planner</option>
@@ -2213,10 +2225,11 @@ async function checkAuth() {
   try {
     const r = await fetch('/api/auth/me');
     const d = await r.json();
-    if (d.authenticated) { _me = d.user; return true; }
+    if (d.authenticated) { _me = d.user; _me.permissions = d.permissions || {}; return true; }
   } catch {}
   return false;
 }
+function can(perm) { return !!(_me && _me.permissions && _me.permissions[perm]); }
 
 function showLoginOverlay() {
   document.getElementById('login-overlay').style.display = 'flex';
@@ -2246,10 +2259,11 @@ async function doLogin() {
   err.textContent = '';
   if (!username || !password) { err.textContent = 'Enter username and password'; return; }
   try {
-    const r = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
+    const r = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: username, password }) });
     const d = await r.json();
     if (!r.ok) { err.textContent = d.error || 'Login failed'; return; }
     _me = d.user;
+    _me.permissions = d.permissions || {};
     if (_me.mustChangePassword) showSetPasswordOverlay(true);
     else { hideLoginOverlay(); afterLogin(); }
   } catch { err.textContent = 'Network error'; }
@@ -2292,10 +2306,71 @@ function afterLogin() {
 function applyRoleVisibility() {
   document.body.setAttribute('data-role', _me?.role || '');
   const badge = document.getElementById('auth-badge');
-  if (badge && _me) badge.innerHTML = `${escHtml(_me.username)} <span style="color:var(--text-dim);font-size:11px;">· ${escHtml(_me.role)}</span>`;
-  // Reveal admin-only controls
-  const usersSection = document.getElementById('settings-users-section');
-  if (usersSection) usersSection.style.display = (_me?.role === 'admin') ? '' : 'none';
+  if (badge && _me) badge.innerHTML = `${escHtml(_me.displayName || _me.username)} <span style="color:var(--text-dim);font-size:11px;">· ${escHtml(_me.role)}</span>`;
+  // Admin-only sections
+  const show = (id, cond) => { const el = document.getElementById(id); if (el) el.style.display = cond ? '' : 'none'; };
+  show('settings-users-section', _me?.role === 'admin');
+  show('settings-roles-section', _me?.role === 'admin');
+  // Permission-driven UI
+  document.querySelectorAll('[data-perm]').forEach(el => {
+    el.style.display = can(el.dataset.perm) ? '' : 'none';
+  });
+}
+
+let _rolesCache = null;
+let _permKeys = [];
+const PERM_LABELS = {
+  view_inspections: 'View inspections',
+  create_inspections: 'Create / edit inspections',
+  delete_inspections: 'Delete inspections',
+  view_templates: 'View templates',
+  edit_templates: 'Create / edit / delete templates',
+  view_assets: 'View assets',
+  edit_assets: 'Edit assets & add photos',
+  import_assets: 'Import / export asset CSV',
+  view_rectifications: 'View rectifications',
+  create_rectifications: 'Create rectifications',
+  edit_rectifications: 'Update / close rectifications',
+  send_emails: 'Send reports via email',
+  manage_settings: 'Manage settings (locations, types, SMTP)'
+};
+async function renderRolesMatrix() {
+  if (!_me || _me.role !== 'admin') return;
+  try {
+    const r = await fetch('/api/roles');
+    if (!r.ok) return;
+    const d = await r.json();
+    _rolesCache = d.roles; _permKeys = d.permissionKeys;
+    const roles = ['inspector', 'planner'];
+    const el = document.getElementById('roles-matrix');
+    el.innerHTML = `
+      <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead><tr>
+          <th style="text-align:left;padding:8px;color:var(--text-dim);font-weight:600;">Permission</th>
+          ${roles.map(r => `<th style="padding:8px;color:var(--accent);text-transform:capitalize;">${r}</th>`).join('')}
+          <th style="padding:8px;color:var(--text-dim);">Admin</th>
+        </tr></thead>
+        <tbody>
+          ${_permKeys.map(k => `<tr style="border-top:1px solid var(--border);">
+            <td style="padding:8px;">${escHtml(PERM_LABELS[k] || k)}</td>
+            ${roles.map(r => `<td style="padding:8px;text-align:center;"><input type="checkbox" data-role="${r}" data-perm="${k}" ${_rolesCache[r][k] ? 'checked' : ''} style="accent-color:var(--accent);width:18px;height:18px;"></td>`).join('')}
+            <td style="padding:8px;text-align:center;color:var(--pass);">✓</td>
+          </tr>`).join('')}
+        </tbody>
+      </table></div>`;
+  } catch {}
+}
+async function saveRolesMatrix() {
+  const body = { inspector: {}, planner: {} };
+  document.querySelectorAll('#roles-matrix input[type=checkbox]').forEach(cb => {
+    body[cb.dataset.role][cb.dataset.perm] = cb.checked;
+  });
+  try {
+    const r = await fetch('/api/roles', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const d = await r.json();
+    if (d.success) { toast('Permissions saved'); _rolesCache = d.roles; }
+    else toast('Failed');
+  } catch { toast('Network error'); }
 }
 
 function openAuthMenu() {
@@ -2335,21 +2410,19 @@ async function renderUsers() {
 }
 
 async function createUser() {
-  const username = document.getElementById('new-username').value.trim();
   const displayName = document.getElementById('new-user-displayname').value.trim();
   const email = document.getElementById('new-user-email').value.trim();
   const role = document.getElementById('new-user-role').value;
   const pwd = document.getElementById('new-user-pwd').value.trim();
-  if (!username) return toast('Username required');
+  if (!email) return toast('Email required');
   try {
-    const r = await fetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, displayName, email, role, password: pwd || undefined }) });
+    const r = await fetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ displayName, email, role, password: pwd || undefined }) });
     const d = await r.json();
     if (!r.ok) return toast(d.error || 'Failed');
-    ['new-username','new-user-displayname','new-user-email','new-user-pwd'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    ['new-user-displayname','new-user-email','new-user-pwd'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     const emailLine = d.emailSent ? `\n\n✅ Welcome email sent to ${email}.` :
-      (email ? `\n\n⚠️ Email NOT sent (${d.emailError || 'check SMTP settings'}). Share the password below manually.` :
-               `\n\n(No email provided — share the password manually.)`);
-    alert(`User "${username}" created as ${role}.\n\nInitial password: ${d.initialPassword}${emailLine}`);
+      `\n\n⚠️ Email NOT sent (${d.emailError || 'check SMTP settings'}). Share the password manually.`;
+    alert(`User ${email} created as ${role}.\n\nInitial password: ${d.initialPassword}${emailLine}`);
     await renderUsers();
     await loadUsersDirectory();
   } catch { toast('Network error'); }
