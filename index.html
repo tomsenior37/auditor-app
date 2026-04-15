@@ -5209,8 +5209,9 @@ function populateInspectorDropdown() {
   const sel = document.getElementById('f-inspector');
   if (!sel) return;
   const saved = _me?.displayName || _me?.username || localStorage.getItem('inspector_name') || '';
-  // Source from users directory — include inspectors, planners, admins
-  const names = (_allUsers || []).map(u => u.displayName || u.username);
+  // Only inspectors (and admins, who can stand in) may sign off audits
+  const names = (_allUsers || []).filter(u => u.role === 'inspector' || u.role === 'admin')
+    .map(u => u.displayName || u.username);
   sel.innerHTML = '<option value="">— Select inspector —</option>' +
     names.map(n => `<option value="${escHtml(n)}"${n === saved ? ' selected' : ''}>${escHtml(n)}</option>`).join('');
 }

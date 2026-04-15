@@ -757,7 +757,7 @@ app.delete('/api/html-forms/:id', requirePermission('edit_templates'), (req, res
 
 // POST /api/html-inspection — submit a completed HTML form
 // body: { htmlFormId, location, machine, component, inspector, result, values, snapshotHtml, notes }
-app.post('/api/html-inspection', requirePermission('create_inspections'), (req, res) => {
+app.post('/api/html-inspection', requireRole('inspector', 'admin'), (req, res) => {
   const body = req.body || {};
   if (!body.htmlFormId || !body.snapshotHtml) return res.status(400).json({ error: 'htmlFormId and snapshotHtml required' });
   const forms = readHtmlForms();
@@ -947,7 +947,7 @@ app.delete('/api/inspection/:id', (req, res) => {
   res.json({ success: true });
 });
 
-app.post('/api/inspection', (req, res) => {
+app.post('/api/inspection', requireRole('inspector', 'admin'), (req, res) => {
   const body = req.body;
   if (!body.location || !body.machine || !body.inspector) {
     return res.status(400).json({ error: 'Missing required fields' });
@@ -1592,6 +1592,13 @@ app.get('/api/rectifications/:id', (req, res) => {
 });
 
 app.post('/api/rectifications', async (req, res) => {
+  // Reject assignment to anyone who isn't a planner
+  if (req.body.assignedTo?.email) {
+    const u = readUsers().find(x => x.email && x.email.toLowerCase() === req.body.assignedTo.email.toLowerCase());
+    if (!u || u.role !== 'planner') {
+      return res.status(400).json({ error: 'Issues can only be assigned to users with the Planner role' });
+    }
+  }
   const rects = readRects();
   const id = nextRectId(rects);
   const rect = {
