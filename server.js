@@ -952,14 +952,34 @@ app.post('/api/inspection', (req, res) => {
   if (!body.location || !body.machine || !body.inspector) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
-  // Calculate result from template questions
-  let result = 'PASS';
-  if (body.templateId) {
+  // Determine result: trust the client-computed value if provided (it handles
+  // v2 items, multichoice flagFail, logic set_fail, etc). Fall back to a
+  // server-side evaluation that covers yesno and multichoice flagFail.
+  let result;
+  if (body.result === 'PASS' || body.result === 'FAIL') {
+    result = body.result;
+  } else if (body.templateId) {
     const tplData = readTemplates();
     const tpl = tplData.templates.find(t => t.id === body.templateId);
+    result = 'PASS';
     if (tpl) {
-      const hasNo = tpl.questions.some(q => q.type === 'yesno' && body.answers && body.answers[q.id] === false);
-      result = hasNo ? 'FAIL' : 'PASS';
+      const answers = body.answers || {};
+      const qs = (tpl.version === 2 && Array.isArray(tpl.items))
+        ? tpl.items.filter(i => i.itemType === 'question' && i.type !== 'instruction')
+        : (tpl.questions || []);
+      let failed = false;
+      qs.forEach((q, idx) => {
+        const key = q.id || ('q' + (idx + 1));
+        // Also try positional key q{n+1} since v2 uses sequential answer keys
+        const val = answers[key] !== undefined ? answers[key] : answers['q' + (idx + 1)];
+        if (val === undefined || val === null || val === 'na') return;
+        if (q.type === 'yesno' && val === false) failed = true;
+        if (q.type === 'multichoice') {
+          const vals = Array.isArray(val) ? val : [val];
+          if (vals.some(v => (q.options || []).find(o => (o.id || o.label) === v)?.flagFail)) failed = true;
+        }
+      });
+      result = failed ? 'FAIL' : 'PASS';
     }
   } else {
     result = body.result || 'FAIL';
