@@ -1988,6 +1988,7 @@ function selectTemplateForForm(tplId) {
   selectedTemplate = tpl;
   QUESTIONS = tplQuestions(tpl).map(q => q.text);
   updateTemplateLabel();
+  updateGuardDropdown();
   buildChecklist();
   resetFormAnswers();
 }
@@ -4799,7 +4800,8 @@ function updateGuardDropdown() {
   const guardSel = document.getElementById('f-guardId');
   const locName = locSel.value;
   const macName = macSel.value;
-  guardSel.innerHTML = '<option value="">— Select guard ID —</option>';
+  const ct = selectedTemplate?.componentType || 'Component';
+  guardSel.innerHTML = `<option value="">— Select ${ct.toLowerCase()} ID —</option>`;
   if (macName && macName !== '__add_new__' && locName && locName !== '__add_new__') {
     const loc = lists.locations.find(l => l.name === locName);
     const mac = loc && loc.machines.find(m => m.name === macName);
