@@ -1557,6 +1557,7 @@ Building B,CNC Mill,,,,
       <div id="component-type-list" style="display:flex;flex-direction:column;gap:8px;"></div>
       <div style="display:flex;gap:8px;margin-top:4px;">
         <input type="text" id="new-component-type" placeholder="New component type..." style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:13px;font-size:15px;outline:none;font-family:inherit;">
+        <input type="text" id="new-component-type-prefix" placeholder="PRE" maxlength="3" style="width:70px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:13px;font-size:14px;outline:none;font-family:monospace;text-transform:uppercase;text-align:center;">
         <button onclick="addComponentType()" style="background:var(--accent);color:#fff;border:none;border-radius:var(--radius);padding:13px 18px;font-size:15px;font-weight:700;cursor:pointer;white-space:nowrap;">Add</button>
       </div>
 
@@ -1607,9 +1608,17 @@ Building B,CNC Mill,,,,
       <div class="section-title" style="border:none;padding:0;" id="guard-panel-machine-name"></div>
     </div>
     <div id="guard-list" style="display:flex;flex-direction:column;gap:8px;"></div>
-    <div style="margin-top:4px;">
-      <button onclick="addGuard()" style="background:var(--accent);color:#fff;border:none;border-radius:var(--radius);padding:14px 20px;font-size:15px;font-weight:700;cursor:pointer;width:100%;">&#43; Add Next Component ID</button>
-      <div id="next-guard-preview" style="color:var(--text-dim);font-size:13px;text-align:center;margin-top:6px;"></div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;gap:10px;">
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--accent);letter-spacing:.5px;">＋ Add Component</div>
+      <select id="new-comp-type" onchange="updateNextGuardPreview()" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:11px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;"></select>
+      <input type="text" id="new-comp-description" placeholder="Description (optional)" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:11px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
+      <div style="display:flex;gap:6px;align-items:center;">
+        <span id="new-comp-prefix" style="font-family:monospace;font-size:13px;color:var(--text-dim);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+        <span style="font-family:monospace;font-size:14px;color:var(--text-dim);">-</span>
+        <input type="text" id="new-comp-seq" placeholder="001" maxlength="4" style="width:70px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:9px;border-radius:8px;font-size:14px;font-family:monospace;text-align:center;outline:none;">
+      </div>
+      <button onclick="addGuard()" style="background:var(--accent);color:#fff;border:none;border-radius:var(--radius);padding:14px 20px;font-size:15px;font-weight:700;cursor:pointer;width:100%;">Add Component</button>
+      <div id="next-guard-preview" style="color:var(--text-dim);font-size:13px;text-align:center;"></div>
     </div>
     <input type="text" id="new-guard" style="display:none;">
   </div>
@@ -4916,12 +4925,20 @@ async function inlineAddMachine() {
   }
 }
 
-function nextGuardId(macName, existingGuards, locName, compType) {
-  // Format: TYPE-FULL_LOCATION-EQUIP-### e.g. GUARD-BUILDING_B-CNCMILL-001
-  const typePart = (compType || 'GRD').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+function _getTypePrefix(typeName) {
+  const types = (lists.componentTypes || []).map(t => typeof t === 'string' ? { name: t, prefix: '' } : t);
+  const t = types.find(x => x.name.toLowerCase() === (typeName || '').toLowerCase());
+  const p = (t?.prefix || '').toUpperCase();
+  return /^[A-Z0-9]{1,3}$/.test(p) ? p : 'CMP';
+}
+function buildComponentPrefix(typeName, locName, macName) {
+  const p = _getTypePrefix(typeName);
   const locPart = (locName || '').replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '').toUpperCase();
   const equipPart = (macName || '').replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '').toUpperCase() || 'EQP';
-  const prefix = locPart ? `${typePart}-${locPart}-${equipPart}` : `${typePart}-${equipPart}`;
+  return locPart ? `${p}-${locPart}-${equipPart}` : `${p}-${equipPart}`;
+}
+function nextGuardId(macName, existingGuards, locName, typeName) {
+  const prefix = buildComponentPrefix(typeName, locName, macName);
   let max = 0;
   existingGuards.forEach(g => {
     const m = String(g).match(new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-(\\d+)$`, 'i'));
@@ -5064,14 +5081,17 @@ function renderComponentTypes() {
   }
   el.innerHTML = types.map((t, i) => {
     const name = typeof t === 'string' ? t : t.name;
+    const prefix = typeof t === 'object' ? (t.prefix || '') : '';
     const fieldCount = typeof t === 'object' && Array.isArray(t.fields) ? t.fields.length : 0;
+    const safeName = name.replace(/'/g, "\\'");
     return `
-      <div style="display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;gap:8px;">
         <div style="flex:1;min-width:0;">
           <div style="font-weight:600;font-size:14px;">${escHtml(name)}</div>
           <div style="font-size:12px;color:var(--text-dim);">${fieldCount} custom field${fieldCount === 1 ? '' : 's'}</div>
         </div>
-        <button onclick="openComponentTypeFields('${escHtml(name)}')" title="Edit fields" style="background:none;border:none;color:var(--accent);font-size:16px;cursor:pointer;padding:4px 8px;">✏️</button>
+        <input type="text" value="${escHtml(prefix)}" maxlength="3" placeholder="PRE" onblur="if(this.value.toUpperCase()!==this.defaultValue)updateComponentTypePrefix('${safeName}', this.value)" style="width:60px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:7px;border-radius:6px;font-size:13px;font-family:monospace;text-align:center;text-transform:uppercase;outline:none;" title="3-letter prefix">
+        <button onclick="openComponentTypeFields('${safeName}')" title="Edit fields" style="background:none;border:none;color:var(--accent);font-size:16px;cursor:pointer;padding:4px 8px;">✏️</button>
         <button onclick="deleteComponentType(${i})" style="background:none;border:none;color:var(--fail);font-size:20px;cursor:pointer;padding:0 4px;line-height:1;">&#x2715;</button>
       </div>`;
   }).join('');
@@ -5079,11 +5099,22 @@ function renderComponentTypes() {
 
 async function addComponentType() {
   const inp = document.getElementById('new-component-type');
+  const preInp = document.getElementById('new-component-type-prefix');
   const name = inp.value.trim();
+  const prefix = (preInp?.value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3);
   if (!name) return;
-  const r = await fetch('/api/lists/componentType', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name }) });
+  const r = await fetch('/api/lists/componentType', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name, prefix }) });
   const d = await r.json();
-  if (d.success) { lists.componentTypes = d.componentTypes; inp.value = ''; renderComponentTypes(); toast('Component type added ✅'); }
+  if (d.success) { lists.componentTypes = d.componentTypes; inp.value = ''; if (preInp) preInp.value = ''; renderComponentTypes(); toast('Component type added ✅'); }
+}
+
+async function updateComponentTypePrefix(name, prefix) {
+  const clean = (prefix || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3);
+  try {
+    const r = await fetch('/api/lists/componentType/prefix', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, prefix: clean }) });
+    const d = await r.json();
+    if (d.success) { await loadLists(); renderComponentTypes(); toast(`Prefix updated to "${clean}"`); }
+  } catch {}
 }
 
 async function deleteComponentType(idx) {
@@ -5162,6 +5193,9 @@ function showGuardPanel(macIdx) {
   document.getElementById('setup-machines-panel').style.display = 'none';
   document.getElementById('setup-guards-panel').style.display = 'flex';
   renderSetupGuards();
+  populateNewCompTypeDropdown();
+  const seqEl = document.getElementById('new-comp-seq');
+  if (seqEl) { seqEl.value = ''; delete seqEl.dataset.userEdited; seqEl.oninput = () => { seqEl.dataset.userEdited = '1'; updateNextGuardPreview(); }; }
   updateNextGuardPreview();
 }
 
@@ -5218,23 +5252,61 @@ function deleteMachine(idx) {
   });
 }
 
+function populateNewCompTypeDropdown() {
+  const sel = document.getElementById('new-comp-type');
+  if (!sel) return;
+  const types = (lists.componentTypes || []).map(t => typeof t === 'string' ? { name: t, prefix: '' } : t);
+  sel.innerHTML = types.map(t => `<option value="${escHtml(t.name)}">${escHtml(t.name)}${t.prefix ? ' (' + t.prefix + ')' : ''}</option>`).join('');
+}
+
 function updateNextGuardPreview() {
-  const el = document.getElementById('next-guard-preview');
-  if (!el || !currentMachineName) return;
+  const prefEl = document.getElementById('new-comp-prefix');
+  const seqEl = document.getElementById('new-comp-seq');
+  const previewEl = document.getElementById('next-guard-preview');
+  if (!prefEl || !currentMachineName) return;
+  const type = document.getElementById('new-comp-type')?.value || '';
+  const prefix = buildComponentPrefix(type, currentLocationName, currentMachineName);
+  prefEl.textContent = prefix;
+  // Suggest next sequence number
   const loc = lists.locations.find(l => l.name === currentLocationName);
   const mac = loc?.machines.find(m => m.name === currentMachineName);
-  const next = nextGuardId(currentMachineName, mac?.guards || [], currentLocationName, '');
-  el.textContent = `Next ID: ${next}`;
+  let max = 0;
+  (mac?.guards || []).forEach(g => {
+    const m = String(g).match(new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-(\\d+)$`, 'i'));
+    if (m) max = Math.max(max, parseInt(m[1], 10));
+  });
+  const nextSeq = String(max + 1).padStart(3, '0');
+  if (seqEl && !seqEl.dataset.userEdited) seqEl.value = nextSeq;
+  if (previewEl) previewEl.textContent = `Preview: ${prefix}-${seqEl?.value || nextSeq}`;
 }
 
 async function addGuard() {
   if (!currentLocationName || !currentMachineName) return;
+  const type = document.getElementById('new-comp-type')?.value || '';
+  const description = document.getElementById('new-comp-description')?.value.trim() || '';
+  const seqRaw = (document.getElementById('new-comp-seq')?.value || '').trim();
+  if (!seqRaw || !/^\d{1,4}$/.test(seqRaw)) return toast('Enter a numeric sequence (e.g. 001)');
+  const seq = seqRaw.padStart(3, '0');
+  const prefix = buildComponentPrefix(type, currentLocationName, currentMachineName);
+  const guard = `${prefix}-${seq}`;
   const loc = lists.locations.find(l => l.name === currentLocationName);
   const mac = loc?.machines.find(m => m.name === currentMachineName);
-  const guard = nextGuardId(currentMachineName, mac?.guards || []);
+  if ((mac?.guards || []).includes(guard)) return toast(`${guard} is already in use`);
   const r = await fetch('/api/lists/guard', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ location: currentLocationName, machine: currentMachineName, guard }) });
   const d = await r.json();
-  if (d.success) { lists.locations = d.locations; updateGuardDropdown(); renderSetupGuards(); updateNextGuardPreview(); toast(`Component ID "${guard}" added ✅`); }
+  if (!d.success) return toast('Failed to add');
+  lists.locations = d.locations;
+  // Save meta with type + description
+  try {
+    await fetch('/api/asset/meta', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ location: currentLocationName, machine: currentMachineName, component: guard,
+        componentType: type || '', description }) });
+  } catch {}
+  // Reset form
+  document.getElementById('new-comp-description').value = '';
+  const seqEl = document.getElementById('new-comp-seq'); if (seqEl) { seqEl.value = ''; delete seqEl.dataset.userEdited; }
+  updateGuardDropdown(); renderSetupGuards(); updateNextGuardPreview();
+  toast(`Component "${guard}" added ✅`);
 }
 
 async function deleteGuard(guard) {

@@ -454,12 +454,22 @@ function readLists() {
     if (!Array.isArray(data.inspectors)) data.inspectors = [];
     if (!Array.isArray(data.planners)) data.planners = [];
     if (!Array.isArray(data.componentTypes)) data.componentTypes = [];
-    // Migrate string componentTypes to objects { name, fields }
-    data.componentTypes = data.componentTypes.map(ct => typeof ct === 'string' ? { name: ct, fields: [] } : { name: ct.name, fields: Array.isArray(ct.fields) ? ct.fields : [] });
-    // Seed default component types if none exist
+    // Migrate string componentTypes to objects { name, fields, prefix }
+    data.componentTypes = data.componentTypes.map(ct => {
+      if (typeof ct === 'string') return { name: ct, fields: [], prefix: '' };
+      return { name: ct.name, fields: Array.isArray(ct.fields) ? ct.fields : [], prefix: ct.prefix || '' };
+    });
+    // Seed default component types with prefixes
+    const DEFAULT_PREFIXES = { 'Guard': 'GRD', 'Gearbox': 'GBX', 'Motor': 'MTR', 'Pump': 'PMP' };
     if (data.componentTypes.length === 0) {
-      data.componentTypes = ['Guard', 'Gearbox', 'Motor', 'Pump'].map(name => ({ name, fields: [] }));
+      data.componentTypes = Object.entries(DEFAULT_PREFIXES).map(([name, prefix]) => ({ name, fields: [], prefix }));
       writeLists(data);
+    } else {
+      let dirtyPref = false;
+      data.componentTypes.forEach(t => {
+        if (!t.prefix && DEFAULT_PREFIXES[t.name]) { t.prefix = DEFAULT_PREFIXES[t.name]; dirtyPref = true; }
+      });
+      if (dirtyPref) writeLists(data);
     }
     // Migrate machines from strings to objects with guards array
     let dirty = false;
@@ -1038,14 +1048,28 @@ app.delete('/api/lists/inspector', (req, res) => {
 // ── Component Types API ────────────────────────────
 app.post('/api/lists/componentType', requireRole('admin', 'planner'), (req, res) => {
   const name = (req.body.name || '').trim();
+  const prefix = (req.body.prefix || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3);
   if (!name) return res.status(400).json({ error: 'name required' });
   const lists = readLists();
   if (!lists.componentTypes.find(t => t.name === name)) {
-    lists.componentTypes.push({ name, fields: [] });
+    lists.componentTypes.push({ name, fields: [], prefix });
     lists.componentTypes.sort((a, b) => a.name.localeCompare(b.name));
     writeLists(lists);
   }
   res.json({ success: true, componentTypes: lists.componentTypes });
+});
+
+// PUT /api/lists/componentType/prefix — update prefix
+app.put('/api/lists/componentType/prefix', requireRole('admin', 'planner'), (req, res) => {
+  const { name, prefix } = req.body;
+  if (!name) return res.status(400).json({ error: 'name required' });
+  const clean = (prefix || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3);
+  const lists = readLists();
+  const t = lists.componentTypes.find(t => t.name === name);
+  if (!t) return res.status(404).json({ error: 'not found' });
+  t.prefix = clean;
+  writeLists(lists);
+  res.json({ success: true, componentType: t });
 });
 
 app.delete('/api/lists/componentType', requireRole('admin', 'planner'), (req, res) => {
