@@ -555,7 +555,7 @@ function writeTemplates(data) {
 app.get('/api/templates', (req, res) => res.json(readTemplates()));
 
 app.post('/api/templates', requirePermission('edit_templates'), (req, res) => {
-  const { name, standard, description, requiresComponent, componentType, questions, items, version, scoringEnabled } = req.body;
+  const { name, standard, description, requiresComponent, componentType, questions, items, version, scoringEnabled, riskRatingEnabled } = req.body;
   if (!name || (!questions && !items)) return res.status(400).json({ error: 'name and questions required' });
   const data = readTemplates();
   const tpl = {
@@ -564,7 +564,7 @@ app.post('/api/templates', requirePermission('edit_templates'), (req, res) => {
     requiresComponent: !!requiresComponent,
     componentType: componentType || '',
     questions: questions || [],
-    ...(items ? { items, version: version || 2, scoringEnabled: !!scoringEnabled } : {}),
+    ...(items ? { items, version: version || 2, scoringEnabled: !!scoringEnabled, riskRatingEnabled: !!riskRatingEnabled } : {}),
     createdAt: new Date().toISOString()
   };
   data.templates.push(tpl);
@@ -617,7 +617,8 @@ app.post('/api/templates/upload', requirePermission('edit_templates'), upload.si
       ...(templateData.items ? {
         items: templateData.items,
         version: templateData.version || 2,
-        scoringEnabled: !!templateData.scoringEnabled
+        scoringEnabled: !!templateData.scoringEnabled,
+        riskRatingEnabled: !!templateData.riskRatingEnabled
       } : {}),
       createdAt: new Date().toISOString()
     };
@@ -1000,7 +1001,9 @@ app.post('/api/inspection', requireRole('inspector', 'admin'), (req, res) => {
     notes: body.notes || '',
     photo: body.photo || null,
     signature: body.signature || null,
-    result
+    result,
+    risk: body.risk || null,
+    score: body.score || null
   };
   inspections.unshift(record);
   writeInspections(inspections);
@@ -1991,6 +1994,16 @@ async function buildPDFBuffer(insp, template) {
     doc.roundedRect(pillX, pillY, pillW, pillH, 15).fill(isFail ? RED : GREEN);
     doc.fillColor('#fff').font('Helvetica-Bold').fontSize(14)
        .text(insp.result || 'PENDING', pillX, pillY + 8, { width: pillW, align: 'center' });
+    // Risk pill (next to result pill)
+    if (insp.risk && insp.risk.rating) {
+      const riskColor = { 'Low': '#437a22', 'Medium': '#d19900', 'High': '#da7101', 'Very High': '#a13544' }[insp.risk.rating] || '#666';
+      const rW = 100, rX = pillX - rW - 8;
+      doc.roundedRect(rX, pillY, rW, pillH, 15).fill(riskColor);
+      doc.fillColor('#fff').font('Helvetica-Bold').fontSize(11)
+         .text(insp.risk.rating, rX, pillY + 6, { width: rW, align: 'center' });
+      doc.font('Helvetica').fontSize(8)
+         .text(`${insp.risk.consequence}${insp.risk.probability}`, rX, pillY + 19, { width: rW, align: 'center' });
+    }
 
     // ── Asset metadata card ────────────────────────────────────
     let y = 90;

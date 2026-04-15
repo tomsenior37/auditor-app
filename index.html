@@ -1260,6 +1260,17 @@
     <!-- Checklist -->
     <div id="checklist-container"></div>
 
+    <!-- Risk Rating (only when template has riskRatingEnabled) -->
+    <div id="f-risk-block" class="field-group" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;">
+      <label style="font-weight:700;">⚖️ Risk Rating</label>
+      <div style="font-size:12px;color:var(--text-dim);margin-bottom:8px;">Likely consequence × probability of injury</div>
+      <div style="font-size:12px;color:var(--text-dim);margin-top:6px;">Consequence</div>
+      <div id="f-risk-cons" style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:6px 0 10px;"></div>
+      <div style="font-size:12px;color:var(--text-dim);">Probability</div>
+      <div id="f-risk-prob" style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:6px 0 10px;"></div>
+      <div id="f-risk-result" style="text-align:center;padding:10px;border-radius:8px;background:var(--bg);font-weight:700;font-size:14px;color:var(--text-dim);">Pick consequence and probability</div>
+    </div>
+
     <!-- Notes -->
     <div class="field-group">
       <label>Notes</label>
@@ -1316,6 +1327,13 @@
         <option value="FAIL">FAIL only</option>
         <option value="WR_RAISED">WR Raised only</option>
         <option value="SERVICEABLE">Resolved only</option>
+      </select>
+      <select id="filter-risk" onchange="renderRecords()" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:10px;font-size:14px;font-family:inherit;">
+        <option value="">All Risk Ratings</option>
+        <option value="Low">Low only</option>
+        <option value="Medium">Medium only</option>
+        <option value="High">High only</option>
+        <option value="Very High">Very High only</option>
       </select>
       <div style="display:flex;align-items:center;gap:8px;">
         <label class="toggle-switch">
@@ -1704,6 +1722,10 @@ Building B,CNC Mill,,,,
         <span style="font-size:14px;">Enable Scoring</span>
         <label class="toggle-switch"><input type="checkbox" id="bld-scoring" onchange="bs.scoringEnabled=this.checked;bs.dirty=true;"><span class="toggle-slider"></span></label>
       </label>
+      <label class="bld-toggle-row" style="padding:4px 0;">
+        <span style="font-size:14px;">Enable Risk Rating (consequence × probability)</span>
+        <label class="toggle-switch"><input type="checkbox" id="bld-risk" onchange="bs.riskRatingEnabled=this.checked;bs.dirty=true;"><span class="toggle-slider"></span></label>
+      </label>
     </div>
     <div id="bld-canvas"></div>
     <button onclick="bAddSection()" class="bld-add-section-btn">＋ Add Section</button>
@@ -2063,6 +2085,64 @@ function selectTemplateForForm(tplId) {
   updateGuardDropdown();
   buildChecklist();
   resetFormAnswers();
+  initRiskBlock();
+}
+
+const RISK_MATRIX = {
+  '5E':['Medium','#d19900'],'5D':['Medium','#d19900'],'5C':['High','#da7101'],'5B':['Very High','#a13544'],'5A':['Very High','#a13544'],
+  '4E':['Low','#437a22'],'4D':['Medium','#d19900'],'4C':['High','#da7101'],'4B':['High','#da7101'],'4A':['Very High','#a13544'],
+  '3E':['Low','#437a22'],'3D':['Medium','#d19900'],'3C':['Medium','#d19900'],'3B':['High','#da7101'],'3A':['High','#da7101'],
+  '2E':['Low','#437a22'],'2D':['Low','#437a22'],'2C':['Medium','#d19900'],'2B':['Medium','#d19900'],'2A':['Medium','#d19900'],
+  '1E':['Low','#437a22'],'1D':['Low','#437a22'],'1C':['Low','#437a22'],'1B':['Low','#437a22'],'1A':['Medium','#d19900']
+};
+const CONSEQ = [['1','Insignificant'],['2','Minor'],['3','Moderate'],['4','Major'],['5','Critical']];
+const PROBS  = [['E','Rare'],['D','Unlikely'],['C','Possible'],['B','Likely'],['A','Almost Certain']];
+let _riskState = { consequence: '', probability: '' };
+
+function initRiskBlock() {
+  const block = document.getElementById('f-risk-block');
+  if (!block) return;
+  if (!selectedTemplate?.riskRatingEnabled) { block.style.display = 'none'; return; }
+  block.style.display = 'block';
+  _riskState = { consequence: '', probability: '' };
+  const cons = document.getElementById('f-risk-cons');
+  cons.innerHTML = CONSEQ.map(([v, l]) => `<button type="button" class="risk-btn" data-cons="${v}" onclick="pickRisk('cons','${v}')" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px 4px;border-radius:6px;font-size:12px;cursor:pointer;font-family:inherit;"><div style="font-weight:700;">${v}</div><div style="font-size:10px;color:var(--text-dim);">${l}</div></button>`).join('');
+  const prob = document.getElementById('f-risk-prob');
+  prob.innerHTML = PROBS.map(([v, l]) => `<button type="button" class="risk-btn" data-prob="${v}" onclick="pickRisk('prob','${v}')" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px 4px;border-radius:6px;font-size:12px;cursor:pointer;font-family:inherit;"><div style="font-weight:700;">${v}</div><div style="font-size:10px;color:var(--text-dim);">${l}</div></button>`).join('');
+  document.getElementById('f-risk-result').textContent = 'Pick consequence and probability';
+  document.getElementById('f-risk-result').style.background = 'var(--bg)';
+  document.getElementById('f-risk-result').style.color = 'var(--text-dim)';
+}
+
+function pickRisk(kind, val) {
+  if (kind === 'cons') _riskState.consequence = val;
+  else _riskState.probability = val;
+  document.querySelectorAll(`#f-risk-${kind === 'cons' ? 'cons' : 'prob'} .risk-btn`).forEach(b => {
+    const isSel = (kind === 'cons' ? b.dataset.cons : b.dataset.prob) === val;
+    b.style.background = isSel ? 'var(--accent)' : 'var(--bg)';
+    b.style.color = isSel ? '#fff' : 'var(--text)';
+  });
+  updateRiskResult();
+}
+
+function updateRiskResult() {
+  const el = document.getElementById('f-risk-result');
+  if (!_riskState.consequence || !_riskState.probability) {
+    el.textContent = 'Pick consequence and probability';
+    el.style.background = 'var(--bg)'; el.style.color = 'var(--text-dim)';
+    return;
+  }
+  const m = RISK_MATRIX[_riskState.consequence + _riskState.probability];
+  if (!m) return;
+  el.textContent = `Risk: ${m[0]}`;
+  el.style.background = m[1]; el.style.color = '#fff';
+}
+
+function getCurrentRisk() {
+  if (!selectedTemplate?.riskRatingEnabled) return null;
+  if (!_riskState.consequence || !_riskState.probability) return null;
+  const m = RISK_MATRIX[_riskState.consequence + _riskState.probability];
+  return { consequence: _riskState.consequence, probability: _riskState.probability, rating: m ? m[0] : '' };
 }
 
 // ── HTML → Native Template parser (Mode B) ─────────────────
@@ -2899,7 +2979,7 @@ async function deleteUser(id, username) {
 }
 
 function initAppAfterAuth() {
-  loadTemplates().then(() => buildChecklist());
+  loadTemplates().then(() => { buildChecklist(); initRiskBlock(); });
   loadAnswerSets();
   loadStats();
   loadLists().then(() => loadUsersDirectory());
@@ -3486,6 +3566,8 @@ async function submitInspection() {
         findings[key].comment = commentEl.value;
       }
     });
+    const risk = getCurrentRisk();
+    if (selectedTemplate?.riskRatingEnabled && !risk) return toast('⚠ Risk Rating is required (consequence + probability)');
     const payload = {
       templateId: selectedTemplate?.id || null,
       templateName: selectedTemplate?.name || null,
@@ -3496,7 +3578,8 @@ async function submitInspection() {
       photo: uploadedPhoto,
       signature,
       result,
-      score: scoreData || undefined
+      score: scoreData || undefined,
+      risk: risk || undefined
     };
     const res = await fetch('/api/inspection', {
       method: 'POST',
@@ -4978,6 +5061,8 @@ async function renderRecords() {
   if (filterRes === 'WR_RAISED') filtered = filtered.filter(r => r.status === 'WR_RAISED');
   else if (filterRes === 'SERVICEABLE') filtered = filtered.filter(r => r.status === 'SERVICEABLE');
   else if (filterRes) filtered = filtered.filter(r => r.result === filterRes && !r.status);
+  const filterRisk = document.getElementById('filter-risk')?.value;
+  if (filterRisk) filtered = filtered.filter(r => r.risk?.rating === filterRisk);
 
   if (!filtered.length) {
     body.innerHTML = '<div class="empty-state"><div class="icon">📋</div>No inspections yet.<br>Tap New Inspection to get started.</div>';
@@ -4998,9 +5083,14 @@ async function renderRecords() {
       ? `<button onclick="event.stopPropagation();purgeInspection('${rec.id}')" title="Delete permanently" style="background:none;border:none;color:var(--fail);font-size:18px;cursor:pointer;padding:4px 8px;">🗑️</button>
          <button onclick="event.stopPropagation();restoreInspection('${rec.id}')" title="Restore" style="background:none;border:none;color:var(--text-dim);font-size:18px;cursor:pointer;padding:4px 8px;">↩️</button>`
       : `<button onclick="event.stopPropagation();softDeleteInspection('${rec.id}')" title="Delete inspection" style="background:none;border:none;color:var(--text-dim);font-size:16px;cursor:pointer;padding:4px 8px;">🗑️</button>`;
+    const riskColors = { 'Low': '#437a22', 'Medium': '#d19900', 'High': '#da7101', 'Very High': '#a13544' };
+    const riskBadge = rec.risk?.rating
+      ? `<span style="background:${riskColors[rec.risk.rating]||'#666'};color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;margin-left:6px;">${escHtml(rec.risk.rating)}</span>`
+      : '';
     card.innerHTML = `
       <div class="record-header" onclick="toggleRecord(this.parentElement)">
         <div class="record-badge ${badgeClass}">${badgeLabel}</div>
+        ${riskBadge}
         <div class="record-meta">
           <div class="record-guard-id">${escHtml(rec.guardId)}${archivedBadge}</div>
           <div class="record-time">${dtStr} · ${escHtml(rec.inspector)}</div>
@@ -6080,6 +6170,7 @@ function openBuilder(tplId) {
   bs.componentType = tpl.componentType || '';
   bs.requiresComponent = !!tpl.requiresComponent;
   bs.scoringEnabled = !!tpl.scoringEnabled;
+  bs.riskRatingEnabled = !!tpl.riskRatingEnabled;
   bs.selectedId = null;
   bs.dirty = false;
   if (tpl.version === 2 && tpl.items && tpl.items.length) {
@@ -6108,6 +6199,7 @@ function newBuilder() {
   bs.componentType = '';
   bs.requiresComponent = false;
   bs.scoringEnabled = false;
+  bs.riskRatingEnabled = false;
   bs.selectedId = null;
   bs.dirty = false;
   bs.items = [
@@ -6129,6 +6221,8 @@ function bEnterBuilder() {
   compSel.value = bs.componentType;
   const scoringCb = document.getElementById('bld-scoring');
   if (scoringCb) scoringCb.checked = bs.scoringEnabled;
+  const riskCb = document.getElementById('bld-risk');
+  if (riskCb) riskCb.checked = !!bs.riskRatingEnabled;
   builderSetTab('build');
   bRenderCanvas();
 }
@@ -6822,7 +6916,7 @@ async function saveBuilder() {
   const payload = {
     name: bs.name, standard: bs.standard, description: '',
     requiresComponent: bs.requiresComponent, componentType: bs.componentType,
-    scoringEnabled: bs.scoringEnabled, version: 2,
+    scoringEnabled: bs.scoringEnabled, riskRatingEnabled: !!bs.riskRatingEnabled, version: 2,
     items: bs.items, questions, updatedAt: new Date().toISOString()
   };
   try {
