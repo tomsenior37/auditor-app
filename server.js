@@ -1754,6 +1754,28 @@ app.patch('/api/rectifications/:id', (req, res) => {
     rect.history.push({ action: 'status_changed', from: rect.status, to: changes.status, by, at: new Date().toISOString() });
     if (changes.status === 'resolved' || changes.status === 'closed') {
       rect.resolvedAt = new Date().toISOString();
+      // Flip the linked inspection's status to SERVICEABLE (displayed as Resolved)
+      if (rect.inspectionId) {
+        const inspections = readInspections();
+        const iIdx = inspections.findIndex(x => x.id === rect.inspectionId);
+        if (iIdx !== -1) {
+          inspections[iIdx].status = 'SERVICEABLE';
+          inspections[iIdx].serviceableAt = new Date().toISOString();
+          if (rect.workOrderNumber) inspections[iIdx].rectificationWorkOrder = rect.workOrderNumber;
+          if (rect.workOrderExecutionDate) inspections[iIdx].completionDate = rect.workOrderExecutionDate;
+          writeInspections(inspections);
+        }
+      }
+    }
+    // If a closed/resolved issue is re-opened, drop the inspection's fixed marker
+    if ((rect.status === 'resolved' || rect.status === 'closed') && changes.status === 'open' && rect.inspectionId) {
+      const inspections = readInspections();
+      const iIdx = inspections.findIndex(x => x.id === rect.inspectionId);
+      if (iIdx !== -1 && inspections[iIdx].status === 'SERVICEABLE') {
+        delete inspections[iIdx].status;
+        delete inspections[iIdx].serviceableAt;
+        writeInspections(inspections);
+      }
     }
   }
   if (changes.assignedTo && (!rect.assignedTo || changes.assignedTo.email !== rect.assignedTo.email)) {
