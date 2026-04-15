@@ -2101,26 +2101,25 @@ async function buildPDFBuffer(insp, template) {
         y = doc.y + 4;
       }
 
-      // Findings (comment + photo)
+      // Findings (comment + photo) — sit directly under the question
       const finding = insp.findings && insp.findings[key];
       const altKey = 'q' + num;
       const altFinding = insp.findings && insp.findings[altKey];
       const f = finding || altFinding;
       if (f && (f.comment || f.photo)) {
-        ensureSpace(28);
-        doc.roundedRect(M + 28, y, PAGE_W - M*2 - 28, 0, 4); // open box for top stroke
         if (f.comment) {
+          ensureSpace(20);
           doc.fillColor(GREY).font('Helvetica-Oblique').fontSize(9)
              .text('Finding: ' + f.comment, M + 28, y, { width: PAGE_W - M*2 - 28 });
-          y = doc.y + 2;
+          y = doc.y + 4;
         }
         if (f.photo) {
           const photoPath = path.join(PHOTOS_DIR, f.photo);
           if (fs.existsSync(photoPath)) {
-            ensureSpace(120);
+            ensureSpace(126);
             try {
-              doc.image(photoPath, M + 28, y, { fit: [180, 110] });
-              y += 116;
+              doc.image(photoPath, M + 28, y, { fit: [120, 120] });
+              y += 124;
             } catch {}
           }
         }
@@ -2157,19 +2156,19 @@ async function buildPDFBuffer(insp, template) {
       y = doc.y + 8;
     }
 
-    // ── Signature ─────────────────────────────────
+    // ── Signature (compact) ───────────────────────
     if (insp.signature && /^data:image\//.test(insp.signature)) {
-      ensureSpace(120);
+      ensureSpace(70);
       drawSection('Inspector sign-off');
       try {
         const b64 = insp.signature.split(',')[1];
         const buf = Buffer.from(b64, 'base64');
-        doc.image(buf, M, y, { fit: [220, 80] });
+        doc.image(buf, M, y, { fit: [120, 40] });
       } catch {}
       doc.fillColor(GREY).font('Helvetica').fontSize(9)
-         .text(insp.inspector || '', M + 230, y + 30);
-      doc.text(new Date(insp.timestamp).toLocaleString('en-AU', { dateStyle: 'medium', timeStyle: 'short' }), M + 230, y + 44);
-      y += 90;
+         .text(insp.inspector || '', M + 130, y + 12);
+      doc.text(new Date(insp.timestamp).toLocaleString('en-AU', { dateStyle: 'medium', timeStyle: 'short' }), M + 130, y + 24);
+      y += 50;
     }
 
     // ── Footer & page numbers ─────────────────────
@@ -2525,22 +2524,24 @@ app.get('/api/report/all', (req, res) => {
 });
 
 // GET /api/report/:id — single inspection PDF
-app.get('/api/report/:id', (req, res) => {
+app.get('/api/report/:id', async (req, res) => {
   const { id } = req.params;
   const inspections = readInspections();
   const rec = inspections.find(r => r.id === id);
   if (!rec) return res.status(404).json({ error: 'Inspection not found' });
-
-  const doc = new PDFDocument({ margin: 50, size: 'A4', autoFirstPage: true });
-  res.setHeader('Content-Type', 'application/pdf');
-  // Format date as DD.MM.YY
-  const d = new Date(rec.timestamp);
-  const dateStr = `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getFullYear()).slice(2)}`;
-  const safeName = `${rec.guardId}-${dateStr}-${rec.result}.pdf`.replace(/[^a-zA-Z0-9.\-_]/g, '_');
-  res.setHeader('Content-Disposition', `attachment; filename="${safeName}"`);
-  doc.pipe(res);
-  buildSinglePDF(doc, rec, 1);
-  doc.end();
+  const tplData = readTemplates();
+  const tpl = tplData.templates.find(t => t.id === rec.templateId) || null;
+  try {
+    const buf = await buildPDFBuffer(rec, tpl);
+    const d = new Date(rec.timestamp);
+    const dateStr = `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getFullYear()).slice(2)}`;
+    const safeName = `${(rec.guardId || rec.machine || 'inspection')}-${dateStr}-${rec.result}.pdf`.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${safeName}"`);
+    res.send(buf);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // POST /api/photo
