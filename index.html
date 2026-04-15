@@ -2509,7 +2509,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Inline add-new Enter key support
   document.getElementById('f-location-inline-input').addEventListener('keydown', e => { if (e.key === 'Enter') inlineAddLocation(); });
   document.getElementById('f-machine-inline-input').addEventListener('keydown', e => { if (e.key === 'Enter') inlineAddMachine(); });
-  document.getElementById('f-guardId-inline-input').addEventListener('keydown', e => { if (e.key === 'Enter') inlineAddGuard(); });
+  // (Previously: Enter key on hidden inline input auto-added the component — removed so Add requires explicit button click)
 
   // Photo input
   document.getElementById('photo-input').addEventListener('change', handlePhotoSelect);
@@ -4998,7 +4998,13 @@ function updateAuditNewCompPreview() {
   if (seqEl && !seqEl.dataset.userEdited) seqEl.value = nextSeq;
 }
 
+let _addingGuard = false;
 async function inlineAddGuard() {
+  if (_addingGuard) return;
+  _addingGuard = true;
+  try { await _inlineAddGuardImpl(); } finally { _addingGuard = false; }
+}
+async function _inlineAddGuardImpl() {
   const locName = document.getElementById('f-location').value;
   const macName = document.getElementById('f-machine').value;
   if (!locName || locName === '__add_new__') return toast('Select a location first');
