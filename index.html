@@ -1600,7 +1600,7 @@ Building B,CNC Mill,,,,
     </div>
   </div>
 
-  <!-- PANEL 3: Guards for a machine -->
+  <!-- PANEL 3: Components for a machine -->
   <div id="setup-guards-panel" style="display:none;padding:16px;flex-direction:column;gap:12px;">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
       <button onclick="backToMachines()" style="background:none;border:none;color:var(--accent);font-size:22px;cursor:pointer;padding:0;">&#8592;</button>
@@ -4998,7 +4998,7 @@ function renderSetupMachines() {
     <div onclick="showGuardPanel(${i})" style="display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;cursor:pointer;gap:12px;">
       <div style="flex:1;min-width:0;">
         <div style="font-weight:600;">${escHtml(m.name)}</div>
-        <div style="font-size:12px;color:var(--text-dim);margin-top:2px;">${m.guards.length} guard${m.guards.length !== 1 ? 's' : ''}</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-top:2px;">${m.guards.length} component${m.guards.length !== 1 ? 's' : ''}</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
         <span style="color:var(--text-dim);font-size:18px;">›</span>
@@ -5013,7 +5013,7 @@ function renderSetupGuards() {
   const mac = loc && loc.machines.find(m => m.name === currentMachineName);
   const guardList = document.getElementById('guard-list');
   if (!mac || !mac.guards.length) {
-    guardList.innerHTML = '<div style="color:var(--text-dim);font-size:14px;padding:8px 0;">No guard IDs added yet. Add one below.</div>';
+    guardList.innerHTML = '<div style="color:var(--text-dim);font-size:14px;padding:8px 0;">No components added yet. Add one below.</div>';
     return;
   }
   guardList.innerHTML = mac.guards.map(g => `
@@ -5248,12 +5248,12 @@ async function deleteGuard(guard) {
   if (guardInspections.length > 0) {
     // Show warning modal with Archive option
     showWarningModal(
-      `⚠️ Cannot delete ${guard} — it has ${guardInspections.length} inspection(s) on record.\n\nArchive this guard first before deleting. Archiving will preserve all inspection records.`,
+      `⚠️ Cannot delete ${guard} — it has ${guardInspections.length} inspection(s) on record.\n\nArchive this component first before deleting. Archiving will preserve all inspection records.`,
       guard, currentLocationName, currentMachineName
     );
     return;
   }
-  showConfirmModal(`Delete guard "${guard}"? This cannot be undone.`, async () => {
+  showConfirmModal(`Delete component "${guard}"? This cannot be undone.`, async () => {
     const r = await fetch('/api/lists/guard', { method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ location: currentLocationName, machine: currentMachineName, guard }) });
     const d = await r.json();
     if (d.success) { lists.locations = d.locations; updateGuardDropdown(); renderSetupGuards(); }
