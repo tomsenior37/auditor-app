@@ -1159,14 +1159,14 @@
       <div id="source-doc-list" style="margin-top:14px;display:flex;flex-direction:column;gap:6px;"></div>
     </div>
 
-    <!-- ══════ HTML AUDIT FORMS (Mode A) ══════ -->
+    <!-- ══════ IMPORT HTML AS NATIVE TEMPLATE ══════ -->
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:12px;">
-      <div style="font-weight:700;font-size:15px;margin-bottom:8px;color:var(--accent);">🌐 HTML Audit Forms</div>
-      <div style="font-size:13px;color:var(--text-dim);margin-bottom:12px;">Upload a self-contained <code>.html</code> file that is already an audit form. It's rendered as-is for inspectors and the completed copy is saved as a readable snapshot.</div>
-      <div id="html-forms-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;"></div>
-      <input type="file" id="new-html-form-file" accept=".html,.htm" style="width:100%;padding:6px;margin-bottom:6px;">
-      <input type="text" id="new-html-form-name" placeholder="Form name (defaults to filename)" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:9px;border-radius:6px;font-size:13px;font-family:inherit;outline:none;margin-bottom:6px;">
-      <button onclick="uploadHtmlForm()" class="btn-primary" style="width:100%;">Upload HTML Audit Form</button>
+      <div style="font-weight:700;font-size:15px;margin-bottom:8px;color:var(--accent);">🌐 Import HTML as Template</div>
+      <div style="font-size:13px;color:var(--text-dim);margin-bottom:12px;">Upload an <code>.html</code> audit form. Its inputs are parsed into sections and questions and it becomes a normal template in your list — usable, editable, and integrated with logic, rectifications, reports, etc.</div>
+      <input type="file" id="import-html-tpl-file" accept=".html,.htm" style="width:100%;padding:6px;margin-bottom:6px;">
+      <input type="text" id="import-html-tpl-name" placeholder="Template name (defaults to &lt;title&gt;)" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:9px;border-radius:6px;font-size:13px;font-family:inherit;outline:none;margin-bottom:6px;">
+      <button onclick="importHtmlAsTemplate()" class="btn-primary" style="width:100%;">Parse &amp; Import</button>
+      <div id="import-html-tpl-status" style="font-size:13px;color:var(--text-dim);margin-top:8px;"></div>
     </div>
 
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;">
@@ -2049,6 +2049,206 @@ function selectTemplateForForm(tplId) {
   updateGuardDropdown();
   buildChecklist();
   resetFormAnswers();
+}
+
+// ── HTML → Native Template parser (Mode B) ─────────────────
+function _labelForInput(input) {
+  // Try label[for=id]
+  if (input.id) {
+    const lab = input.ownerDocument.querySelector(`label[for="${CSS.escape(input.id)}"]`);
+    if (lab) return lab.textContent.trim().replace(/\s+/g, ' ');
+  }
+  // Ancestor label
+  let node = input.parentElement;
+  while (node) {
+    if (node.tagName === 'LABEL') return node.textContent.trim().replace(/\s+/g, ' ');
+    node = node.parentElement;
+  }
+  // Preceding sibling text
+  if (input.previousElementSibling && input.previousElementSibling.tagName === 'LABEL') {
+    return input.previousElementSibling.textContent.trim().replace(/\s+/g, ' ');
+  }
+  return input.getAttribute('placeholder') || input.getAttribute('name') || input.getAttribute('id') || '';
+}
+
+function _nearestSectionTitle(input) {
+  // Walk up to find a containing section with a heading
+  let node = input;
+  while (node && node !== input.ownerDocument.body) {
+    if (node.tagName === 'SECTION' || node.tagName === 'FIELDSET') {
+      const h = node.querySelector('h1,h2,h3,legend');
+      if (h) return h.textContent.trim().replace(/\s+/g, ' ');
+    }
+    node = node.parentElement;
+  }
+  // Walk back through previous elements to find a heading
+  let prev = input.parentElement;
+  while (prev) {
+    const h = prev.previousElementSibling;
+    if (h && /^H[1-3]$/.test(h.tagName || '')) return h.textContent.trim().replace(/\s+/g, ' ');
+    prev = prev.parentElement;
+  }
+  return 'General';
+}
+
+function parseHtmlToTemplate(htmlText) {
+  const doc = new DOMParser().parseFromString(htmlText, 'text/html');
+  const name = doc.querySelector('title')?.textContent.trim() || 'Imported HTML template';
+  const items = [];
+  const questions = [];
+  const sectionIds = {};
+  const getSectionId = (title) => {
+    if (!sectionIds[title]) {
+      const id = 'sec-' + Object.keys(sectionIds).length;
+      sectionIds[title] = id;
+      items.push({ id, itemType: 'section', title });
+    }
+    return sectionIds[title];
+  };
+
+  // Handle radio groups (group by name attribute) as single-select multichoice
+  const radioNames = new Set();
+  doc.querySelectorAll('input[type="radio"]').forEach(r => { if (r.name) radioNames.add(r.name); });
+  radioNames.forEach(groupName => {
+    const radios = [...doc.querySelectorAll(`input[type="radio"][name="${CSS.escape(groupName)}"]`)];
+    if (!radios.length) return;
+    const first = radios[0];
+    const sectionTitle = _nearestSectionTitle(first);
+    const sectionId = getSectionId(sectionTitle);
+    // Question text: from a previous heading near the group, or the group name
+    let qText = '';
+    const prevHeading = first.closest('section, fieldset, div')?.querySelector('h3, legend');
+    if (prevHeading) qText = prevHeading.textContent.trim();
+    if (!qText) qText = groupName.replace(/[_-]/g, ' ');
+    const id = 'q-' + groupName.replace(/[^a-zA-Z0-9]+/g, '-');
+    const options = radios.map((r, i) => ({
+      id: 'opt-' + (r.value || i),
+      label: _labelForInput(r) || r.value || String(i + 1),
+      flagFail: false
+    }));
+    items.push({ id, itemType: 'question', sectionId, type: 'multichoice', text: qText, required: true, options });
+    radios.forEach(r => r.dataset.__consumed = '1');
+  });
+
+  // Checkbox groups: group by name if >1 share a name, else individual yes/no
+  const checkboxNames = {};
+  doc.querySelectorAll('input[type="checkbox"]').forEach(c => {
+    if (c.dataset.__consumed) return;
+    const key = c.name || '__single_' + (c.id || Math.random());
+    (checkboxNames[key] = checkboxNames[key] || []).push(c);
+  });
+  Object.entries(checkboxNames).forEach(([key, cbs]) => {
+    if (cbs.length >= 2 && !key.startsWith('__single_')) {
+      // Multi-select multichoice
+      const first = cbs[0];
+      const sectionTitle = _nearestSectionTitle(first);
+      const sectionId = getSectionId(sectionTitle);
+      const prevHeading = first.closest('section, fieldset, div')?.querySelector('h2, h3, legend');
+      const qText = (prevHeading ? prevHeading.textContent.trim() : key.replace(/[_-]/g, ' '));
+      const id = 'q-' + key.replace(/[^a-zA-Z0-9]+/g, '-');
+      const options = cbs.map((c, i) => ({
+        id: 'opt-' + (c.value || c.dataset.xml || i),
+        label: _labelForInput(c) || c.value || String(i + 1),
+        flagFail: false
+      }));
+      items.push({ id, itemType: 'question', sectionId, type: 'multichoice', multiSelect: true, text: qText, required: false, options });
+    } else {
+      // Single checkbox → yesno
+      const c = cbs[0];
+      const sectionTitle = _nearestSectionTitle(c);
+      const sectionId = getSectionId(sectionTitle);
+      const id = 'q-' + (c.id || c.name || 'chk-' + items.length).replace(/[^a-zA-Z0-9]+/g, '-');
+      items.push({ id, itemType: 'question', sectionId, type: 'yesno', text: _labelForInput(c), required: false });
+    }
+  });
+
+  // Selects
+  doc.querySelectorAll('select').forEach(sel => {
+    if (sel.dataset.__consumed) return;
+    const sectionId = getSectionId(_nearestSectionTitle(sel));
+    const id = 'q-' + (sel.id || sel.name || 'sel-' + items.length).replace(/[^a-zA-Z0-9]+/g, '-');
+    const options = [...sel.querySelectorAll('option')].filter(o => o.value).map((o, i) => ({
+      id: 'opt-' + (o.value || i),
+      label: o.textContent.trim(),
+      flagFail: false
+    }));
+    items.push({
+      id, itemType: 'question', sectionId,
+      type: options.length ? 'multichoice' : 'text',
+      text: _labelForInput(sel) || sel.getAttribute('name') || 'Selection',
+      required: true,
+      ...(options.length ? { options } : {})
+    });
+  });
+
+  // Textareas & text/number/date/range inputs
+  doc.querySelectorAll('textarea, input[type="text"], input[type="email"], input[type="number"], input[type="date"], input[type="range"]').forEach(el => {
+    if (el.dataset.__consumed) return;
+    const sectionId = getSectionId(_nearestSectionTitle(el));
+    const id = 'q-' + (el.id || el.name || 'field-' + items.length).replace(/[^a-zA-Z0-9]+/g, '-');
+    let type = 'text';
+    if (el.type === 'number') type = 'number';
+    else if (el.type === 'range') type = 'slider';
+    const q = {
+      id, itemType: 'question', sectionId,
+      type, text: _labelForInput(el) || el.getAttribute('placeholder') || el.getAttribute('name') || 'Entry',
+      required: el.hasAttribute('required')
+    };
+    if (el.getAttribute('placeholder')) q.hint = el.getAttribute('placeholder');
+    if (el.tagName === 'TEXTAREA') q.maxLength = parseInt(el.getAttribute('maxlength')) || 1000;
+    if (type === 'number') {
+      if (el.getAttribute('min') !== null) q.min = parseFloat(el.getAttribute('min'));
+      if (el.getAttribute('max') !== null) q.max = parseFloat(el.getAttribute('max'));
+      if (el.getAttribute('step')) q.unit = '';
+    }
+    if (type === 'slider') {
+      q.min = parseFloat(el.getAttribute('min') || '0');
+      q.max = parseFloat(el.getAttribute('max') || '100');
+    }
+    items.push(q);
+  });
+
+  // Build flat questions array
+  items.filter(i => i.itemType === 'question').forEach((q, idx) => {
+    questions.push({ id: 'q' + (idx + 1), text: q.text, type: q.type, required: q.required !== false });
+  });
+
+  return {
+    name,
+    standard: '',
+    description: 'Imported from HTML on ' + new Date().toLocaleDateString('en-AU'),
+    requiresComponent: false,
+    componentType: '',
+    scoringEnabled: false,
+    version: 2,
+    items,
+    questions
+  };
+}
+
+async function importHtmlAsTemplate() {
+  const fileInput = document.getElementById('import-html-tpl-file');
+  const nameInput = document.getElementById('import-html-tpl-name');
+  const statusEl = document.getElementById('import-html-tpl-status');
+  const file = fileInput.files[0];
+  if (!file) return toast('Pick an HTML file first');
+  statusEl.style.color = 'var(--text-dim)';
+  statusEl.textContent = 'Parsing…';
+  try {
+    const text = await file.text();
+    const tpl = parseHtmlToTemplate(text);
+    if (nameInput.value.trim()) tpl.name = nameInput.value.trim();
+    const qCount = tpl.items.filter(i => i.itemType === 'question').length;
+    if (!qCount) { statusEl.style.color = 'var(--fail)'; statusEl.textContent = 'No form fields found in that HTML.'; return; }
+    statusEl.textContent = `Found ${qCount} questions in ${tpl.items.filter(i => i.itemType === 'section').length} section(s) — importing…`;
+    const r = await fetch('/api/templates', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(tpl) });
+    const d = await r.json();
+    if (!d.success) { statusEl.style.color = 'var(--fail)'; statusEl.textContent = d.error || 'Import failed'; return; }
+    statusEl.style.color = 'var(--pass)';
+    statusEl.textContent = `✅ Imported "${d.template.name}". Edit it in the builder to adjust types, flag fails, add logic, etc.`;
+    fileInput.value = ''; nameInput.value = '';
+    await loadTemplates();
+  } catch (e) { statusEl.style.color = 'var(--fail)'; statusEl.textContent = 'Error: ' + e.message; }
 }
 
 // ── HTML Audit Forms (Mode A) ─────────────────────────────
