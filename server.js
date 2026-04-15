@@ -813,10 +813,29 @@ app.delete('/api/templates/media/:filename', (req, res) => {
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// PATCH /api/templates/:id/archive — soft-delete (archive) / restore
+app.patch('/api/templates/:id/archive', requirePermission('edit_templates'), (req, res) => {
+  const data = readTemplates();
+  const idx = data.templates.findIndex(t => t.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'not found' });
+  if (req.body.archived) {
+    data.templates[idx].archived = true;
+    data.templates[idx].archivedAt = new Date().toISOString();
+  } else {
+    delete data.templates[idx].archived;
+    delete data.templates[idx].archivedAt;
+  }
+  writeTemplates(data);
+  res.json({ success: true });
+});
+
 app.delete('/api/templates/:id', requirePermission('edit_templates'), (req, res) => {
   const data = readTemplates();
   const idx = data.templates.findIndex(t => t.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'not found' });
+  if (!data.templates[idx].archived) {
+    return res.status(400).json({ error: 'Template must be archived before permanent deletion' });
+  }
   data.templates.splice(idx, 1);
   writeTemplates(data);
   res.json({ success: true });

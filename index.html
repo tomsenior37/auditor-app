@@ -2579,8 +2579,9 @@ function showTemplates() {
 function renderTemplateList() {
   const el = document.getElementById('template-list-body');
   if (!el) return;
-  if (!templates.length) { el.innerHTML = '<div style="color:var(--text-dim);padding:16px;">No templates yet.</div>'; return; }
-  el.innerHTML = templates.map(t => {
+  const active = templates.filter(t => !t.archived);
+  if (!active.length) { el.innerHTML = '<div style="color:var(--text-dim);padding:16px;">No templates yet.</div>'; return; }
+  el.innerHTML = active.map(t => {
     const qCount = t.version === 2 && t.items
       ? t.items.filter(i => i.itemType === 'question' && i.type !== 'instruction').length
       : (t.questions || []).length;
@@ -2652,11 +2653,39 @@ async function saveNewTemplate() {
 }
 
 async function deleteTemplate(id) {
-  showConfirmModal('Delete this template?', async () => {
-    await fetch('/api/templates/' + id, { method: 'DELETE' });
-    await loadTemplates();
-    toast('Template deleted');
-  });
+  showConfirmModal('Archive this template? It moves to the archive where you can restore or permanently delete it. Existing inspections that used it are not affected.', async () => {
+    try {
+      const r = await fetch('/api/templates/' + id + '/archive', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ archived: true })
+      });
+      const d = await r.json();
+      if (d.success) { await loadTemplates(); toast('Template archived'); }
+      else toast('Failed: ' + (d.error || 'unknown'));
+    } catch { toast('Failed to archive'); }
+  }, 'Archive', 'var(--accent)');
+}
+
+async function restoreTemplate(id) {
+  showConfirmModal('Restore this template from the archive?', async () => {
+    try {
+      const r = await fetch('/api/templates/' + id + '/archive', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ archived: false })
+      });
+      const d = await r.json();
+      if (d.success) { await loadTemplates(); await renderArchive(); toast('Template restored'); }
+    } catch { toast('Failed to restore'); }
+  }, 'Restore', 'var(--accent)');
+}
+
+async function purgeTemplate(id) {
+  showConfirmModal('Permanently delete this template? This cannot be undone.', async () => {
+    try {
+      const r = await fetch('/api/templates/' + id, { method: 'DELETE' });
+      const d = await r.json();
+      if (d.success) { await loadTemplates(); await renderArchive(); toast('Template permanently deleted'); }
+      else toast('Failed: ' + (d.error || 'unknown'));
+    } catch { toast('Failed'); }
+  }, 'Delete Forever', 'var(--fail)');
 }
 
 let editingTemplateId = null;
@@ -3619,7 +3648,7 @@ function populateTemplateDropdown() {
   const sel = document.getElementById('f-template');
   if (!sel) return;
   sel.innerHTML = '<option value="">— Select template —</option>' +
-    templates.map(t => `<option value="${t.id}" ${selectedTemplate && selectedTemplate.id === t.id ? 'selected' : ''}>${t.name}</option>`).join('');
+    templates.filter(t => !t.archived).map(t => `<option value="${t.id}" ${selectedTemplate && selectedTemplate.id === t.id ? 'selected' : ''}>${t.name}</option>`).join('');
 }
 
 function showForm() {
@@ -4936,11 +4965,12 @@ function populateDashboardTemplateDropdown() {
   const sel = document.getElementById('dashboard-template');
   if (!sel) return;
   const cur = sel.value;
+  const visible = templates.filter(t => !t.archived);
   sel.innerHTML = '<option value="">— Select template —</option>' +
-    templates.map(t => `<option value="${t.id}" ${t.id === cur ? 'selected' : ''}>${t.name}</option>`).join('');
+    visible.map(t => `<option value="${t.id}" ${t.id === cur ? 'selected' : ''}>${t.name}</option>`).join('');
   // Auto-select if only one or if selectedTemplate set
   if (!cur && selectedTemplate) sel.value = selectedTemplate.id;
-  else if (!cur && templates.length === 1) sel.value = templates[0].id;
+  else if (!cur && visible.length === 1) sel.value = visible[0].id;
 }
 
 function onDashboardTemplateChange() {
@@ -7603,13 +7633,30 @@ async function renderArchive() {
     const locations = data.locations || [];
     const inspectors = data.inspectors || [];
     const archivedInspections = allInsp.filter(i => i.archived);
+    const archivedTemplates = (templates || []).filter(t => t.archived);
 
-    if (!guards.length && !locations.length && !inspectors.length && !archivedInspections.length) {
-      body.innerHTML = '<div class="empty-state"><div class="icon">🗄️</div>Archive is empty.<br>Delete an inspection or archive guards / locations / inspectors to populate this view.</div>';
+    if (!guards.length && !locations.length && !inspectors.length && !archivedInspections.length && !archivedTemplates.length) {
+      body.innerHTML = '<div class="empty-state"><div class="icon">🗄️</div>Archive is empty.<br>Archive templates, inspections, guards / locations / inspectors to populate this view.</div>';
       return;
     }
 
     const html = `<div style="padding:16px;">` +
+      archiveSectionHTML('Archived Templates', '📋', archivedTemplates, t => {
+        const d = t.archivedAt ? new Date(t.archivedAt).toLocaleDateString('en-AU', { dateStyle: 'short' }) : '—';
+        const qCount = t.version === 2 && t.items
+          ? t.items.filter(i => i.itemType === 'question' && i.type !== 'instruction').length
+          : (t.questions || []).length;
+        return `<div class="archive-card">
+          <div class="archive-card-header">
+            <span class="archive-guard-id">${escHtml(t.name)}</span>
+            <div style="display:flex;gap:6px;">
+              <button class="btn-restore" onclick="restoreTemplate('${t.id}')">↩ Restore</button>
+              <button onclick="purgeTemplate('${t.id}')" style="background:none;border:1px solid var(--fail);color:var(--fail);border-radius:6px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">🗑️ Delete</button>
+            </div>
+          </div>
+          <div class="archive-meta">${qCount} question${qCount !== 1 ? 's' : ''} · Archived ${d}</div>
+        </div>`;
+      }, 'No archived templates') +
       archiveSectionHTML('Deleted Inspections', '📋', archivedInspections, i => {
         const d = i.archivedAt ? new Date(i.archivedAt).toLocaleDateString('en-AU', { dateStyle: 'short' }) : '—';
         const insDate = new Date(i.timestamp).toLocaleDateString('en-AU', { dateStyle: 'short' });
