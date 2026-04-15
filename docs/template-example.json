@@ -1,0 +1,66 @@
+{
+  "name": "Quick Guard Check (Example)",
+  "standard": "AS/NZS 4024.1601:2014",
+  "description": "Example template shipped with the Auditor App — edit or copy as a starting point.",
+  "requiresComponent": true,
+  "componentType": "Guard",
+  "scoringEnabled": false,
+  "version": 2,
+  "items": [
+    { "id": "sec-1", "itemType": "section", "title": "Physical condition" },
+    {
+      "id": "qa",
+      "itemType": "question",
+      "sectionId": "sec-1",
+      "type": "yesno",
+      "text": "Guard present and correctly positioned?",
+      "required": true,
+      "commentOnFail": true,
+      "logic": [
+        { "condition": "is_no", "conditionValue": "", "action": "require_photo", "targetIds": [], "actionTitle": "" },
+        { "condition": "is_no", "conditionValue": "", "action": "set_fail",      "targetIds": [], "actionTitle": "" }
+      ]
+    },
+    {
+      "id": "qb",
+      "itemType": "question",
+      "sectionId": "sec-1",
+      "type": "multichoice",
+      "text": "Overall condition",
+      "required": true,
+      "options": [
+        { "id": "opt-ok",   "label": "OK",             "flagFail": false },
+        { "id": "opt-wear", "label": "Visible wear",   "flagFail": false },
+        { "id": "opt-dmg",  "label": "Damaged / unsafe","flagFail": true }
+      ],
+      "logic": [
+        { "condition": "is_fail", "conditionValue": "", "action": "show_question", "targetIds": ["qc"], "actionTitle": "" }
+      ]
+    },
+    {
+      "id": "qc",
+      "itemType": "question",
+      "sectionId": "sec-1",
+      "type": "text",
+      "text": "Describe the damage",
+      "required": true,
+      "maxLength": 500
+    },
+    { "id": "sec-2", "itemType": "section", "title": "Notes" },
+    {
+      "id": "qd",
+      "itemType": "question",
+      "sectionId": "sec-2",
+      "type": "text",
+      "text": "Inspector notes",
+      "required": false,
+      "maxLength": 500
+    }
+  ],
+  "questions": [
+    { "id": "q1", "text": "Guard present and correctly positioned?", "type": "yesno",       "required": true  },
+    { "id": "q2", "text": "Overall condition",                       "type": "multichoice", "required": true  },
+    { "id": "q3", "text": "Describe the damage",                     "type": "text",        "required": true  },
+    { "id": "q4", "text": "Inspector notes",                         "type": "text",        "required": false }
+  ]
+}

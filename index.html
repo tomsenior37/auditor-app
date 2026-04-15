@@ -1090,6 +1090,25 @@
 
     <div id="template-list-body" style="margin-bottom:24px;"></div>
 
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:12px;">
+      <div style="font-weight:700;font-size:15px;margin-bottom:8px;color:var(--accent);">🤖 Build a template with AI</div>
+      <div style="font-size:13px;color:var(--text-dim);margin-bottom:12px;">Download the authoring guide and hand it to another AI (ChatGPT, Claude, etc.) along with your source material (standard, SOP, checklist). It will return a JSON file you can upload below.</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <a href="/docs/TEMPLATE_AUTHORING_GUIDE.md" download class="btn-secondary" style="text-align:center;text-decoration:none;">📄 Download Authoring Guide (Markdown)</a>
+        <a href="/docs/template-example.json" download class="btn-secondary" style="text-align:center;text-decoration:none;">📦 Download Example Template (JSON)</a>
+      </div>
+    </div>
+
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:12px;">
+      <div style="font-weight:700;font-size:15px;margin-bottom:8px;color:var(--accent);">📥 Upload source document for AI</div>
+      <div style="font-size:13px;color:var(--text-dim);margin-bottom:12px;">Drop a PDF, DOC, image, or text file here. It's saved on the server where Claude can read it directly. Then tell Claude the filename to turn it into a template.</div>
+      <div class="field-group">
+        <input type="file" id="source-doc-file" accept=".pdf,.doc,.docx,.txt,.md,.rtf,image/*" style="width:100%;padding:8px;">
+      </div>
+      <button class="btn-primary" onclick="uploadSourceDoc()" style="width:100%;margin-top:4px;">Upload Source Document</button>
+      <div id="source-doc-list" style="margin-top:14px;display:flex;flex-direction:column;gap:6px;"></div>
+    </div>
+
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;">
       <div style="font-weight:700;font-size:15px;margin-bottom:14px;color:var(--accent);">📤 Upload Template</div>
       <div class="field-group">
@@ -1239,7 +1258,7 @@
           <input type="checkbox" id="records-show-archived" onchange="renderRecords()">
           <span class="toggle-slider"></span>
         </label>
-        <span class="results-toggle-label" onclick="document.getElementById('records-show-archived').click()">Show archived</span>
+        <span class="results-toggle-label" onclick="document.getElementById('records-show-archived').click()">Show archive (deleted)</span>
       </div>
     </div>
   </div>
@@ -1395,6 +1414,23 @@ Building B,CNC Mill,</div>
 
   <!-- PANEL 1: Main settings view -->
   <div id="setup-locations-panel" style="padding:16px;display:flex;flex-direction:column;gap:12px;">
+
+    <!-- ─── TEMPLATES SECTION ─── -->
+    <div onclick="showTemplates()" style="display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;cursor:pointer;">
+      <div style="font-weight:700;font-size:15px;color:var(--accent);">📋 Audit Templates</div>
+      <span style="color:var(--text-dim);font-size:18px;">›</span>
+    </div>
+
+    <!-- ─── RESPONSE SETS SECTION ─── -->
+    <div onclick="toggleSettingsSection('settings-response-sets')" style="display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;cursor:pointer;">
+      <div style="font-weight:700;font-size:15px;color:var(--accent);">🎛️ Response Sets</div>
+      <span id="settings-response-sets-arrow" style="color:var(--text-dim);font-size:18px;transition:transform .2s;">▾</span>
+    </div>
+    <div id="settings-response-sets" style="display:none;flex-direction:column;gap:10px;">
+      <div style="font-size:12px;color:var(--text-dim);">Reusable multichoice answer sets. Load them into any multichoice question from the template builder.</div>
+      <div id="response-sets-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+      <button onclick="openResponseSetModal()" style="background:var(--accent);color:#fff;border:none;border-radius:var(--radius);padding:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">＋ New Response Set</button>
+    </div>
 
     <!-- ─── EQUIPMENT SECTION ─── -->
     <div onclick="toggleSettingsSection('settings-equipment')" style="display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;cursor:pointer;">
@@ -1677,6 +1713,52 @@ Building B,CNC Mill,</div>
   </div>
 </div>
 
+<!-- ══════════════ COMPONENT TYPE FIELDS MODAL ══════════════ -->
+<div id="ct-fields-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9999;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;max-width:520px;width:100%;display:flex;flex-direction:column;gap:12px;margin:auto;">
+    <div id="ct-fields-title" style="font-size:17px;font-weight:700;color:var(--accent);">Custom Fields</div>
+    <div style="font-size:13px;color:var(--text-dim);">Define fields that appear on every asset of this type (e.g. manufacturer, serial number, commissioning date).</div>
+    <div id="ct-fields-body" style="display:flex;flex-direction:column;gap:8px;"></div>
+    <button onclick="addCtField()" style="background:none;border:1px dashed var(--border);color:var(--text-dim);border-radius:8px;padding:10px;cursor:pointer;font-size:14px;">+ Add Field</button>
+    <div style="display:flex;gap:10px;margin-top:6px;">
+      <button onclick="closeComponentTypeFields()" style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:14px;font-size:15px;font-weight:600;cursor:pointer;">Cancel</button>
+      <button onclick="saveCtFields()" style="flex:1;background:var(--accent);border:none;color:#fff;border-radius:10px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ ASSET QR MODAL ══════════════ -->
+<div id="asset-qr-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9999;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;max-width:420px;width:100%;display:flex;flex-direction:column;gap:12px;align-items:center;">
+    <div style="font-size:17px;font-weight:700;color:var(--accent);">🔲 Asset QR Code</div>
+    <div id="asset-qr-label" style="font-size:13px;color:var(--text-dim);text-align:center;word-break:break-word;"></div>
+    <img id="asset-qr-img" src="" alt="QR code" style="max-width:100%;background:#fff;border-radius:8px;padding:12px;">
+    <div style="font-size:12px;color:var(--text-dim);text-align:center;">Scan to open this asset directly in the app.</div>
+    <div style="display:flex;gap:10px;width:100%;">
+      <button onclick="document.getElementById('asset-qr-modal').style.display='none'" style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:12px;font-size:14px;font-weight:600;cursor:pointer;">Close</button>
+      <button onclick="printAssetQr()" style="flex:1;background:var(--accent);border:none;color:#fff;border-radius:10px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;">🖨 Print</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ RESPONSE SET MODAL ══════════════ -->
+<div id="rset-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9999;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto;pointer-events:auto;touch-action:auto;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;max-width:520px;width:100%;display:flex;flex-direction:column;gap:12px;margin:auto;">
+    <div id="rset-modal-title" style="font-size:17px;font-weight:700;color:var(--accent);">🎛️ Response Set</div>
+    <div class="field-group">
+      <label>Set name *</label>
+      <input id="rset-name" type="text" placeholder="e.g. Severity">
+    </div>
+    <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--accent);letter-spacing:0.5px;">Options</div>
+    <div id="rset-options" style="display:flex;flex-direction:column;gap:8px;"></div>
+    <button onclick="rsetAddOption()" style="background:none;border:1px dashed var(--border);color:var(--text-dim);border-radius:8px;padding:10px;cursor:pointer;font-size:14px;">+ Add Option</button>
+    <div style="display:flex;gap:10px;margin-top:6px;">
+      <button onclick="closeResponseSetModal()" style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:14px;font-size:15px;font-weight:600;cursor:pointer;">Cancel</button>
+      <button onclick="saveResponseSet()" style="flex:1;background:var(--accent);border:none;color:#fff;border-radius:10px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;">Save</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══════════════ CONFIRM MODAL ══════════════ -->
 <div class="modal-overlay" id="confirm-modal">
   <div class="modal-card">
@@ -1706,6 +1788,86 @@ Building B,CNC Mill,</div>
 // Templates state
 let templates = [];
 let selectedTemplate = null;
+let answerSets = [];
+
+async function loadAnswerSets() {
+  try {
+    const r = await fetch('/api/answer-sets');
+    const d = await r.json();
+    answerSets = d.sets || [];
+    renderResponseSetsList();
+  } catch(e) { console.error('loadAnswerSets', e); }
+}
+
+function renderResponseSetsList() {
+  const el = document.getElementById('response-sets-list');
+  if (!el) return;
+  if (!answerSets.length) { el.innerHTML = '<div style="font-size:13px;color:var(--text-dim);padding:6px 0;">No saved sets yet.</div>'; return; }
+  el.innerHTML = answerSets.map(s => `
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:8px;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:600;font-size:14px;">${escHtml(s.name)}</div>
+        <div style="font-size:12px;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${s.options.map(o => escHtml(o.label) + (o.flagFail ? ' ⚠' : '')).join(' · ')}</div>
+      </div>
+      <button onclick="openResponseSetModal('${s.id}')" title="Edit" style="background:none;border:none;color:var(--accent);font-size:18px;cursor:pointer;padding:4px 8px;">✏️</button>
+      <button onclick="deleteResponseSet('${s.id}')" title="Delete" style="background:none;border:none;color:var(--fail);font-size:16px;cursor:pointer;padding:4px 8px;">🗑️</button>
+    </div>`).join('');
+}
+
+let _editingResponseSetId = null;
+let _rsetDraft = [];
+
+function openResponseSetModal(id) {
+  _editingResponseSetId = id || null;
+  const existing = id ? answerSets.find(s => s.id === id) : null;
+  document.getElementById('rset-modal-title').textContent = existing ? '✏️ Edit Response Set' : '🎛️ New Response Set';
+  document.getElementById('rset-name').value = existing?.name || '';
+  _rsetDraft = existing ? existing.options.map(o => ({ ...o })) : [{ label: '', flagFail: false }, { label: '', flagFail: false }];
+  renderRsetOptions();
+  document.getElementById('rset-modal').style.display = 'flex';
+}
+function closeResponseSetModal() {
+  document.getElementById('rset-modal').style.display = 'none';
+  _editingResponseSetId = null; _rsetDraft = [];
+}
+function renderRsetOptions() {
+  const el = document.getElementById('rset-options');
+  el.innerHTML = _rsetDraft.map((o,i) => `
+    <div style="display:flex;gap:8px;align-items:center;">
+      <input type="text" value="${escHtml(o.label||'')}" placeholder="Option label" oninput="_rsetDraft[${i}].label=this.value"
+        style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:9px 10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
+      <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--fail);cursor:pointer;white-space:nowrap;">
+        <input type="checkbox" ${o.flagFail?'checked':''} onchange="_rsetDraft[${i}].flagFail=this.checked" style="accent-color:var(--fail);"> Fail
+      </label>
+      <button onclick="_rsetDraft.splice(${i},1);renderRsetOptions()" style="background:none;border:none;color:var(--text-dim);font-size:16px;cursor:pointer;padding:0 4px;">✕</button>
+    </div>`).join('');
+}
+function rsetAddOption() { _rsetDraft.push({ label: '', flagFail: false }); renderRsetOptions(); }
+async function saveResponseSet() {
+  const name = document.getElementById('rset-name').value.trim();
+  if (!name) return toast('Name required');
+  const options = _rsetDraft.filter(o => (o.label||'').trim()).map(o => ({ label: o.label.trim(), flagFail: !!o.flagFail, ...(o.score !== undefined ? { score: o.score } : {}) }));
+  if (!options.length) return toast('Add at least one option');
+  const url = _editingResponseSetId ? '/api/answer-sets/' + _editingResponseSetId : '/api/answer-sets';
+  const method = _editingResponseSetId ? 'PUT' : 'POST';
+  try {
+    const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, options }) });
+    const d = await r.json();
+    if (d.success) { toast('Response set saved'); closeResponseSetModal(); await loadAnswerSets(); }
+    else toast('Failed: ' + (d.error || 'unknown'));
+  } catch { toast('Network error'); }
+}
+async function deleteResponseSet(id) {
+  const set = answerSets.find(s => s.id === id);
+  showConfirmModal(`Delete response set "${set?.name||''}"? Templates that already loaded it keep their copied options.`, async () => {
+    try {
+      const r = await fetch('/api/answer-sets/' + id, { method: 'DELETE' });
+      const d = await r.json();
+      if (d.success) { toast('Deleted'); await loadAnswerSets(); }
+      else toast('Failed');
+    } catch { toast('Network error'); }
+  }, 'Delete', 'var(--fail)');
+}
 
 // QUESTIONS is now dynamic — built from selectedTemplate
 let QUESTIONS = [];
@@ -1755,8 +1917,66 @@ function selectTemplateForForm(tplId) {
   resetFormAnswers();
 }
 
+async function loadSourceDocs() {
+  const list = document.getElementById('source-doc-list');
+  if (!list) return;
+  try {
+    const r = await fetch('/api/template-sources');
+    const d = await r.json();
+    const files = d.files || [];
+    if (!files.length) { list.innerHTML = '<div style="font-size:12px;color:var(--text-dim);">No source documents uploaded yet.</div>'; return; }
+    list.innerHTML = '<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text-dim);letter-spacing:.5px;margin-bottom:4px;">Uploaded sources</div>' +
+      files.map(f => {
+        const kb = (f.size / 1024).toFixed(0);
+        const when = new Date(f.uploadedAt).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' });
+        return `<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 10px;display:flex;gap:8px;align-items:center;">
+          <a href="/template-sources/${encodeURIComponent(f.filename)}" target="_blank" style="flex:1;min-width:0;color:var(--text);text-decoration:none;overflow:hidden;">
+            <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(f.filename)}</div>
+            <div style="font-size:11px;color:var(--text-dim);">${kb} KB · ${when}</div>
+          </a>
+          <button onclick="copyFilenameForAI('${escHtml(f.filename)}')" title="Copy prompt for Claude" style="background:none;border:1px solid var(--border);color:var(--text-dim);border-radius:6px;padding:5px 9px;font-size:11px;cursor:pointer;font-family:inherit;">📋</button>
+          <button onclick="deleteSourceDoc('${escHtml(f.filename)}')" title="Delete" style="background:none;border:none;color:var(--fail);font-size:14px;cursor:pointer;padding:0 4px;">🗑️</button>
+        </div>`;
+      }).join('');
+  } catch(e) { list.innerHTML = '<div style="font-size:12px;color:var(--fail);">Could not load source list</div>'; }
+}
+
+async function uploadSourceDoc() {
+  const input = document.getElementById('source-doc-file');
+  const file = input?.files?.[0];
+  if (!file) return toast('Choose a file first');
+  toast('Uploading…');
+  const fd = new FormData(); fd.append('file', file);
+  try {
+    const r = await fetch('/api/template-sources', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (!d.success) return toast('Upload failed: ' + (d.error || 'unknown'));
+    toast('Uploaded — tell Claude: "' + d.filename + '"');
+    input.value = '';
+    await loadSourceDocs();
+  } catch(e) { toast('Upload error: ' + e.message); }
+}
+
+function copyFilenameForAI(filename) {
+  const prompt = `Read /home/tomsenior9999/auditor-app/template-sources/${filename} and turn it into a template JSON following docs/TEMPLATE_AUTHORING_GUIDE.md, then save it and upload it.`;
+  if (navigator.clipboard?.writeText) navigator.clipboard.writeText(prompt).then(() => toast('Copied prompt to clipboard'), () => toast('Copy failed'));
+  else toast('Filename: ' + filename);
+}
+
+async function deleteSourceDoc(filename) {
+  showConfirmModal(`Delete source document "${filename}"?`, async () => {
+    try {
+      const r = await fetch('/api/template-sources/' + encodeURIComponent(filename), { method: 'DELETE' });
+      const d = await r.json();
+      if (d.success) { toast('Deleted'); await loadSourceDocs(); }
+      else toast('Failed');
+    } catch { toast('Network error'); }
+  }, 'Delete', 'var(--fail)');
+}
+
 function showTemplates() {
   switchScreen('templates-screen', 'Audit Templates');
+  loadSourceDocs();
   renderTemplateList();
 }
 
@@ -1927,6 +2147,16 @@ let _sigQuestionN = null;
 // ── Init ───────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   loadTemplates().then(() => buildChecklist());
+  loadAnswerSets();
+  // Deep-link: ?asset=LOC|MACH|COMP opens the asset detail directly
+  try {
+    const q = new URLSearchParams(window.location.search);
+    const a = q.get('asset');
+    if (a) {
+      const [loc, mac, comp] = a.split('|').map(decodeURIComponent);
+      setTimeout(() => { showAssets(); setTimeout(() => { openAssetDetail(loc, mac, comp); }, 250); }, 400);
+    }
+  } catch {}
   loadStats();
   loadLists();
   loadPlanners();
@@ -3025,8 +3255,8 @@ function createRectFromInspection(inspectionId) {
         let failed = false;
         if (q.type === 'yesno' && val === false) failed = true;
         if (q.type === 'multichoice' && val !== undefined) {
-          const opt = (q.options || []).find(o => (o.id || o.label) === val);
-          if (opt?.flagFail) failed = true;
+          const vals = Array.isArray(val) ? val : [val];
+          if (vals.some(v => (q.options || []).find(o => (o.id || o.label) === v)?.flagFail)) failed = true;
         }
         if (failed) {
           const finding = insp.findings?.[key];
@@ -3313,6 +3543,62 @@ function renderAssetInfo() {
   const mac = _assetNav._detailMac || '';
   const comp = _assetNav._detailComp || '';
   const levelLabel = comp ? 'Component' : (mac ? 'Machine' : 'Location');
+
+  // Component Type selector + custom fields (components only)
+  const types = (lists.componentTypes || []).map(t => typeof t === 'string' ? { name: t, fields: [] } : t);
+  const currentType = m.componentType || '';
+  const typeDef = types.find(t => t.name === currentType);
+  const customFieldsHtml = comp ? `
+    <div style="font-size:13px;"><span style="color:var(--text-dim);">Component Type:</span>
+      <select id="asset-component-type" onchange="saveAssetMeta();setTimeout(renderAssetInfo,100);" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px;font-family:inherit;outline:none;">
+        <option value="">— Select type —</option>
+        ${types.map(t => `<option value="${escHtml(t.name)}"${t.name===currentType?' selected':''}>${escHtml(t.name)}</option>`).join('')}
+      </select>
+    </div>
+    ${typeDef && typeDef.fields.length ? `
+      <div style="border-top:1px solid var(--border);padding-top:10px;margin-top:4px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--accent);letter-spacing:.5px;margin-bottom:8px;">${escHtml(typeDef.name)} Details</div>
+        ${typeDef.fields.map(f => {
+          const v = (m.customFields || {})[f.key] || '';
+          if (f.type === 'select') {
+            return `<div style="margin-bottom:8px;"><div style="font-size:12px;color:var(--text-dim);margin-bottom:4px;">${escHtml(f.label)}</div>
+              <select data-cf-key="${escHtml(f.key)}" onchange="saveCustomField(this)" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:6px;font-size:14px;font-family:inherit;outline:none;">
+                <option value="">— Select —</option>
+                ${(f.options || []).map(o => `<option value="${escHtml(o)}"${v===o?' selected':''}>${escHtml(o)}</option>`).join('')}
+              </select></div>`;
+          }
+          const inputType = f.type === 'date' ? 'date' : (f.type === 'number' ? 'number' : 'text');
+          return `<div style="margin-bottom:8px;"><div style="font-size:12px;color:var(--text-dim);margin-bottom:4px;">${escHtml(f.label)}</div>
+            <input type="${inputType}" data-cf-key="${escHtml(f.key)}" value="${escHtml(v)}" oninput="saveCustomFieldDebounced(this)" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:6px;font-size:14px;font-family:inherit;outline:none;"></div>`;
+        }).join('')}
+      </div>` : ''}` : '';
+
+  // Schedule
+  const sch = m.schedule || {};
+  const nextDue = sch.nextDueDate || '';
+  const overdueBadge = sch.isOverdue ? `<span style="background:var(--fail);color:#fff;font-size:11px;font-weight:700;padding:3px 8px;border-radius:4px;margin-left:6px;">OVERDUE</span>` :
+    (sch.daysUntilDue !== undefined && sch.daysUntilDue >= 0 ? `<span style="background:var(--pass);color:#fff;font-size:11px;font-weight:700;padding:3px 8px;border-radius:4px;margin-left:6px;">${sch.daysUntilDue}d</span>` : '');
+  const lastTxt = m.lastInspectedAt ? new Date(m.lastInspectedAt).toLocaleDateString('en-AU', { dateStyle: 'medium' }) : '—';
+  const scheduleHtml = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;gap:10px;">
+      <div style="font-size:12px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;font-weight:700;">📅 Inspection Schedule</div>
+      <div style="font-size:13px;"><span style="color:var(--text-dim);">Frequency:</span>
+        <select id="asset-frequency" onchange="saveAssetSchedule()" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px;font-family:inherit;outline:none;">
+          <option value="">None</option>
+          <option value="7"${sch.intervalDays==7?' selected':''}>Weekly</option>
+          <option value="14"${sch.intervalDays==14?' selected':''}>Fortnightly</option>
+          <option value="30"${sch.intervalDays==30?' selected':''}>Monthly</option>
+          <option value="90"${sch.intervalDays==90?' selected':''}>Quarterly</option>
+          <option value="180"${sch.intervalDays==180?' selected':''}>6-Monthly</option>
+          <option value="365"${sch.intervalDays==365?' selected':''}>Annual</option>
+        </select>
+      </div>
+      <div style="font-size:13px;"><span style="color:var(--text-dim);">Last inspected:</span> ${lastTxt}</div>
+      <div style="font-size:13px;"><span style="color:var(--text-dim);">Next due:</span> ${nextDue ? escHtml(nextDue) : '—'}${overdueBadge}</div>
+    </div>`;
+
+  const qrBtn = comp ? `<button onclick="showAssetQr()" style="background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;width:100%;">🔲 Show QR Code</button>` : '';
+
   el.innerHTML = `
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;gap:10px;">
       <div style="font-size:12px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;font-weight:700;">${levelLabel} Information</div>
@@ -3327,13 +3613,55 @@ function renderAssetInfo() {
           <option value="decommissioned"${m.status==='decommissioned'?' selected':''}>Decommissioned</option>
         </select>
       </div>
+      ${customFieldsHtml}
     </div>
+    ${comp ? scheduleHtml : ''}
     <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text-dim);letter-spacing:.5px;">Description</div>
     <textarea id="asset-description" placeholder="Add a description..." oninput="saveAssetMetaDebounced()"
       style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:12px;border-radius:var(--radius);font-size:14px;font-family:inherit;resize:vertical;min-height:80px;width:100%;outline:none;">${escHtml(m.description||'')}</textarea>
     <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text-dim);letter-spacing:.5px;">Notes</div>
     <textarea id="asset-notes" placeholder="Add notes..." oninput="saveAssetMetaDebounced()"
-      style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:12px;border-radius:var(--radius);font-size:14px;font-family:inherit;resize:vertical;min-height:60px;width:100%;outline:none;">${escHtml(m.notes||'')}</textarea>`;
+      style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:12px;border-radius:var(--radius);font-size:14px;font-family:inherit;resize:vertical;min-height:60px;width:100%;outline:none;">${escHtml(m.notes||'')}</textarea>
+    ${qrBtn}`;
+}
+
+let _cfTimer = null;
+function saveCustomFieldDebounced(el) { clearTimeout(_cfTimer); _cfTimer = setTimeout(() => saveCustomField(el), 600); }
+function saveCustomField(el) {
+  const key = el.dataset.cfKey;
+  if (!_assetMeta.customFields) _assetMeta.customFields = {};
+  _assetMeta.customFields[key] = el.value;
+  saveAssetMeta();
+}
+async function saveAssetSchedule() {
+  const interval = parseInt(document.getElementById('asset-frequency').value, 10);
+  _assetMeta.schedule = interval ? { intervalDays: interval } : {};
+  await saveAssetMeta();
+  // Reload to pull server-computed nextDue
+  await loadAssetMeta();
+  renderAssetInfo();
+}
+async function loadAssetMeta() {
+  const params = new URLSearchParams();
+  if (_assetNav._detailLoc) params.set('location', _assetNav._detailLoc);
+  if (_assetNav._detailMac) params.set('machine', _assetNav._detailMac);
+  if (_assetNav._detailComp) params.set('component', _assetNav._detailComp);
+  try { const r = await fetch('/api/asset/meta?' + params); _assetMeta = await r.json(); } catch {}
+}
+
+function showAssetQr() {
+  const loc = _assetNav._detailLoc || '', mac = _assetNav._detailMac || '', comp = _assetNav._detailComp || '';
+  const params = new URLSearchParams({ location: loc, machine: mac, component: comp });
+  document.getElementById('asset-qr-img').src = '/api/asset/qr?' + params + '&_t=' + Date.now();
+  document.getElementById('asset-qr-label').textContent = `${loc} › ${mac} › ${comp}`;
+  document.getElementById('asset-qr-modal').style.display = 'flex';
+}
+function printAssetQr() {
+  const loc = _assetNav._detailLoc || '', mac = _assetNav._detailMac || '', comp = _assetNav._detailComp || '';
+  const img = document.getElementById('asset-qr-img').src;
+  const w = window.open('', '_blank', 'width=600,height=700');
+  w.document.write(`<html><head><title>QR — ${comp}</title><style>body{font-family:sans-serif;text-align:center;padding:40px;}img{max-width:360px}h2{margin:0 0 6px}p{color:#555;margin:0 0 18px;font-size:14px;}</style></head><body><h2>${comp}</h2><p>${loc} › ${mac}</p><img src="${img}"><p style="margin-top:18px">Scan to open this asset</p><scr`+`ipt>onload=()=>print()</scr`+`ipt></body></html>`);
+  w.document.close();
 }
 
 let _assetSaveTimer = null;
@@ -3342,9 +3670,12 @@ function saveAssetMetaDebounced() { clearTimeout(_assetSaveTimer); _assetSaveTim
 async function saveAssetMeta() {
   const payload = {
     location: _assetNav._detailLoc || '', machine: _assetNav._detailMac || '', component: _assetNav._detailComp || '',
-    description: document.getElementById('asset-description')?.value || '',
-    notes: document.getElementById('asset-notes')?.value || '',
-    status: document.getElementById('asset-status')?.value || 'active'
+    description: document.getElementById('asset-description')?.value ?? _assetMeta?.description ?? '',
+    notes: document.getElementById('asset-notes')?.value ?? _assetMeta?.notes ?? '',
+    status: document.getElementById('asset-status')?.value ?? _assetMeta?.status ?? 'active',
+    componentType: document.getElementById('asset-component-type')?.value ?? _assetMeta?.componentType ?? '',
+    customFields: _assetMeta?.customFields || {},
+    schedule: _assetMeta?.schedule || {}
   };
   try {
     const r = await fetch('/api/asset/meta', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -3779,7 +4110,7 @@ async function renderRecords() {
   }
 
   const showArchived = document.getElementById('records-show-archived')?.checked;
-  let filtered = showArchived ? inspections : inspections.filter(r => !r.archived);
+  let filtered = showArchived ? inspections.filter(r => r.archived) : inspections.filter(r => !r.archived);
 
   // Template filter
   if (_recordsTemplateId) filtered = filtered.filter(r => r.templateId === _recordsTemplateId);
@@ -3818,6 +4149,10 @@ async function renderRecords() {
 
     const badgeClass = rec.status==='WR_RAISED'?'wr-raised':rec.status==='SERVICEABLE'?'serviceable':rec.result.toLowerCase();
     const badgeLabel = rec.status==='WR_RAISED'?(rec.workRequestNumber?'WR '+escHtml(rec.workRequestNumber):'WR Raised'):rec.status==='SERVICEABLE'?'Rectified':rec.result;
+    const headerActionBtn = rec.archived
+      ? `<button onclick="event.stopPropagation();purgeInspection('${rec.id}')" title="Delete permanently" style="background:none;border:none;color:var(--fail);font-size:18px;cursor:pointer;padding:4px 8px;">🗑️</button>
+         <button onclick="event.stopPropagation();restoreInspection('${rec.id}')" title="Restore" style="background:none;border:none;color:var(--text-dim);font-size:18px;cursor:pointer;padding:4px 8px;">↩️</button>`
+      : `<button onclick="event.stopPropagation();softDeleteInspection('${rec.id}')" title="Delete inspection" style="background:none;border:none;color:var(--text-dim);font-size:16px;cursor:pointer;padding:4px 8px;">🗑️</button>`;
     card.innerHTML = `
       <div class="record-header" onclick="toggleRecord(this.parentElement)">
         <div class="record-badge ${badgeClass}">${badgeLabel}</div>
@@ -3825,6 +4160,7 @@ async function renderRecords() {
           <div class="record-guard-id">${escHtml(rec.guardId)}${archivedBadge}</div>
           <div class="record-time">${dtStr} · ${escHtml(rec.inspector)}</div>
         </div>
+        <div style="display:flex;align-items:center;gap:2px;">${headerActionBtn}</div>
         <div class="record-chevron">›</div>
       </div>
       <div class="record-detail">
@@ -3952,10 +4288,21 @@ function buildDetailHtml(rec) {
         </div>
       ` : ''}
     </div>
-    <!-- Archive button -->
-    <button onclick="archiveInspection('${rec.id}',${!!rec.archived})" style="background:none;border:1px solid var(--border);color:var(--text-dim);border-radius:8px;padding:8px 14px;font-size:12px;cursor:pointer;font-family:inherit;width:100%;">
-      ${rec.archived ? '📦 Unarchive' : '🗄️ Archive this inspection'}
-    </button>
+    <!-- Delete / Restore / Purge buttons -->
+    ${rec.archived ? `
+      <div style="display:flex;gap:8px;">
+        <button onclick="restoreInspection('${rec.id}')" style="flex:1;background:none;border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 14px;font-size:12px;cursor:pointer;font-family:inherit;">
+          ↩️ Restore
+        </button>
+        <button onclick="purgeInspection('${rec.id}')" style="flex:1;background:none;border:1px solid var(--fail);color:var(--fail);border-radius:8px;padding:8px 14px;font-size:12px;cursor:pointer;font-family:inherit;">
+          🗑️ Delete Permanently
+        </button>
+      </div>
+    ` : `
+      <button onclick="softDeleteInspection('${rec.id}')" style="background:none;border:1px solid var(--border);color:var(--text-dim);border-radius:8px;padding:8px 14px;font-size:12px;cursor:pointer;font-family:inherit;width:100%;">
+        🗑️ Delete inspection
+      </button>
+    `}
     </div>
   `;
 }
@@ -4128,14 +4475,14 @@ async function inlineAddMachine() {
 }
 
 function nextGuardId(macName, existingGuards, locName, compType) {
-  // Format: Type-Location6-Equip3-### e.g. Guard-BLD15-BWR-001
-  const typePart = (compType || 'GRD').replace(/[^a-zA-Z0-9]/g, '');
-  const locPart = (locName || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6);
-  const equipPart = macName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 4) || 'EQP';
+  // Format: TYPE-FULL_LOCATION-EQUIP-### e.g. GUARD-BUILDING_B-CNCMILL-001
+  const typePart = (compType || 'GRD').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+  const locPart = (locName || '').replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '').toUpperCase();
+  const equipPart = (macName || '').replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '').toUpperCase() || 'EQP';
   const prefix = locPart ? `${typePart}-${locPart}-${equipPart}` : `${typePart}-${equipPart}`;
   let max = 0;
   existingGuards.forEach(g => {
-    const m = String(g).match(new RegExp(`^${prefix}-(\\d+)$`, 'i'));
+    const m = String(g).match(new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-(\\d+)$`, 'i'));
     if (m) max = Math.max(max, parseInt(m[1], 10));
   });
   return `${prefix}-${String(max + 1).padStart(3, '0')}`;
@@ -4273,12 +4620,19 @@ function renderComponentTypes() {
     el.innerHTML = '<div style="color:var(--text-dim);font-size:14px;padding:8px 0;">No component types added yet</div>';
     return;
   }
-  el.innerHTML = types.map((t, i) => `
-    <div style="display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;">
-      <span>${escHtml(t)}</span>
-      <button onclick="deleteComponentType(${i})" style="background:none;border:none;color:var(--fail);font-size:20px;cursor:pointer;padding:0 4px;line-height:1;">&#x2715;</button>
-    </div>
-  `).join('');
+  el.innerHTML = types.map((t, i) => {
+    const name = typeof t === 'string' ? t : t.name;
+    const fieldCount = typeof t === 'object' && Array.isArray(t.fields) ? t.fields.length : 0;
+    return `
+      <div style="display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;font-size:14px;">${escHtml(name)}</div>
+          <div style="font-size:12px;color:var(--text-dim);">${fieldCount} custom field${fieldCount === 1 ? '' : 's'}</div>
+        </div>
+        <button onclick="openComponentTypeFields('${escHtml(name)}')" title="Edit fields" style="background:none;border:none;color:var(--accent);font-size:16px;cursor:pointer;padding:4px 8px;">✏️</button>
+        <button onclick="deleteComponentType(${i})" style="background:none;border:none;color:var(--fail);font-size:20px;cursor:pointer;padding:0 4px;line-height:1;">&#x2715;</button>
+      </div>`;
+  }).join('');
 }
 
 async function addComponentType() {
@@ -4291,13 +4645,52 @@ async function addComponentType() {
 }
 
 async function deleteComponentType(idx) {
-  const name = (lists.componentTypes || [])[idx];
+  const t = (lists.componentTypes || [])[idx];
+  const name = typeof t === 'string' ? t : t?.name;
   if (!name) return;
   showConfirmModal(`Delete component type "${name}"?`, async () => {
     const r = await fetch('/api/lists/componentType', { method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name }) });
     const d = await r.json();
     if (d.success) { lists.componentTypes = d.componentTypes; renderComponentTypes(); }
   });
+}
+
+let _ctFieldsDraft = [];
+let _ctFieldsName = '';
+function openComponentTypeFields(name) {
+  const t = (lists.componentTypes || []).find(x => (typeof x === 'string' ? x : x.name) === name);
+  _ctFieldsName = name;
+  _ctFieldsDraft = (typeof t === 'object' && Array.isArray(t.fields)) ? JSON.parse(JSON.stringify(t.fields)) : [];
+  renderCtFieldsModal();
+  document.getElementById('ct-fields-modal').style.display = 'flex';
+}
+function closeComponentTypeFields() { document.getElementById('ct-fields-modal').style.display = 'none'; }
+function renderCtFieldsModal() {
+  document.getElementById('ct-fields-title').textContent = `Fields for "${_ctFieldsName}"`;
+  const body = document.getElementById('ct-fields-body');
+  body.innerHTML = _ctFieldsDraft.map((f, i) => `
+    <div style="display:flex;gap:6px;align-items:center;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px;">
+      <input type="text" value="${escHtml(f.label||'')}" placeholder="Label (e.g. Serial)" oninput="_ctFieldsDraft[${i}].label=this.value;_ctFieldsDraft[${i}].key=this.value.toLowerCase().replace(/[^\\w]+/g,'_')"
+        style="flex:2;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:6px;font-size:13px;font-family:inherit;outline:none;">
+      <select onchange="_ctFieldsDraft[${i}].type=this.value;renderCtFieldsModal()" style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:6px;font-size:13px;font-family:inherit;outline:none;">
+        <option value="text"${f.type==='text'?' selected':''}>Text</option>
+        <option value="number"${f.type==='number'?' selected':''}>Number</option>
+        <option value="date"${f.type==='date'?' selected':''}>Date</option>
+        <option value="select"${f.type==='select'?' selected':''}>Select</option>
+      </select>
+      <button onclick="_ctFieldsDraft.splice(${i},1);renderCtFieldsModal()" style="background:none;border:none;color:var(--fail);font-size:16px;cursor:pointer;padding:0 4px;">✕</button>
+      ${f.type==='select' ? `<br><input type="text" value="${escHtml((f.options||[]).join(', '))}" placeholder="Comma-separated options" oninput="_ctFieldsDraft[${i}].options=this.value.split(',').map(s=>s.trim()).filter(Boolean)"
+        style="flex-basis:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:6px;font-size:13px;font-family:inherit;outline:none;margin-top:6px;">` : ''}
+    </div>`).join('');
+}
+function addCtField() { _ctFieldsDraft.push({ key: '', label: '', type: 'text' }); renderCtFieldsModal(); }
+async function saveCtFields() {
+  try {
+    const r = await fetch('/api/lists/componentType/fields', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name: _ctFieldsName, fields: _ctFieldsDraft }) });
+    const d = await r.json();
+    if (d.success) { toast('Fields saved'); await loadLists(); renderComponentTypes(); closeComponentTypeFields(); }
+    else toast('Failed: ' + (d.error || 'unknown'));
+  } catch { toast('Network error'); }
 }
 
 function showSetupLocations() {
@@ -4568,6 +4961,45 @@ async function archiveInspection(id, isArchived) {
       if (d.success) { toast(`Inspection ${action}d`); await renderRecords(); }
     } catch { toast('Failed to ' + action); }
   }, isArchived ? 'Unarchive' : 'Archive', isArchived ? 'var(--accent)' : '');
+}
+
+async function softDeleteInspection(id) {
+  showConfirmModal('Delete this inspection? It will be moved to the archive where you can restore or permanently delete it.', async () => {
+    try {
+      const r = await fetch(`/api/inspection/${id}/archive`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ archived: true }) });
+      const d = await r.json();
+      if (d.success) { toast('Inspection moved to archive'); await renderRecords(); }
+      else toast('Failed to delete');
+    } catch { toast('Failed to delete'); }
+  }, 'Delete', 'var(--fail)');
+}
+
+async function restoreInspection(id) {
+  showConfirmModal('Restore this inspection from the archive?', async () => {
+    try {
+      const r = await fetch(`/api/inspection/${id}/archive`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ archived: false }) });
+      const d = await r.json();
+      if (d.success) {
+        toast('Inspection restored');
+        if (document.getElementById('archive-screen')?.classList.contains('active')) await renderArchive();
+        else await renderRecords();
+      } else toast('Failed to restore');
+    } catch { toast('Failed to restore'); }
+  }, 'Restore', 'var(--accent)');
+}
+
+async function purgeInspection(id) {
+  showConfirmModal('Permanently delete this inspection? This cannot be undone.', async () => {
+    try {
+      const r = await fetch(`/api/inspection/${id}`, { method: 'DELETE' });
+      const d = await r.json();
+      if (d.success) {
+        toast('Inspection permanently deleted');
+        if (document.getElementById('archive-screen')?.classList.contains('active')) await renderArchive();
+        else await renderRecords();
+      } else toast('Failed: ' + (d.error || 'unknown'));
+    } catch { toast('Failed to delete'); }
+  }, 'Delete Forever', 'var(--fail)');
 }
 
 async function submitRectification(inspectionId) {
@@ -4899,6 +5331,78 @@ function bSetType(id, type) {
   bRenderSettings();
 }
 
+async function bSaveOptionsAsSet(qId) {
+  const item = bs.items.find(i => i.id === qId);
+  if (!item) return;
+  const opts = (item.options || []).filter(o => (o.label || '').trim());
+  if (!opts.length) return toast('Add some options first');
+  const name = prompt('Response set name:', item.text ? item.text.slice(0, 40) : '');
+  if (!name || !name.trim()) return;
+  const payload = {
+    name: name.trim(),
+    options: opts.map(o => ({ label: o.label, flagFail: !!o.flagFail, ...(o.score !== undefined ? { score: o.score } : {}) }))
+  };
+  try {
+    const r = await fetch('/api/answer-sets', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const d = await r.json();
+    if (d.success) { toast(`Saved "${payload.name}" (${opts.length} options)`); await loadAnswerSets(); bRenderSettings(); }
+    else toast('Failed: ' + (d.error || 'unknown'));
+  } catch(e) { toast('Save failed: ' + e.message); }
+}
+
+async function bUploadMedia(qId, file) {
+  if (!file) return;
+  const item = bs.items.find(i => i.id === qId);
+  if (!item) return;
+  toast('Uploading…');
+  const fd = new FormData(); fd.append('file', file);
+  try {
+    const r = await fetch('/api/templates/media', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (!d.success) return toast('Upload failed: ' + (d.error || 'unknown'));
+    if (!item.media) item.media = [];
+    item.media.push({ id: bUid(), kind: d.kind, url: d.url, filename: d.filename, originalName: d.originalName, caption: '' });
+    bs.dirty = true;
+    bRenderSettings();
+    toast('Attached');
+  } catch(e) { toast('Upload error: ' + e.message); }
+}
+function bUpdateMediaCaption(qId, idx, value) {
+  const item = bs.items.find(i => i.id === qId);
+  if (item && item.media && item.media[idx]) { item.media[idx].caption = value; bs.dirty = true; }
+}
+async function bRemoveMedia(qId, idx) {
+  const item = bs.items.find(i => i.id === qId);
+  if (!item || !item.media || !item.media[idx]) return;
+  const m = item.media[idx];
+  showConfirmModal('Remove this attachment?', async () => {
+    if (m.filename) {
+      try { await fetch('/api/templates/media/' + encodeURIComponent(m.filename), { method: 'DELETE' }); } catch {}
+    }
+    item.media.splice(idx, 1);
+    bs.dirty = true;
+    bRenderSettings();
+  }, 'Remove', 'var(--fail)');
+}
+
+function bLoadAnswerSet(qId) {
+  const sel = document.getElementById('bld-load-set-' + qId);
+  if (!sel || !sel.value) return toast('Pick a set first');
+  const set = answerSets.find(s => s.id === sel.value);
+  if (!set) return toast('Set not found');
+  const item = bs.items.find(i => i.id === qId);
+  if (!item) return;
+  const replace = () => {
+    item.options = set.options.map(o => ({ id: bUid(), label: o.label, flagFail: !!o.flagFail, ...(o.score !== undefined ? { score: o.score } : {}) }));
+    bs.dirty = true;
+    bRenderSettings();
+    toast(`Loaded "${set.name}"`);
+  };
+  if (item.options && item.options.length) {
+    showConfirmModal(`Replace the existing ${item.options.length} option(s) with "${set.name}"?`, replace, 'Replace', 'var(--accent)');
+  } else replace();
+}
+
 function bAddOption(qId) {
   const item = bs.items.find(i => i.id === qId);
   if (!item) return;
@@ -5039,7 +5543,21 @@ function bRenderSettings() {
 
   let typeConfig = '';
   if (item.type === 'multichoice') {
+    const savedSetsOpts = (answerSets || []).map(s => `<option value="${escHtml(s.id)}">${escHtml(s.name)} (${s.options.length})</option>`).join('');
     typeConfig = `<div style="margin-top:12px;">
+      <label class="bld-toggle-row" style="padding:4px 0;margin-bottom:8px;">
+        <span style="font-size:13px;">Allow multiple selections</span>
+        <label class="toggle-switch"><input type="checkbox" ${item.multiSelect?'checked':''} onchange="bUpdateItem('${item.id}','multiSelect',this.checked)"><span class="toggle-slider"></span></label>
+      </label>
+      ${answerSets && answerSets.length ? `
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+        <select id="bld-load-set-${item.id}" style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:9px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
+          <option value="">Load from saved set…</option>
+          ${savedSetsOpts}
+        </select>
+        <button onclick="bLoadAnswerSet('${item.id}')" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Load</button>
+      </div>` : ''}
+      <button onclick="bSaveOptionsAsSet('${item.id}')" style="background:none;border:1px dashed var(--border);color:var(--text-dim);border-radius:8px;padding:7px 12px;font-size:12px;cursor:pointer;font-family:inherit;width:100%;margin-bottom:10px;">💾 Save these options as a response set…</button>
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--accent);letter-spacing:.5px;margin-bottom:8px;">Answer Options</div>
       ${(item.options||[]).map((o,i) => `
         <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
@@ -5148,6 +5666,32 @@ function bRenderSettings() {
       `).join('')}
     </div>`;
 
+  // Media attachments (images / PDFs)
+  const mediaList = item.media || [];
+  const mediaHtml = `
+    <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--accent);letter-spacing:.5px;">Media / Diagrams</div>
+        <label style="background:none;border:1px dashed var(--border);color:var(--text-dim);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:inherit;">
+          ＋ Add
+          <input type="file" accept="image/*,application/pdf" style="display:none;" onchange="bUploadMedia('${item.id}', this.files[0]); this.value=''">
+        </label>
+      </div>
+      ${mediaList.length === 0 ? '<div style="font-size:13px;color:var(--text-dim);padding:6px 0;">No attachments. Add a diagram or reference PDF to display with the question.</div>' : ''}
+      ${mediaList.map((m, mi) => `
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px;margin-bottom:8px;display:flex;gap:8px;align-items:flex-start;">
+          ${m.kind === 'image'
+            ? `<img src="${escHtml(m.url)}" style="width:56px;height:56px;object-fit:cover;border-radius:6px;border:1px solid var(--border);flex-shrink:0;">`
+            : `<div style="width:56px;height:56px;display:flex;align-items:center;justify-content:center;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:22px;flex-shrink:0;">📄</div>`}
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;">
+            <div style="font-size:12px;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(m.originalName || m.filename || m.url)}</div>
+            <input type="text" value="${escHtml(m.caption||'')}" placeholder="Caption (optional)" oninput="bUpdateMediaCaption('${item.id}',${mi},this.value)"
+              style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:6px;font-size:12px;font-family:inherit;outline:none;width:100%;">
+          </div>
+          <button onclick="bRemoveMedia('${item.id}',${mi})" title="Remove" style="background:none;border:none;color:var(--fail);font-size:16px;cursor:pointer;padding:0 4px;">🗑️</button>
+        </div>`).join('')}
+    </div>`;
+
   const baseToggles = `
     <div style="margin-top:14px;display:flex;flex-direction:column;gap:2px;">
       <label class="bld-toggle-row"><span>Required</span>
@@ -5161,6 +5705,7 @@ function bRenderSettings() {
         <label class="toggle-switch"><input type="checkbox" ${item.commentOnFail!==false?'checked':''} onchange="bUpdateItem('${item.id}','commentOnFail',this.checked)"><span class="toggle-slider"></span></label>
       </label>` : ''}
     </div>
+    ${mediaHtml}
     ${scoringHtml}
     ${logicHtml}`;
 
@@ -5234,6 +5779,12 @@ function bPreviewQuestion(q, num) {
   }
   const photoPlaceholder = q.allowPhoto ? `<div style="margin-top:8px;"><label style="display:inline-flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--text-dim);cursor:default;">📷 Add photo</label></div>` : '';
   const optionalTag = q.required === false ? `<span style="font-size:11px;color:var(--text-dim);font-weight:400;margin-left:6px;">(optional)</span>` : '';
+  const mediaPrev = (q.media && q.media.length) ? `
+    <div style="display:flex;flex-direction:column;gap:8px;margin:8px 0 4px;">
+      ${q.media.map(m => m.kind === 'image'
+        ? `<div><img src="${escHtml(m.url)}" style="max-width:100%;border-radius:8px;border:1px solid var(--border);">${m.caption?`<div style="font-size:12px;color:var(--text-dim);margin-top:4px;">${escHtml(m.caption)}</div>`:''}</div>`
+        : `<div style="display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;"><span style="font-size:22px;">📄</span><span style="font-size:13px;">${escHtml(m.caption || m.originalName || 'PDF')}</span></div>`).join('')}
+    </div>` : '';
   return `<div class="question-card">
     <div class="q-text">
       <span class="q-num">${num}.</span>
@@ -5242,6 +5793,7 @@ function bPreviewQuestion(q, num) {
         ${q.hint?`<div style="font-size:12px;color:var(--text-dim);margin-top:3px;">${escHtml(q.hint)}</div>`:''}
       </div>
     </div>
+    ${mediaPrev}
     ${ansHtml}
     ${photoPlaceholder}
   </div>`;
@@ -5315,8 +5867,12 @@ function buildChecklistV2(items) {
           </div>
         </div>`;
       } else if (item.type === 'multichoice') {
-        ansHtml = `<div style="display:flex;flex-direction:column;gap:6px;" id="mc-${n}">
-          ${(item.options||[]).map((o,oi) => `<button class="q-btn" id="mc-opt-${n}-${oi}" style="text-align:left;padding:10px 14px;font-size:14px;font-weight:600;" onclick="setMcAnswer(${n},'${escHtml(o.id||o.label)}',${oi},'${item.id}')">${escHtml(o.label)}</button>`).join('')}
+        const isMulti = !!item.multiSelect;
+        if (isMulti) answers[`q${n}`] = [];
+        const hint = isMulti ? `<div style="font-size:11px;color:var(--text-dim);margin-bottom:4px;">Select all that apply</div>` : '';
+        const handler = isMulti ? 'toggleMcAnswer' : 'setMcAnswer';
+        ansHtml = `${hint}<div style="display:flex;flex-direction:column;gap:6px;" id="mc-${n}">
+          ${(item.options||[]).map((o,oi) => `<button class="q-btn" id="mc-opt-${n}-${oi}" style="text-align:left;padding:10px 14px;font-size:14px;font-weight:600;" onclick="${handler}(${n},'${escHtml(o.id||o.label)}',${oi},'${item.id}')">${escHtml(o.label)}</button>`).join('')}
         </div>
         <div class="finding-panel" id="finding-panel-${n}" style="display:none;">
           <textarea id="finding-comment-${n}" placeholder="Describe the finding..." oninput="onFindingComment(${n})"></textarea>
@@ -5350,6 +5906,15 @@ function buildChecklistV2(items) {
           <input type="file" class="finding-photo-input" id="q-photo-${n}" accept="image/*" capture="environment" data-q="${n}" style="display:none;">
           <img id="q-photo-preview-${n}" style="display:none;max-width:100%;margin-top:6px;border-radius:8px;border:1px solid var(--border);" alt="">
         </div>` : '';
+      const mediaHtml = (item.media && item.media.length) ? `
+        <div style="display:flex;flex-direction:column;gap:8px;margin:8px 0 4px;">
+          ${item.media.map(m => m.kind === 'image'
+            ? `<div><img src="${escHtml(m.url)}" alt="${escHtml(m.caption||'')}" style="max-width:100%;border-radius:8px;border:1px solid var(--border);cursor:zoom-in;" onclick="window.open('${escHtml(m.url)}','_blank')">${m.caption?`<div style="font-size:12px;color:var(--text-dim);margin-top:4px;">${escHtml(m.caption)}</div>`:''}</div>`
+            : `<a href="${escHtml(m.url)}" target="_blank" style="display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;text-decoration:none;color:var(--text);">
+                <span style="font-size:22px;">📄</span>
+                <div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:13px;">${escHtml(m.caption || m.originalName || 'Attached PDF')}</div><div style="font-size:11px;color:var(--text-dim);">Tap to open</div></div>
+              </a>`).join('')}
+        </div>` : '';
       card.innerHTML = `
         <div class="q-text">
           <span class="q-num">${n}.</span>
@@ -5358,6 +5923,7 @@ function buildChecklistV2(items) {
             ${item.hint ? `<div style="font-size:12px;color:var(--text-dim);margin-top:3px;">${escHtml(item.hint)}</div>` : ''}
           </div>
         </div>
+        ${mediaHtml}
         ${ansHtml}
         ${photoCapture}`;
       container.appendChild(card);
@@ -5404,6 +5970,34 @@ function setMcAnswer(n, optId, optIdx, qItemId) {
   card.classList.add(isFail ? 'answered-no' : 'answered-yes');
   const panel = document.getElementById(`finding-panel-${n}`);
   if (panel) panel.style.display = isFail ? 'flex' : 'none';
+  document.getElementById('result-banner').style.display = 'none';
+  resultComputed = null;
+  evaluateLogicV2(); updateAuditProgress();
+}
+
+function toggleMcAnswer(n, optId, optIdx, qItemId) {
+  const key = `q${n}`;
+  if (!Array.isArray(answers[key])) answers[key] = [];
+  const arr = answers[key];
+  const pos = arr.indexOf(optId);
+  if (pos >= 0) arr.splice(pos, 1); else arr.push(optId);
+  const card = document.getElementById(`qcard-${n}`);
+  if (!card) return;
+  const qItem = selectedTemplate?.items?.find(i => i.id === qItemId);
+  const hasFail = arr.some(id => {
+    const o = qItem?.options?.find(op => (op.id || op.label) === id);
+    return !!o?.flagFail;
+  });
+  (qItem?.options || []).forEach((o, oi) => {
+    const b = document.getElementById(`mc-opt-${n}-${oi}`);
+    if (!b) return;
+    b.classList.remove('selected', 'yes', 'no');
+    if (arr.includes(o.id || o.label)) b.classList.add('selected', o.flagFail ? 'no' : 'yes');
+  });
+  card.classList.remove('answered-yes','answered-no','answered-na');
+  if (arr.length) card.classList.add(hasFail ? 'answered-no' : 'answered-yes');
+  const panel = document.getElementById(`finding-panel-${n}`);
+  if (panel) panel.style.display = hasFail ? 'flex' : 'none';
   document.getElementById('result-banner').style.display = 'none';
   resultComputed = null;
   evaluateLogicV2(); updateAuditProgress();
@@ -5522,12 +6116,14 @@ function evaluateCondition(q, val, rule) {
     if (cond === 'is_no') return val === false;
   }
   if (q.type === 'multichoice') {
+    const vals = Array.isArray(val) ? val : (val !== undefined && val !== null ? [val] : []);
     if (cond === 'is_fail') {
-      const opt = (q.options || []).find(o => (o.id || o.label) === val);
-      return !!opt?.flagFail;
+      return vals.some(v => {
+        const opt = (q.options || []).find(o => (o.id || o.label) === v);
+        return !!opt?.flagFail;
+      });
     }
-    // is_<optId> pattern
-    if (cond.startsWith('is_')) return val === cond.slice(3);
+    if (cond.startsWith('is_')) return vals.includes(cond.slice(3));
   }
   if (q.type === 'number' || q.type === 'slider') {
     const numVal = parseFloat(val);
@@ -5567,8 +6163,8 @@ function computeResultV2(items) {
     if (card && card.dataset.logicHidden === '1') continue;
     if (q.type === 'yesno' && val === false) return 'FAIL';
     if (q.type === 'multichoice' && val !== undefined && val !== 'na') {
-      const opt = q.options?.find(o => (o.id || o.label) === val);
-      if (opt?.flagFail) return 'FAIL';
+      const vals = Array.isArray(val) ? val : [val];
+      if (vals.some(v => q.options?.find(o => (o.id || o.label) === v)?.flagFail)) return 'FAIL';
     }
   }
   const visibleRequired = qs.filter((q, i) => {
@@ -5598,11 +6194,22 @@ function computeScoreV2(items) {
       maxScore += weight;
       if (val === true) totalScore += weight;
     } else if (q.type === 'multichoice') {
-      const maxOpt = Math.max(0, ...(q.options || []).map(o => o.score ?? 0));
-      maxScore += maxOpt * weight;
-      if (val !== undefined) {
-        const opt = (q.options || []).find(o => (o.id || o.label) === val);
-        if (opt) totalScore += (opt.score ?? 0) * weight;
+      if (q.multiSelect) {
+        const sumAll = (q.options || []).reduce((a,o) => a + (o.score ?? 0), 0);
+        maxScore += sumAll * weight;
+        if (Array.isArray(val)) {
+          val.forEach(v => {
+            const opt = (q.options || []).find(o => (o.id || o.label) === v);
+            if (opt) totalScore += (opt.score ?? 0) * weight;
+          });
+        }
+      } else {
+        const maxOpt = Math.max(0, ...(q.options || []).map(o => o.score ?? 0));
+        maxScore += maxOpt * weight;
+        if (val !== undefined) {
+          const opt = (q.options || []).find(o => (o.id || o.label) === val);
+          if (opt) totalScore += (opt.score ?? 0) * weight;
+        }
       }
     } else if (q.type === 'slider') {
       maxScore += (q.max ?? 100) * weight;
@@ -5871,18 +6478,38 @@ async function renderArchive() {
   const body = document.getElementById('archive-body');
   body.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-dim)">Loading…</div>';
   try {
-    const r = await fetch('/api/archive');
-    const data = await r.json();
+    const [archRes, inspRes] = await Promise.all([
+      fetch('/api/archive'),
+      fetch('/api/inspections')
+    ]);
+    const data = await archRes.json();
+    const allInsp = await inspRes.json();
     const guards = data.guards || [];
     const locations = data.locations || [];
     const inspectors = data.inspectors || [];
+    const archivedInspections = allInsp.filter(i => i.archived);
 
-    if (!guards.length && !locations.length && !inspectors.length) {
-      body.innerHTML = '<div class="empty-state"><div class="icon">🗄️</div>Archive is empty.<br>Archive guards, locations or inspectors from the setup screen.</div>';
+    if (!guards.length && !locations.length && !inspectors.length && !archivedInspections.length) {
+      body.innerHTML = '<div class="empty-state"><div class="icon">🗄️</div>Archive is empty.<br>Delete an inspection or archive guards / locations / inspectors to populate this view.</div>';
       return;
     }
 
     const html = `<div style="padding:16px;">` +
+      archiveSectionHTML('Deleted Inspections', '📋', archivedInspections, i => {
+        const d = i.archivedAt ? new Date(i.archivedAt).toLocaleDateString('en-AU', { dateStyle: 'short' }) : '—';
+        const insDate = new Date(i.timestamp).toLocaleDateString('en-AU', { dateStyle: 'short' });
+        const resBadge = i.status === 'SERVICEABLE' ? 'Rectified' : i.status === 'WR_RAISED' ? 'WR Raised' : (i.result || '');
+        return `<div class="archive-card">
+          <div class="archive-card-header">
+            <span class="archive-guard-id">${escHtml(i.guardId || '(no guard)')} <span style="font-size:11px;color:var(--text-dim);font-weight:normal;">· ${escHtml(resBadge)}</span></span>
+            <div style="display:flex;gap:6px;">
+              <button class="btn-restore" onclick="restoreInspection('${i.id}')">↩ Restore</button>
+              <button onclick="purgeInspection('${i.id}')" style="background:none;border:1px solid var(--fail);color:var(--fail);border-radius:6px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">🗑️ Delete</button>
+            </div>
+          </div>
+          <div class="archive-meta">📍 ${escHtml(i.location||'')} / ⚙️ ${escHtml(i.machine||'')} · Inspected ${insDate} by ${escHtml(i.inspector||'')} · Deleted ${d}</div>
+        </div>`;
+      }, 'No deleted inspections') +
       archiveSectionHTML('Guards', '🔐', guards, g => {
         const d = new Date(g.archivedAt).toLocaleDateString('en-AU', { dateStyle: 'short' });
         return `<div class="archive-card"><div class="archive-card-header"><span class="archive-guard-id">${escHtml(g.guardId)}</span><button class="btn-restore" onclick="confirmRestoreGuard('${escHtml(g.guardId)}','${escHtml(g.location)}','${escHtml(g.machine)}')">↩ Restore</button></div><div class="archive-meta">📍 ${escHtml(g.location)} / ⚙️ ${escHtml(g.machine)} · ${d} · ${g.inspectionCount} inspection(s)</div></div>`;

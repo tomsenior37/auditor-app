@@ -12,15 +12,20 @@ const INSPECTIONS_FILE = path.join(__dirname, 'inspections.json');
 const LISTS_FILE = path.join(__dirname, 'lists.json');
 const ARCHIVE_FILE = path.join(__dirname, 'archive.json');
 const TEMPLATES_FILE = path.join(__dirname, 'templates.json');
+const ANSWER_SETS_FILE = path.join(__dirname, 'answer-sets.json');
 const EMAIL_CONFIG_FILE = path.join(__dirname, 'emailConfig.json');
 const ASSETS_FILE = path.join(__dirname, 'assets.json');
 const RECTS_FILE = path.join(__dirname, 'rectifications.json');
 const PHOTOS_DIR = path.join(__dirname, 'photos');
 const DOCS_DIR = path.join(__dirname, 'documents');
+const TEMPLATE_MEDIA_DIR = path.join(__dirname, 'template-media');
+const TEMPLATE_SOURCES_DIR = path.join(__dirname, 'template-sources');
 
 // Ensure dirs exist
 if (!fs.existsSync(PHOTOS_DIR)) fs.mkdirSync(PHOTOS_DIR, { recursive: true });
 if (!fs.existsSync(DOCS_DIR)) fs.mkdirSync(DOCS_DIR, { recursive: true });
+if (!fs.existsSync(TEMPLATE_MEDIA_DIR)) fs.mkdirSync(TEMPLATE_MEDIA_DIR, { recursive: true });
+if (!fs.existsSync(TEMPLATE_SOURCES_DIR)) fs.mkdirSync(TEMPLATE_SOURCES_DIR, { recursive: true });
 
 // Multer storage
 const storage = multer.diskStorage({
@@ -34,6 +39,24 @@ const upload = multer({ storage, limits: { fileSize: 20 * 1024 * 1024 } });
 
 app.use(express.json());
 app.use('/photos', express.static(PHOTOS_DIR));
+app.use('/docs', express.static(path.join(__dirname, 'docs')));
+app.use('/template-media', express.static(TEMPLATE_MEDIA_DIR));
+
+const templateMediaStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, TEMPLATE_MEDIA_DIR),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname) || '';
+    cb(null, `${uuidv4()}${ext}`);
+  }
+});
+const templateMediaUpload = multer({
+  storage: templateMediaStorage,
+  limits: { fileSize: 25 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ok = /^image\//.test(file.mimetype) || file.mimetype === 'application/pdf';
+    cb(ok ? null : new Error('Only images or PDFs are allowed'), ok);
+  }
+});
 
 // Read/write helpers
 function readInspections() {
@@ -78,6 +101,8 @@ function readLists() {
     if (!Array.isArray(data.inspectors)) data.inspectors = [];
     if (!Array.isArray(data.planners)) data.planners = [];
     if (!Array.isArray(data.componentTypes)) data.componentTypes = [];
+    // Migrate string componentTypes to objects { name, fields }
+    data.componentTypes = data.componentTypes.map(ct => typeof ct === 'string' ? { name: ct, fields: [] } : { name: ct.name, fields: Array.isArray(ct.fields) ? ct.fields : [] });
     // Migrate machines from strings to objects with guards array
     let dirty = false;
     data.locations.forEach(loc => {
@@ -213,9 +238,14 @@ app.post('/api/templates/upload', upload.single('file'), (req, res) => {
       requiresComponent: !!templateData.requiresComponent,
       componentType: templateData.componentType || '',
       questions: Array.isArray(templateData.questions) ? templateData.questions : [templateData.questions],
+      ...(templateData.items ? {
+        items: templateData.items,
+        version: templateData.version || 2,
+        scoringEnabled: !!templateData.scoringEnabled
+      } : {}),
       createdAt: new Date().toISOString()
     };
-    
+
     data.templates.push(tpl);
     writeTemplates(data);
     
@@ -241,12 +271,125 @@ app.put('/api/templates/:id', (req, res) => {
   res.json({ success: true, template: data.templates[idx] });
 });
 
+// ── Template source documents (upload for AI to turn into a template) ──
+const templateSourceStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, TEMPLATE_SOURCES_DIR),
+  filename: (req, file, cb) => {
+    const safe = file.originalname.replace(/[^\w.\-]+/g, '_').slice(0, 80);
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    cb(null, `${stamp}__${safe}`);
+  }
+});
+const templateSourceUpload = multer({ storage: templateSourceStorage, limits: { fileSize: 40 * 1024 * 1024 } });
+
+app.use('/template-sources', express.static(TEMPLATE_SOURCES_DIR));
+
+app.get('/api/template-sources', (req, res) => {
+  const files = fs.readdirSync(TEMPLATE_SOURCES_DIR)
+    .map(f => { const s = fs.statSync(path.join(TEMPLATE_SOURCES_DIR, f)); return { filename: f, size: s.size, uploadedAt: s.mtime }; })
+    .sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
+  res.json({ files });
+});
+
+app.post('/api/template-sources', templateSourceUpload.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  res.json({
+    success: true,
+    filename: req.file.filename,
+    originalName: req.file.originalname,
+    size: req.file.size,
+    serverPath: path.join(TEMPLATE_SOURCES_DIR, req.file.filename),
+    url: '/template-sources/' + encodeURIComponent(req.file.filename)
+  });
+});
+
+app.delete('/api/template-sources/:filename', (req, res) => {
+  const safe = path.basename(req.params.filename);
+  const p = path.join(TEMPLATE_SOURCES_DIR, safe);
+  if (!fs.existsSync(p)) return res.status(404).json({ error: 'not found' });
+  try { fs.unlinkSync(p); res.json({ success: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/templates/media — upload an image or PDF to attach to a question
+app.post('/api/templates/media', templateMediaUpload.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  const kind = req.file.mimetype === 'application/pdf' ? 'pdf' : 'image';
+  res.json({
+    success: true,
+    filename: req.file.filename,
+    url: '/template-media/' + req.file.filename,
+    kind,
+    originalName: req.file.originalname,
+    size: req.file.size
+  });
+});
+
+// DELETE /api/templates/media/:filename — delete an uploaded asset
+app.delete('/api/templates/media/:filename', (req, res) => {
+  const safe = path.basename(req.params.filename);
+  const p = path.join(TEMPLATE_MEDIA_DIR, safe);
+  if (!fs.existsSync(p)) return res.status(404).json({ error: 'not found' });
+  try { fs.unlinkSync(p); res.json({ success: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.delete('/api/templates/:id', (req, res) => {
   const data = readTemplates();
   const idx = data.templates.findIndex(t => t.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'not found' });
   data.templates.splice(idx, 1);
   writeTemplates(data);
+  res.json({ success: true });
+});
+
+// ── Answer Sets (reusable multichoice option libraries) ────────────
+function readAnswerSets() {
+  if (!fs.existsSync(ANSWER_SETS_FILE)) return { sets: [] };
+  try { return JSON.parse(fs.readFileSync(ANSWER_SETS_FILE, 'utf8')); }
+  catch { return { sets: [] }; }
+}
+function writeAnswerSets(data) {
+  fs.writeFileSync(ANSWER_SETS_FILE, JSON.stringify(data, null, 2), 'utf8');
+}
+
+app.get('/api/answer-sets', (req, res) => res.json(readAnswerSets()));
+
+app.post('/api/answer-sets', (req, res) => {
+  const { name, options } = req.body;
+  if (!name || !Array.isArray(options)) return res.status(400).json({ error: 'name and options required' });
+  const data = readAnswerSets();
+  const set = {
+    id: uuidv4(),
+    name,
+    options: options.map(o => ({ id: o.id || uuidv4(), label: o.label || '', flagFail: !!o.flagFail, ...(o.score !== undefined ? { score: o.score } : {}) })),
+    createdAt: new Date().toISOString()
+  };
+  data.sets.push(set);
+  writeAnswerSets(data);
+  res.json({ success: true, set });
+});
+
+app.put('/api/answer-sets/:id', (req, res) => {
+  const data = readAnswerSets();
+  const idx = data.sets.findIndex(s => s.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'not found' });
+  const { name, options } = req.body;
+  if (name !== undefined) data.sets[idx].name = name;
+  if (Array.isArray(options)) {
+    data.sets[idx].options = options.map(o => ({ id: o.id || uuidv4(), label: o.label || '', flagFail: !!o.flagFail, ...(o.score !== undefined ? { score: o.score } : {}) }));
+  }
+  data.sets[idx].updatedAt = new Date().toISOString();
+  writeAnswerSets(data);
+  res.json({ success: true, set: data.sets[idx] });
+});
+
+app.delete('/api/answer-sets/:id', (req, res) => {
+  const data = readAnswerSets();
+  const idx = data.sets.findIndex(s => s.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'not found' });
+  data.sets.splice(idx, 1);
+  writeAnswerSets(data);
   res.json({ success: true });
 });
 
@@ -308,6 +451,19 @@ app.patch('/api/inspection/:id/archive', (req, res) => {
     delete inspections[idx].archived;
     delete inspections[idx].archivedAt;
   }
+  writeInspections(inspections);
+  res.json({ success: true });
+});
+
+// DELETE /api/inspection/:id — permanently delete (only if already archived)
+app.delete('/api/inspection/:id', (req, res) => {
+  const inspections = readInspections();
+  const idx = inspections.findIndex(i => i.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'not found' });
+  if (!inspections[idx].archived) {
+    return res.status(400).json({ error: 'must be archived before permanent deletion' });
+  }
+  inspections.splice(idx, 1);
   writeInspections(inspections);
   res.json({ success: true });
 });
@@ -526,9 +682,9 @@ app.post('/api/lists/componentType', (req, res) => {
   const name = (req.body.name || '').trim();
   if (!name) return res.status(400).json({ error: 'name required' });
   const lists = readLists();
-  if (!lists.componentTypes.includes(name)) {
-    lists.componentTypes.push(name);
-    lists.componentTypes.sort((a, b) => a.localeCompare(b));
+  if (!lists.componentTypes.find(t => t.name === name)) {
+    lists.componentTypes.push({ name, fields: [] });
+    lists.componentTypes.sort((a, b) => a.name.localeCompare(b.name));
     writeLists(lists);
   }
   res.json({ success: true, componentTypes: lists.componentTypes });
@@ -537,9 +693,26 @@ app.post('/api/lists/componentType', (req, res) => {
 app.delete('/api/lists/componentType', (req, res) => {
   const name = (req.body.name || '').trim();
   const lists = readLists();
-  lists.componentTypes = lists.componentTypes.filter(t => t !== name);
+  lists.componentTypes = lists.componentTypes.filter(t => t.name !== name);
   writeLists(lists);
   res.json({ success: true, componentTypes: lists.componentTypes });
+});
+
+// Update the custom-fields schema on a component type
+app.put('/api/lists/componentType/fields', (req, res) => {
+  const { name, fields } = req.body;
+  if (!name || !Array.isArray(fields)) return res.status(400).json({ error: 'name and fields[] required' });
+  const lists = readLists();
+  const t = lists.componentTypes.find(t => t.name === name);
+  if (!t) return res.status(404).json({ error: 'not found' });
+  t.fields = fields.filter(f => f && f.key && f.label).map(f => ({
+    key: String(f.key).replace(/[^\w]+/g, '_').toLowerCase(),
+    label: String(f.label).slice(0, 100),
+    type: ['text', 'number', 'date', 'select'].includes(f.type) ? f.type : 'text',
+    ...(f.type === 'select' && Array.isArray(f.options) ? { options: f.options.map(String) } : {})
+  }));
+  writeLists(lists);
+  res.json({ success: true, componentType: t });
 });
 
 // ── Asset Import API ──────────────────────────────────
@@ -579,25 +752,65 @@ app.post('/api/import/assets', (req, res) => {
 });
 
 // ── Asset Database API ─────────────────────────────────
-// Get metadata for a specific asset
+// Get metadata for a specific asset (enriched with last inspection + overdue flag)
 app.get('/api/asset/meta', (req, res) => {
-  const key = assetKey(req.query.location, req.query.machine, req.query.component);
+  const { location, machine, component } = req.query;
+  const key = assetKey(location, machine, component);
   const assets = readAssets();
-  res.json(assets[key] || { description: '', notes: '', status: 'active', photos: [], documents: [] });
+  const meta = assets[key] || { description: '', notes: '', status: 'active', photos: [], documents: [] };
+  // Enrich with last inspection timestamp
+  try {
+    const inspections = readInspections()
+      .filter(i => !i.archived)
+      .filter(i => (!location || i.location === location) && (!machine || i.machine === machine) && (!component || i.guardId === component))
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    if (inspections.length) meta.lastInspectedAt = inspections[0].timestamp;
+    if (meta.schedule && meta.schedule.intervalDays && meta.lastInspectedAt) {
+      const d = new Date(meta.lastInspectedAt);
+      d.setDate(d.getDate() + parseInt(meta.schedule.intervalDays, 10));
+      meta.schedule.nextDueDate = d.toISOString().slice(0, 10);
+      meta.schedule.isOverdue = new Date(meta.schedule.nextDueDate) < new Date();
+      const ms = new Date(meta.schedule.nextDueDate) - new Date();
+      meta.schedule.daysUntilDue = Math.round(ms / 86400000);
+    }
+  } catch {}
+  res.json(meta);
 });
 
 // Save metadata for a specific asset
 app.post('/api/asset/meta', (req, res) => {
-  const { location, machine, component, description, notes, status } = req.body;
+  const { location, machine, component, description, notes, status, componentType, customFields, schedule } = req.body;
   const key = assetKey(location, machine, component);
   const assets = readAssets();
   if (!assets[key]) assets[key] = { description: '', notes: '', status: 'active', photos: [], documents: [], createdAt: new Date().toISOString() };
   if (description !== undefined) assets[key].description = description;
   if (notes !== undefined) assets[key].notes = notes;
   if (status !== undefined) assets[key].status = status;
+  if (componentType !== undefined) assets[key].componentType = componentType;
+  if (customFields !== undefined) assets[key].customFields = customFields;
+  if (schedule !== undefined) assets[key].schedule = schedule;
+  // Auto-compute nextDue from lastInspected + intervalDays
+  if (assets[key].schedule && assets[key].schedule.intervalDays) {
+    const last = assets[key].schedule.lastInspectedAt || assets[key].createdAt;
+    const d = new Date(last);
+    d.setDate(d.getDate() + parseInt(assets[key].schedule.intervalDays, 10));
+    assets[key].schedule.nextDueDate = d.toISOString().slice(0, 10);
+  }
   assets[key].updatedAt = new Date().toISOString();
   writeAssets(assets);
   res.json({ success: true, meta: assets[key] });
+});
+
+// QR code for an asset (PNG)
+const QRCode = require('qrcode');
+app.get('/api/asset/qr', async (req, res) => {
+  try {
+    const { location, machine, component, url } = req.query;
+    const target = url || `/?asset=${encodeURIComponent(location || '')}|${encodeURIComponent(machine || '')}|${encodeURIComponent(component || '')}`;
+    const absolute = target.startsWith('http') ? target : `${req.protocol}://${req.get('host')}${target}`;
+    res.setHeader('Content-Type', 'image/png');
+    await QRCode.toFileStream(res, absolute, { width: 400, margin: 1, errorCorrectionLevel: 'M' });
+  } catch (e) { res.status(500).send(e.message); }
 });
 
 // Upload photo to an asset
