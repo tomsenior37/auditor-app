@@ -1221,8 +1221,8 @@
       </div>
     </div>
 
-    <!-- Guard Reference Photo -->
-    <div class="section-title">Guard Reference Photo (optional)</div>
+    <!-- Component Reference Photo -->
+    <div class="section-title" id="ref-photo-title">Component Reference Photo (optional)</div>
     <div class="photo-area">
       <label class="photo-btn" for="photo-input">
         <span class="icon">📷</span>
@@ -1968,10 +1968,11 @@ async function loadTemplates() {
 function updateTemplateLabel() {
   const el = document.getElementById('selected-template-name');
   if (el && selectedTemplate) el.textContent = selectedTemplate.name;
-  // Update guard label if template has component type
   const guardLabel = document.getElementById('guard-id-label');
-  if (guardLabel && selectedTemplate?.componentType) guardLabel.textContent = selectedTemplate.componentType + ' ID';
-  else if (guardLabel) guardLabel.textContent = 'Component ID';
+  const refTitle = document.getElementById('ref-photo-title');
+  const ct = selectedTemplate?.componentType;
+  if (guardLabel) guardLabel.textContent = (ct ? ct : 'Component') + ' ID';
+  if (refTitle) refTitle.textContent = (ct ? ct : 'Component') + ' Reference Photo (optional)';
 }
 
 function tplQuestions(tpl) {
