@@ -6111,7 +6111,7 @@ function newBuilder() {
   bs.dirty = false;
   bs.items = [
     { id: sId, itemType: 'section', title: 'Section 1' },
-    { id: bUid(), itemType: 'question', sectionId: sId, text: '', type: 'yesno', allowNA: false, required: true, hint: '', commentOnFail: true, photoRequired: false }
+    { id: bUid(), itemType: 'question', sectionId: sId, text: '', type: 'yesno', allowNA: true, required: true, hint: '', commentOnFail: true, photoRequired: false }
   ];
   bEnterBuilder();
 }
@@ -6176,7 +6176,7 @@ function bSectionHtml(sec, questions) {
     </div>`;
 }
 
-const TYPE_LABELS = { yesno:'Yes/No', multichoice:'Choice', text:'Text', number:'Number', slider:'Slider' };
+const TYPE_LABELS = { yesno:'Yes/No/N/A', multichoice:'Choice', text:'Text', number:'Number', slider:'Slider' };
 
 function bQCardHtml(q) {
   const lbl = TYPE_LABELS[q.type] || q.type;
@@ -6282,7 +6282,7 @@ function bAddSection() {
 
 function bAddQuestion(sectionId) {
   const id = bUid();
-  const newQ = { id, itemType: 'question', sectionId, text: '', type: 'yesno', allowNA: false, required: true, hint: '', commentOnFail: true, photoRequired: false };
+  const newQ = { id, itemType: 'question', sectionId, text: '', type: 'yesno', allowNA: true, required: true, hint: '', commentOnFail: true, photoRequired: false };
   const secIdx = bs.items.findIndex(i => i.id === sectionId);
   const lastInSection = bs.items.reduce((acc, item, idx) =>
     (item.itemType === 'question' && item.sectionId === sectionId) ? idx : acc, secIdx);
@@ -6539,7 +6539,7 @@ function bRenderSettings() {
   if (!item) return;
 
   const types = [
-    { id:'yesno', label:'Yes/No', icon:'✓✗' }, { id:'multichoice', label:'Choice', icon:'☰' },
+    { id:'yesno', label:'Yes/No/N/A', icon:'✓✗' }, { id:'multichoice', label:'Choice', icon:'☰' },
     { id:'text', label:'Text', icon:'Aa' }, { id:'number', label:'Number', icon:'#' },
     { id:'slider', label:'Slider', icon:'↔' }
   ];
@@ -6764,6 +6764,7 @@ function bPreviewQuestion(q, num) {
     ansHtml = `<div class="q-btns">
       <button class="q-btn yes" style="cursor:default;">YES</button>
       <button class="q-btn no" style="cursor:default;">NO</button>
+      <button class="q-btn na" style="cursor:default;">N/A</button>
     </div>`;
   } else if (q.type === 'multichoice') {
     ansHtml = `<div style="display:flex;flex-direction:column;gap:6px;">
@@ -6863,7 +6864,7 @@ function buildChecklistV2(items) {
         ansHtml = `<div class="q-btns">
           <button class="q-btn yes" data-q="${n}" data-val="yes" onclick="setAnswer(${n},'yes')">YES</button>
           <button class="q-btn no"  data-q="${n}" data-val="no"  onclick="setAnswer(${n},'no')">NO</button>
-          ${item.allowNA ? `<button class="q-btn na"  data-q="${n}" data-val="na"  onclick="setAnswer(${n},'na')">N/A</button>` : ''}
+          <button class="q-btn na"  data-q="${n}" data-val="na"  onclick="setAnswer(${n},'na')">N/A</button>
         </div>
         <div class="finding-panel" id="finding-panel-${n}" style="display:none;">
           <textarea id="finding-comment-${n}" placeholder="Describe the finding..." oninput="onFindingComment(${n})"></textarea>
