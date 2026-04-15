@@ -154,6 +154,9 @@ function isPublicPath(url) {
   // allow static asset prefixes
   if (url.startsWith('/photos/') || url.startsWith('/documents/') || url.startsWith('/template-media/') ||
       url.startsWith('/template-sources/') || url.startsWith('/docs/')) return true;
+  // Public planner-action endpoints (keyed by issue id, reached via emailed link)
+  if (/^\/api\/rectifications\/[^/]+\/public$/.test(url)) return true;
+  if (/^\/api\/rectifications\/[^/]+\/workorder$/.test(url)) return true;
   return false;
 }
 
@@ -876,6 +879,7 @@ app.get('/', (req, res) => {
 // POST /api/inspection
 // GET /wr — work request entry page
 app.get('/wr', (req, res) => res.sendFile(path.join(__dirname, 'wr.html')));
+app.get('/issue-action.html', (req, res) => res.sendFile(path.join(__dirname, 'issue-action.html')));
 app.get('/rect.html', (req, res) => res.sendFile(path.join(__dirname, 'rect.html')));
 
 // GET /api/inspection/:id — single inspection
@@ -1567,14 +1571,14 @@ app.get('/api/rectifications/:id', (req, res) => {
   res.json(rect);
 });
 
-app.post('/api/rectifications', (req, res) => {
+app.post('/api/rectifications', async (req, res) => {
   const rects = readRects();
   const id = nextRectId(rects);
   const rect = {
     id,
     inspectionId: req.body.inspectionId || null,
     templateName: req.body.templateName || '',
-    title: req.body.title || 'Untitled Rectification',
+    title: req.body.title || 'Untitled Issue',
     description: req.body.description || '',
     location: req.body.location || '',
     machine: req.body.machine || '',
@@ -1586,7 +1590,9 @@ app.post('/api/rectifications', (req, res) => {
     createdAt: new Date().toISOString(),
     dueDate: req.body.dueDate || null,
     resolvedAt: null,
+    workRequestNumber: '',
     workOrderNumber: '',
+    workOrderExecutionDate: null,
     photos: req.body.photos || [],
     lineItems: req.body.lineItems || [],
     findings: req.body.findings || {},
@@ -1595,7 +1601,123 @@ app.post('/api/rectifications', (req, res) => {
   };
   rects.unshift(rect);
   writeRects(rects);
+
+  // Notify planner by email if requested
+  let emailResult = { sent: false };
+  if (req.body.notifyPlanner && rect.assignedTo?.email) {
+    try {
+      const cfg = readEmailConfig();
+      if (cfg.host && cfg.user) {
+        const transporter = nodemailer.createTransport({
+          host: cfg.host, port: cfg.port, secure: cfg.secure,
+          auth: { user: cfg.user, pass: cfg.password }
+        });
+        const baseUrl = (cfg.externalUrl || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+        const actionUrl = `${baseUrl}/issue-action.html?id=${encodeURIComponent(rect.id)}`;
+        const pdfUrl = rect.inspectionId ? `${baseUrl}/api/report/${rect.inspectionId}` : '';
+        const priorityColor = { critical: '#a13544', high: '#da7101', medium: '#d19900', low: '#437a22' }[rect.priority] || '#666';
+
+        // Build PDF attachment if we can
+        let attachments = [];
+        if (rect.inspectionId) {
+          const inspections = readInspections();
+          const insp = inspections.find(i => i.id === rect.inspectionId);
+          if (insp) {
+            const templates = readTemplates();
+            const template = templates.templates.find(t => t.id === insp.templateId);
+            try {
+              const pdfBuffer = await buildPDFBuffer(insp, template);
+              attachments.push({ filename: `inspection-${rect.inspectionId.slice(0,8)}.pdf`, content: pdfBuffer });
+            } catch {}
+          }
+        }
+
+        const lineItemsHtml = (rect.lineItems || []).map(li =>
+          `<li style="margin:4px 0;"><strong>Q${li.questionNum}:</strong> ${(li.questionText || '').replace(/</g,'&lt;')}${li.finding ? ' — <em>' + li.finding.replace(/</g,'&lt;') + '</em>' : ''}</li>`
+        ).join('');
+
+        await transporter.sendMail({
+          from: `"${cfg.fromName || 'Auditor App'}" <${cfg.fromEmail || cfg.user}>`,
+          to: `"${rect.assignedTo.name}" <${rect.assignedTo.email}>`,
+          subject: `⚠️ Issue ${rect.id} raised — ${rect.title}`,
+          html: `
+            <div style="font-family:Arial,sans-serif;max-width:640px;">
+              <h2 style="color:#a13544;margin:0 0 6px;">⚠️ New Issue Raised</h2>
+              <div style="color:#666;font-size:14px;margin-bottom:16px;">${rect.id}</div>
+              <table style="border-collapse:collapse;background:#f7f6f2;border-radius:8px;padding:12px;margin-bottom:16px;">
+                <tr><td style="padding:6px 14px 6px 12px;color:#555;">Title</td><td style="padding:6px 0;"><strong>${rect.title.replace(/</g,'&lt;')}</strong></td></tr>
+                <tr><td style="padding:6px 14px 6px 12px;color:#555;">Priority</td><td style="padding:6px 0;"><span style="background:${priorityColor};color:#fff;padding:3px 10px;border-radius:12px;font-weight:700;font-size:12px;text-transform:uppercase;">${rect.priority}</span></td></tr>
+                ${rect.dueDate ? `<tr><td style="padding:6px 14px 6px 12px;color:#555;">Due date</td><td style="padding:6px 0;"><strong>${rect.dueDate}</strong></td></tr>` : ''}
+                <tr><td style="padding:6px 14px 6px 12px;color:#555;">Location</td><td style="padding:6px 0;">${rect.location.replace(/</g,'&lt;')}</td></tr>
+                <tr><td style="padding:6px 14px 6px 12px;color:#555;">Machine</td><td style="padding:6px 0;">${rect.machine.replace(/</g,'&lt;')}</td></tr>
+                ${rect.component ? `<tr><td style="padding:6px 14px 6px 12px;color:#555;">Component</td><td style="padding:6px 0;font-family:monospace;">${rect.component.replace(/</g,'&lt;')}</td></tr>` : ''}
+                ${rect.templateName ? `<tr><td style="padding:6px 14px 6px 12px;color:#555;">Template</td><td style="padding:6px 0;">${rect.templateName.replace(/</g,'&lt;')}</td></tr>` : ''}
+                <tr><td style="padding:6px 14px 6px 12px;color:#555;">Raised by</td><td style="padding:6px 0;">${(rect.createdBy || '—').replace(/</g,'&lt;')}</td></tr>
+              </table>
+              ${rect.description ? `<p style="margin:0 0 14px;"><strong>Description:</strong><br>${rect.description.replace(/</g,'&lt;').replace(/\n/g,'<br>')}</p>` : ''}
+              ${lineItemsHtml ? `<p style="margin:14px 0 6px;"><strong>Failed items:</strong></p><ul style="margin:0 0 16px;padding-left:20px;">${lineItemsHtml}</ul>` : ''}
+              <p style="margin:18px 0;"><a href="${actionUrl}" style="display:inline-block;background:#01696f;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:700;">📝 Submit Work Request / Work Order</a></p>
+              ${pdfUrl ? `<p style="margin:10px 0 18px;"><a href="${pdfUrl}" style="color:#01696f;font-weight:600;">📄 View inspection PDF</a> (also attached)</p>` : ''}
+              <p style="color:#666;font-size:13px;margin-top:24px;">Click the button above to submit WR and/or WO numbers and execution dates. The issue will update automatically.</p>
+            </div>`,
+          attachments
+        });
+        emailResult = { sent: true };
+        rect.history.push({ action: 'emailed_planner', to: rect.assignedTo.email, by: rect.createdBy || 'System', at: new Date().toISOString() });
+        writeRects(rects);
+      } else {
+        emailResult = { sent: false, reason: 'Email server not configured' };
+      }
+    } catch (e) {
+      emailResult = { sent: false, reason: e.message };
+    }
+  }
+
+  res.json({ success: true, rect, emailSent: emailResult.sent, emailError: emailResult.reason });
+});
+
+// Public endpoint for planners to submit WR/WO via email link — keyed only by issue id
+app.post('/api/rectifications/:id/workorder', (req, res) => {
+  const rects = readRects();
+  const idx = rects.findIndex(r => r.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Issue not found' });
+  const { workRequestNumber, workOrderNumber, workOrderExecutionDate, plannerNote, plannerName } = req.body;
+  const rect = rects[idx];
+  const by = plannerName || rect.assignedTo?.name || 'Planner';
+  if (workRequestNumber) {
+    rect.workRequestNumber = workRequestNumber;
+    rect.history.push({ action: 'wr_set', number: workRequestNumber, by, at: new Date().toISOString() });
+  }
+  if (workOrderNumber) {
+    rect.workOrderNumber = workOrderNumber;
+    rect.history.push({ action: 'wo_set', number: workOrderNumber, by, at: new Date().toISOString() });
+  }
+  if (workOrderExecutionDate) {
+    rect.workOrderExecutionDate = workOrderExecutionDate;
+    rect.history.push({ action: 'wo_scheduled', date: workOrderExecutionDate, by, at: new Date().toISOString() });
+  }
+  if (plannerNote) {
+    rect.comments.push({ author: by, text: plannerNote, at: new Date().toISOString() });
+  }
+  if (rect.status === 'open') rect.status = 'in_progress';
+  rect.updatedAt = new Date().toISOString();
+  writeRects(rects);
   res.json({ success: true, rect });
+});
+
+// Public GET for the planner-action page: returns minimal issue info (no auth)
+app.get('/api/rectifications/:id/public', (req, res) => {
+  const rects = readRects();
+  const r = rects.find(x => x.id === req.params.id);
+  if (!r) return res.status(404).json({ error: 'Not found' });
+  res.json({
+    id: r.id, title: r.title, description: r.description,
+    location: r.location, machine: r.machine, component: r.component,
+    priority: r.priority, dueDate: r.dueDate, status: r.status,
+    workRequestNumber: r.workRequestNumber || '', workOrderNumber: r.workOrderNumber || '',
+    workOrderExecutionDate: r.workOrderExecutionDate || '',
+    assignedTo: r.assignedTo, inspectionId: r.inspectionId, templateName: r.templateName
+  });
 });
 
 app.patch('/api/rectifications/:id', (req, res) => {

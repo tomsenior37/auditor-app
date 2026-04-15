@@ -1817,6 +1817,13 @@ Building B,CNC Mill,,,,
         <option value="">— Select —</option>
       </select>
     </div>
+    <div class="field-group">
+      <label>Description / rectification details</label>
+      <textarea id="create-rect-description" placeholder="What needs to happen to resolve this issue?" style="width:100%;min-height:80px;resize:vertical;"></textarea>
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;">
+      <input type="checkbox" id="create-rect-notify" checked> Email assigned planner (includes inspection PDF + WR/WO reply link)
+    </label>
     <div style="display:flex;gap:8px;margin-top:4px;">
       <button onclick="closeCreateRectModal()" style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:14px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
       <button onclick="submitCreateRect()" style="flex:1;background:var(--accent);border:none;color:#fff;border-radius:10px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;">Create Issue</button>
@@ -3578,7 +3585,7 @@ function showResults() {
 let _rects = [];
 
 async function loadRects() {
-  try { const r = await fetch('/api/issues'); _rects = await r.json(); } catch { _rects = []; }
+  try { const r = await fetch('/api/rectifications'); _rects = await r.json(); } catch { _rects = []; }
   updateRectsBadge();
 }
 
@@ -3642,7 +3649,7 @@ async function batchSendRects() {
     }
     // Assign planner to rect if not already assigned
     if (!rect?.assignedTo || rect.assignedTo.email !== email) {
-      await fetch('/api/issues/' + rectId, { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      await fetch('/api/rectifications/' + rectId, { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ assignedTo: { name, email }, _updatedBy: 'System' }) });
     }
   }
@@ -3716,7 +3723,7 @@ async function openRectDetail(id) {
   const body = document.getElementById('rect-detail-body');
   body.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-dim);">Loading...</div>';
   try {
-    const r = await fetch('/api/issues/' + id);
+    const r = await fetch('/api/rectifications/' + id);
     const rect = await r.json();
     renderRectDetail(rect);
   } catch { body.innerHTML = '<div style="color:var(--fail);text-align:center;padding:30px;">Failed to load issue</div>'; }
@@ -3881,7 +3888,7 @@ function renderRectDetail(rect) {
 async function updateRectLineItem(id, idx, status) {
   const inspector = localStorage.getItem('inspector_name') || 'User';
   try {
-    const r = await fetch('/api/issues/' + id);
+    const r = await fetch('/api/rectifications/' + id);
     const rect = await r.json();
     if (rect.lineItems && rect.lineItems[idx]) {
       rect.lineItems[idx].status = status;
@@ -3889,7 +3896,7 @@ async function updateRectLineItem(id, idx, status) {
       const allDone = rect.lineItems.every(li => li.status === 'done');
       const payload = { lineItems: rect.lineItems, _updatedBy: inspector };
       if (allDone && rect.status === 'open') payload.status = 'in_progress';
-      const r2 = await fetch('/api/issues/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const r2 = await fetch('/api/rectifications/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const d = await r2.json();
       if (d.success) {
         renderRectDetail(d.rect);
@@ -3909,7 +3916,7 @@ async function updateRectField(id, field, value) {
   const inspector = localStorage.getItem('inspector_name') || 'User';
   const payload = { [field]: value, _updatedBy: inspector };
   try {
-    const r = await fetch('/api/issues/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const r = await fetch('/api/rectifications/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     const d = await r.json();
     if (d.success) { renderRectDetail(d.rect); loadRects(); toast('Updated'); }
   } catch { toast('Update failed'); }
@@ -3921,7 +3928,7 @@ async function updateRectAssignee(id, select) {
   const assignedTo = email ? { name, email } : null;
   const inspector = localStorage.getItem('inspector_name') || 'User';
   try {
-    const r = await fetch('/api/issues/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ assignedTo, _updatedBy: inspector }) });
+    const r = await fetch('/api/rectifications/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ assignedTo, _updatedBy: inspector }) });
     const d = await r.json();
     if (d.success) { renderRectDetail(d.rect); toast('Assigned'); }
   } catch { toast('Update failed'); }
@@ -3933,7 +3940,7 @@ async function addRectComment(id) {
   if (!text) return;
   const author = localStorage.getItem('inspector_name') || 'User';
   try {
-    const r = await fetch(`/api/issues/${id}/comment`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ author, text }) });
+    const r = await fetch(`/api/rectifications/${id}/comment`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ author, text }) });
     const d = await r.json();
     if (d.success) { renderRectDetail(d.rect); }
   } catch { toast('Failed to add comment'); }
@@ -3945,7 +3952,7 @@ async function uploadRectPhoto(id, input) {
   const fd = new FormData();
   fd.append('photo', file);
   try {
-    const r = await fetch(`/api/issues/${id}/photo`, { method: 'POST', body: fd });
+    const r = await fetch(`/api/rectifications/${id}/photo`, { method: 'POST', body: fd });
     const d = await r.json();
     if (d.success) { renderRectDetail(d.rect); toast('Photo added'); }
   } catch { toast('Upload failed'); }
@@ -3953,7 +3960,7 @@ async function uploadRectPhoto(id, input) {
 
 async function deleteRect(id) {
   showConfirmModal('Delete this issue permanently?', async () => {
-    await fetch('/api/issues/' + id, { method: 'DELETE' });
+    await fetch('/api/rectifications/' + id, { method: 'DELETE' });
     loadRects();
     showRects();
     toast('Issue deleted');
@@ -4083,11 +4090,12 @@ async function submitCreateRect() {
   const assigneeSel = document.getElementById('create-rect-assignee');
   const email = assigneeSel.value;
   const name = assigneeSel.options[assigneeSel.selectedIndex]?.dataset?.name || '';
+  const notify = document.getElementById('create-rect-notify')?.checked;
   const payload = {
     inspectionId: modal.dataset.inspectionId || null,
     templateName: modal.dataset.templateName || '',
     title,
-    description: '',
+    description: document.getElementById('create-rect-description')?.value.trim() || '',
     lineItems: _rectLineItems,
     location: modal.dataset.location || '',
     machine: modal.dataset.machine || '',
@@ -4095,20 +4103,18 @@ async function submitCreateRect() {
     priority: document.getElementById('create-rect-priority').value,
     assignedTo: email ? { name, email } : null,
     dueDate: document.getElementById('create-rect-due').value || null,
-    createdBy: modal.dataset.createdBy || localStorage.getItem('inspector_name') || 'Inspector'
+    createdBy: modal.dataset.createdBy || _me?.displayName || _me?.username || 'Inspector',
+    notifyPlanner: !!(notify && email)
   };
   try {
-    const r = await fetch('/api/issues', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const r = await fetch('/api/rectifications', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     const d = await r.json();
     if (d.success) {
       closeCreateRectModal();
       loadRects();
-      toast('Issue ' + d.rect.id + ' created');
-      // Send email if planner assigned and inspection exists
-      if (payload.assignedTo && payload.inspectionId) {
-        sendReportToPlanner(payload.inspectionId, payload.assignedTo.email, payload.assignedTo.name, d.rect.id);
-      }
-      setTimeout(() => goHome(), 1200);
+      const emailLine = d.emailSent ? ' · ✉️ sent to planner' : (payload.notifyPlanner ? ' · ⚠️ email not sent (' + (d.emailError || 'check SMTP') + ')' : '');
+      toast('Issue ' + d.rect.id + ' created' + emailLine);
+      setTimeout(() => goHome(), 1500);
     }
   } catch { toast('Failed to create issue'); }
 }

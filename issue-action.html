@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Issue — Submit Work Request / Work Order</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background:#f7f6f2; margin:0; padding:24px; color:#28251d; }
+  .card { max-width:640px; margin:0 auto; background:#fff; border:1px solid #d4d1ca; border-radius:14px; padding:24px; box-shadow:0 4px 16px rgba(0,0,0,0.06); }
+  h1 { color:#01696f; font-size:22px; margin:0 0 6px; }
+  .sub { color:#666; font-size:14px; margin-bottom:20px; }
+  .row { display:flex; padding:8px 0; border-bottom:1px solid #eee; gap:12px; }
+  .row .k { color:#666; min-width:120px; font-size:14px; }
+  .row .v { font-weight:600; font-size:14px; flex:1; }
+  .pill { display:inline-block; padding:3px 10px; border-radius:12px; color:#fff; font-size:12px; font-weight:700; text-transform:uppercase; }
+  .sect { font-size:12px; font-weight:700; text-transform:uppercase; color:#01696f; letter-spacing:.5px; margin:20px 0 10px; }
+  label { display:block; margin-top:12px; font-size:13px; color:#555; }
+  input, textarea { width:100%; padding:12px; border:1px solid #d4d1ca; border-radius:8px; font-size:15px; font-family:inherit; margin-top:6px; background:#fbfbf9; }
+  textarea { min-height:80px; resize:vertical; }
+  button { width:100%; background:#01696f; color:#fff; border:none; border-radius:10px; padding:14px; font-size:16px; font-weight:700; cursor:pointer; margin-top:18px; }
+  button:hover { background:#0c4e54; }
+  .success { background:#e8f5ea; border:1px solid #437a22; color:#2d5315; padding:14px; border-radius:8px; margin-top:18px; display:none; }
+  .error { background:#fdeaec; border:1px solid #a13544; color:#6a1e27; padding:14px; border-radius:8px; margin-top:18px; display:none; }
+  a.pdf-link { display:inline-block; margin:12px 0; color:#01696f; text-decoration:none; font-weight:600; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1 id="title">Loading…</h1>
+  <div class="sub" id="sub"></div>
+  <div id="issue-details"></div>
+  <a id="pdf-link" class="pdf-link" href="" target="_blank" style="display:none;">📄 View original inspection PDF</a>
+
+  <div class="sect">Your response</div>
+  <form id="form">
+    <label>Work Request (WR) Number
+      <input type="text" id="wr" placeholder="e.g. WR-123456">
+    </label>
+    <label>Work Order (WO) Number
+      <input type="text" id="wo" placeholder="e.g. WO-987654">
+    </label>
+    <label>WO Execution Date
+      <input type="date" id="wo-date">
+    </label>
+    <label>Your name
+      <input type="text" id="planner-name" placeholder="Planner name (optional)">
+    </label>
+    <label>Notes / comments (optional)
+      <textarea id="note" placeholder="Scheduling notes, parts ordered, etc."></textarea>
+    </label>
+    <button type="submit">Submit to Auditor</button>
+    <div class="success" id="success">✅ Thanks — the issue has been updated.</div>
+    <div class="error" id="error"></div>
+  </form>
+</div>
+<script>
+(async function () {
+  const id = new URLSearchParams(location.search).get('id');
+  if (!id) { document.getElementById('title').textContent = 'Missing issue id'; return; }
+  const title = document.getElementById('title');
+  const sub = document.getElementById('sub');
+  const details = document.getElementById('issue-details');
+
+  try {
+    const r = await fetch('/api/rectifications/' + encodeURIComponent(id) + '/public');
+    if (!r.ok) throw new Error('Issue not found');
+    const d = await r.json();
+    title.textContent = d.title || 'Issue ' + d.id;
+    sub.textContent = d.id + ' · ' + (d.location || '') + (d.machine ? ' / ' + d.machine : '') + (d.component ? ' / ' + d.component : '');
+    const priColor = { critical: '#a13544', high: '#da7101', medium: '#d19900', low: '#437a22' }[d.priority] || '#666';
+    const esc = s => (s || '').toString().replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    details.innerHTML =
+      '<div class="row"><div class="k">Priority</div><div class="v"><span class="pill" style="background:' + priColor + ';">' + esc(d.priority) + '</span></div></div>' +
+      (d.dueDate ? '<div class="row"><div class="k">Due date</div><div class="v">' + esc(d.dueDate) + '</div></div>' : '') +
+      (d.templateName ? '<div class="row"><div class="k">Template</div><div class="v">' + esc(d.templateName) + '</div></div>' : '') +
+      (d.description ? '<div class="row"><div class="k">Description</div><div class="v" style="white-space:pre-wrap;">' + esc(d.description) + '</div></div>' : '') +
+      (d.workRequestNumber ? '<div class="row"><div class="k">Current WR</div><div class="v">' + esc(d.workRequestNumber) + '</div></div>' : '') +
+      (d.workOrderNumber ? '<div class="row"><div class="k">Current WO</div><div class="v">' + esc(d.workOrderNumber) + '</div></div>' : '') +
+      (d.workOrderExecutionDate ? '<div class="row"><div class="k">WO exec date</div><div class="v">' + esc(d.workOrderExecutionDate) + '</div></div>' : '');
+    document.getElementById('wr').value = d.workRequestNumber || '';
+    document.getElementById('wo').value = d.workOrderNumber || '';
+    document.getElementById('wo-date').value = d.workOrderExecutionDate || '';
+    if (d.assignedTo && d.assignedTo.name) document.getElementById('planner-name').value = d.assignedTo.name;
+    if (d.inspectionId) {
+      const pdf = document.getElementById('pdf-link');
+      pdf.href = '/api/report/' + d.inspectionId;
+      pdf.style.display = 'inline-block';
+    }
+  } catch (e) {
+    title.textContent = 'Issue not found';
+    sub.textContent = e.message;
+    return;
+  }
+
+  document.getElementById('form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const payload = {
+      workRequestNumber: document.getElementById('wr').value.trim(),
+      workOrderNumber: document.getElementById('wo').value.trim(),
+      workOrderExecutionDate: document.getElementById('wo-date').value || null,
+      plannerNote: document.getElementById('note').value.trim(),
+      plannerName: document.getElementById('planner-name').value.trim()
+    };
+    if (!payload.workRequestNumber && !payload.workOrderNumber && !payload.workOrderExecutionDate && !payload.plannerNote) {
+      const err = document.getElementById('error'); err.textContent = 'Enter at least one field'; err.style.display = 'block'; return;
+    }
+    try {
+      const r = await fetch('/api/rectifications/' + encodeURIComponent(id) + '/workorder', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+      });
+      if (!r.ok) throw new Error('Submit failed');
+      document.getElementById('success').style.display = 'block';
+      document.getElementById('error').style.display = 'none';
+    } catch (err) {
+      const e2 = document.getElementById('error'); e2.textContent = err.message; e2.style.display = 'block';
+    }
+  });
+})();
+</script>
+</body>
+</html>
