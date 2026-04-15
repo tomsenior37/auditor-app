@@ -6863,6 +6863,7 @@ function buildChecklistV2(items) {
         ansHtml = `<div class="q-btns">
           <button class="q-btn yes" data-q="${n}" data-val="yes" onclick="setAnswer(${n},'yes')">YES</button>
           <button class="q-btn no"  data-q="${n}" data-val="no"  onclick="setAnswer(${n},'no')">NO</button>
+          ${item.allowNA ? `<button class="q-btn na"  data-q="${n}" data-val="na"  onclick="setAnswer(${n},'na')">N/A</button>` : ''}
         </div>
         <div class="finding-panel" id="finding-panel-${n}" style="display:none;">
           <textarea id="finding-comment-${n}" placeholder="Describe the finding..." oninput="onFindingComment(${n})"></textarea>
