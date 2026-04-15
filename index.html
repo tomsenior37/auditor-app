@@ -1124,11 +1124,6 @@
       </div>
     </div>
 
-    <!-- Secondary actions -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-      <button class="btn-secondary" style="font-size:14px;padding:12px;" onclick="showImportExport()">📦 Import / Export</button>
-      <button class="btn-secondary" style="font-size:14px;padding:12px;" onclick="showArchive()">🗄️ Archive</button>
-    </div>
   </div>
 </div>
 
@@ -1497,6 +1492,18 @@ Building B,CNC Mill,,,,
     <!-- ─── TEMPLATES SECTION ─── -->
     <div onclick="showTemplates()" style="display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;cursor:pointer;">
       <div style="font-weight:700;font-size:15px;color:var(--accent);">📋 Audit Templates</div>
+      <span style="color:var(--text-dim);font-size:18px;">›</span>
+    </div>
+
+    <!-- ─── IMPORT / EXPORT SECTION ─── -->
+    <div onclick="showImportExport()" style="display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;cursor:pointer;">
+      <div style="font-weight:700;font-size:15px;color:var(--accent);">📦 Import / Export</div>
+      <span style="color:var(--text-dim);font-size:18px;">›</span>
+    </div>
+
+    <!-- ─── ARCHIVE SECTION ─── -->
+    <div onclick="showArchive()" style="display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;cursor:pointer;">
+      <div style="font-weight:700;font-size:15px;color:var(--accent);">🗄️ Archive</div>
       <span style="color:var(--text-dim);font-size:18px;">›</span>
     </div>
 
