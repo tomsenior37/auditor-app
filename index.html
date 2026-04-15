@@ -5019,7 +5019,7 @@ function renderSetupGuards() {
   guardList.innerHTML = mac.guards.map(g => `
     <div style="display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;">
       <span style="font-family:monospace;font-size:15px;">${escHtml(g)}</span>
-      <button onclick="deleteGuard(${JSON.stringify(g)});" style="background:none;border:none;color:var(--fail);font-size:20px;cursor:pointer;padding:0 4px;line-height:1;">&#x2715;</button>
+      <button onclick='deleteGuard(${JSON.stringify(g)})' style="background:none;border:none;color:var(--fail);font-size:20px;cursor:pointer;padding:0 4px;line-height:1;">&#x2715;</button>
     </div>
   `).join('');
 }
