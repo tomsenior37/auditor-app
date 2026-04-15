@@ -1159,6 +1159,16 @@
       <div id="source-doc-list" style="margin-top:14px;display:flex;flex-direction:column;gap:6px;"></div>
     </div>
 
+    <!-- ══════ HTML AUDIT FORMS (Mode A) ══════ -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:12px;">
+      <div style="font-weight:700;font-size:15px;margin-bottom:8px;color:var(--accent);">🌐 HTML Audit Forms</div>
+      <div style="font-size:13px;color:var(--text-dim);margin-bottom:12px;">Upload a self-contained <code>.html</code> file that is already an audit form. It's rendered as-is for inspectors and the completed copy is saved as a readable snapshot.</div>
+      <div id="html-forms-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;"></div>
+      <input type="file" id="new-html-form-file" accept=".html,.htm" style="width:100%;padding:6px;margin-bottom:6px;">
+      <input type="text" id="new-html-form-name" placeholder="Form name (defaults to filename)" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:9px;border-radius:6px;font-size:13px;font-family:inherit;outline:none;margin-bottom:6px;">
+      <button onclick="uploadHtmlForm()" class="btn-primary" style="width:100%;">Upload HTML Audit Form</button>
+    </div>
+
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;">
       <div style="font-weight:700;font-size:15px;margin-bottom:14px;color:var(--accent);">📤 Upload Template</div>
       <div class="field-group">
@@ -1446,6 +1456,14 @@
       <button class="btn-secondary" style="width:100%;" onclick="exportAssetDatabase()">⬇ Download Asset CSV</button>
     </div>
 
+    <!-- IMPORT: Asset Database from HTML (with column mapping) -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;">
+      <div style="font-weight:700;font-size:15px;color:var(--accent);margin-bottom:10px;">🌐 Import Assets from HTML</div>
+      <div style="font-size:13px;color:var(--text-dim);margin-bottom:10px;">Upload an HTML file that contains a table of assets. Each column is mapped to a database field before import.</div>
+      <input type="file" id="import-html-file" accept=".html,.htm" onchange="onHtmlImportFile(this.files[0])" style="width:100%;padding:8px;">
+      <div id="html-import-stage" style="margin-top:14px;display:none;flex-direction:column;gap:10px;"></div>
+    </div>
+
     <!-- IMPORT: Asset Database -->
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;">
       <div style="font-weight:700;font-size:15px;color:var(--accent);margin-bottom:10px;">📤 Import Asset Database</div>
@@ -1632,6 +1650,29 @@ Building B,CNC Mill,,,,
     <input type="text" id="new-guard" style="display:none;">
   </div>
 
+</div>
+
+<!-- ══════════════ HTML AUDIT SCREEN ══════════════ -->
+<div class="screen" id="htmlaudit-screen">
+  <div style="padding:14px;display:flex;flex-direction:column;gap:10px;border-bottom:1px solid var(--border);background:var(--surface);">
+    <div id="htmlaudit-title" style="font-weight:700;font-size:16px;color:var(--accent);"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <select id="htmlaudit-location" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;"><option value="">— Location —</option></select>
+      <select id="htmlaudit-machine" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;"><option value="">— Machine —</option></select>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <select id="htmlaudit-component" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;"><option value="">— Component —</option></select>
+      <select id="htmlaudit-result" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
+        <option value="PASS">PASS</option>
+        <option value="FAIL">FAIL</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button onclick="goHome()" style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:12px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">Cancel</button>
+      <button onclick="saveHtmlAudit()" style="flex:2;background:var(--accent);color:#fff;border:none;padding:12px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;">💾 Save Audit</button>
+    </div>
+  </div>
+  <iframe id="htmlaudit-iframe" style="flex:1;width:100%;border:none;background:#fff;min-height:70vh;"></iframe>
 </div>
 
 <!-- ══════════════ BUILDER SCREEN ══════════════ -->
@@ -2010,6 +2051,173 @@ function selectTemplateForForm(tplId) {
   resetFormAnswers();
 }
 
+// ── HTML Audit Forms (Mode A) ─────────────────────────────
+let _htmlForms = [];
+async function loadHtmlForms() {
+  try {
+    const r = await fetch('/api/html-forms');
+    _htmlForms = await r.json();
+    renderHtmlFormsList();
+  } catch {}
+}
+function renderHtmlFormsList() {
+  const el = document.getElementById('html-forms-list');
+  if (!el) return;
+  if (!_htmlForms.length) { el.innerHTML = '<div style="font-size:12px;color:var(--text-dim);">No HTML audit forms yet. Upload one below.</div>'; return; }
+  el.innerHTML = _htmlForms.map(f => `
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;display:flex;gap:8px;align-items:center;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:600;font-size:14px;">${escHtml(f.name)}</div>
+        <div style="font-size:12px;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(f.originalName || f.filename)}</div>
+      </div>
+      <button onclick="startHtmlAudit('${f.id}')" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;">Start Audit</button>
+      <a href="${escHtml(f.url)}" target="_blank" style="background:none;border:1px solid var(--border);color:var(--text-dim);border-radius:6px;padding:7px 10px;font-size:12px;text-decoration:none;">View</a>
+      ${can('edit_templates') ? `<button onclick="deleteHtmlForm('${f.id}')" style="background:none;border:none;color:var(--fail);font-size:16px;cursor:pointer;padding:0 4px;">🗑️</button>` : ''}
+    </div>`).join('');
+}
+
+async function uploadHtmlForm() {
+  const fileInput = document.getElementById('new-html-form-file');
+  const file = fileInput.files[0];
+  if (!file) return toast('Pick an HTML file first');
+  const name = document.getElementById('new-html-form-name').value.trim();
+  const fd = new FormData();
+  fd.append('file', file);
+  if (name) fd.append('name', name);
+  toast('Uploading…');
+  try {
+    const r = await fetch('/api/html-forms', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (!r.ok) return toast('Failed: ' + (d.error || 'unknown'));
+    fileInput.value = '';
+    document.getElementById('new-html-form-name').value = '';
+    await loadHtmlForms();
+    toast('Uploaded ✅');
+  } catch (e) { toast('Upload error: ' + e.message); }
+}
+
+async function deleteHtmlForm(id) {
+  const f = _htmlForms.find(x => x.id === id);
+  showConfirmModal(`Delete HTML audit form "${f?.name || id}"? Existing saved audits are not affected.`, async () => {
+    try {
+      const r = await fetch('/api/html-forms/' + id, { method: 'DELETE' });
+      if (r.ok) { toast('Deleted'); loadHtmlForms(); }
+      else toast('Failed');
+    } catch {}
+  }, 'Delete', 'var(--fail)');
+}
+
+let _currentHtmlFormId = null;
+function startHtmlAudit(id) {
+  const f = _htmlForms.find(x => x.id === id);
+  if (!f) return;
+  _currentHtmlFormId = id;
+  document.getElementById('htmlaudit-title').textContent = '🌐 ' + f.name;
+  document.getElementById('htmlaudit-iframe').src = f.url + '?_t=' + Date.now();
+  // Populate location/machine dropdowns
+  const locSel = document.getElementById('htmlaudit-location');
+  locSel.innerHTML = '<option value="">— Location —</option>' + (lists.locations || []).map(l => `<option value="${escHtml(l.name)}">${escHtml(l.name)}</option>`).join('');
+  locSel.onchange = () => htmlAuditUpdateMachines();
+  htmlAuditUpdateMachines();
+  document.getElementById('htmlaudit-machine').onchange = () => htmlAuditUpdateComponents();
+  switchScreen('htmlaudit-screen', f.name);
+}
+
+function htmlAuditUpdateMachines() {
+  const loc = document.getElementById('htmlaudit-location').value;
+  const sel = document.getElementById('htmlaudit-machine');
+  const locObj = (lists.locations || []).find(l => l.name === loc);
+  sel.innerHTML = '<option value="">— Machine —</option>' + (locObj?.machines || []).map(m => `<option value="${escHtml(m.name)}">${escHtml(m.name)}</option>`).join('');
+  htmlAuditUpdateComponents();
+}
+function htmlAuditUpdateComponents() {
+  const loc = document.getElementById('htmlaudit-location').value;
+  const mac = document.getElementById('htmlaudit-machine').value;
+  const sel = document.getElementById('htmlaudit-component');
+  const locObj = (lists.locations || []).find(l => l.name === loc);
+  const macObj = locObj?.machines.find(m => m.name === mac);
+  sel.innerHTML = '<option value="">— Component —</option>' + (macObj?.guards || []).map(g => `<option value="${escHtml(g)}">${escHtml(g)}</option>`).join('');
+}
+
+function _captureHtmlFormState(iframeDoc) {
+  const values = {};
+  const doc = iframeDoc.cloneNode(true);
+  // Mirror input state from the live doc onto the clone, then extract values
+  iframeDoc.querySelectorAll('input, textarea, select').forEach(el => {
+    const key = el.id || el.name || null;
+    let val;
+    if (el.type === 'checkbox' || el.type === 'radio') val = el.checked;
+    else if (el.tagName === 'SELECT') val = el.value;
+    else val = el.value;
+    if (key) values[key] = val;
+    // Mirror to clone by selector
+    const selectorId = el.id ? `#${CSS.escape(el.id)}` : null;
+    if (!selectorId) return;
+    const clone = doc.querySelector(selectorId);
+    if (!clone) return;
+    if (el.type === 'checkbox' || el.type === 'radio') {
+      if (el.checked) clone.setAttribute('checked', 'checked'); else clone.removeAttribute('checked');
+    } else if (clone.tagName === 'TEXTAREA') {
+      clone.textContent = el.value;
+    } else if (clone.tagName === 'SELECT') {
+      clone.querySelectorAll('option').forEach(o => o.removeAttribute('selected'));
+      const optSel = clone.querySelector(`option[value="${CSS.escape(el.value || '')}"]`);
+      if (optSel) optSel.setAttribute('selected', 'selected');
+    } else {
+      clone.setAttribute('value', el.value);
+    }
+  });
+  // Snapshot canvases as embedded images
+  iframeDoc.querySelectorAll('canvas').forEach(cv => {
+    if (!cv.id) return;
+    try {
+      const dataUrl = cv.toDataURL('image/png');
+      const cloneCv = doc.querySelector(`canvas#${CSS.escape(cv.id)}`);
+      if (cloneCv) {
+        const img = doc.createElement('img');
+        img.src = dataUrl;
+        img.style.cssText = cloneCv.getAttribute('style') || '';
+        img.width = cv.width; img.height = cv.height;
+        cloneCv.parentNode.replaceChild(img, cloneCv);
+        values[cv.id + '__canvas'] = dataUrl;
+      }
+    } catch {}
+  });
+  // Strip scripts from snapshot so the saved view is inert
+  doc.querySelectorAll('script').forEach(s => s.remove());
+  const snapshotHtml = '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
+  return { values, snapshotHtml };
+}
+
+async function saveHtmlAudit() {
+  if (!_currentHtmlFormId) return toast('No form loaded');
+  const loc = document.getElementById('htmlaudit-location').value;
+  const mac = document.getElementById('htmlaudit-machine').value;
+  const comp = document.getElementById('htmlaudit-component').value;
+  const result = document.getElementById('htmlaudit-result').value;
+  if (!loc || !mac) return toast('Pick location and machine');
+  const iframe = document.getElementById('htmlaudit-iframe');
+  let state;
+  try { state = _captureHtmlFormState(iframe.contentDocument); }
+  catch (e) { return toast('Could not read form: ' + e.message); }
+  const payload = {
+    htmlFormId: _currentHtmlFormId,
+    location: loc, machine: mac, component: comp,
+    inspector: _me?.displayName || _me?.username || '',
+    result,
+    values: state.values,
+    snapshotHtml: state.snapshotHtml
+  };
+  try {
+    const r = await fetch('/api/html-inspection', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const d = await r.json();
+    if (!d.success) return toast('Save failed: ' + (d.error || 'unknown'));
+    toast('Audit saved ✅');
+    goHome();
+    refreshDashboard();
+  } catch (e) { toast('Save error: ' + e.message); }
+}
+
 async function loadSourceDocs() {
   const list = document.getElementById('source-doc-list');
   if (!list) return;
@@ -2070,6 +2278,7 @@ async function deleteSourceDoc(filename) {
 function showTemplates() {
   switchScreen('templates-screen', 'Audit Templates');
   loadSourceDocs();
+  loadHtmlForms();
   renderTemplateList();
 }
 
@@ -4661,9 +4870,11 @@ function buildDetailHtml(rec) {
     ${signatureHtml}
     <div style="margin-top:12px;display:flex;flex-direction:column;gap:10px;">
       <div style="display:flex;flex-wrap:wrap;gap:8px;">
-        <a href="/api/report/${rec.id}" target="_blank"
+        ${rec.kind === 'html' && rec.snapshotUrl
+          ? `<a href="${escHtml(rec.snapshotUrl)}" target="_blank" style="display:inline-block;background:#01696f;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;text-decoration:none;">🌐 View Completed Form</a>`
+          : `<a href="/api/report/${rec.id}" target="_blank"
            style="display:inline-block;background:#1a1a1a;color:#e8e8e8;border:1px solid #2a2a2a;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;text-decoration:none;"
-        >📄 PDF Report</a>
+        >📄 PDF Report</a>`}
         ${(rec.result === 'FAIL' || rec.status === 'WR_RAISED') && !rec.workRequestNumber ? (planners.length ? `
           <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
             <select id="planner-sel-${rec.id}" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:8px;font-size:13px;font-family:inherit;">

@@ -26,12 +26,17 @@ const PHOTOS_DIR = path.join(__dirname, 'photos');
 const DOCS_DIR = path.join(__dirname, 'documents');
 const TEMPLATE_MEDIA_DIR = path.join(__dirname, 'template-media');
 const TEMPLATE_SOURCES_DIR = path.join(__dirname, 'template-sources');
+const HTML_FORMS_DIR = path.join(__dirname, 'html-forms');
+const HTML_FORMS_FILE = path.join(__dirname, 'html-forms.json');
+const HTML_SNAPSHOTS_DIR = path.join(__dirname, 'html-snapshots');
 
 // Ensure dirs exist
 if (!fs.existsSync(PHOTOS_DIR)) fs.mkdirSync(PHOTOS_DIR, { recursive: true });
 if (!fs.existsSync(DOCS_DIR)) fs.mkdirSync(DOCS_DIR, { recursive: true });
 if (!fs.existsSync(TEMPLATE_MEDIA_DIR)) fs.mkdirSync(TEMPLATE_MEDIA_DIR, { recursive: true });
 if (!fs.existsSync(TEMPLATE_SOURCES_DIR)) fs.mkdirSync(TEMPLATE_SOURCES_DIR, { recursive: true });
+if (!fs.existsSync(HTML_FORMS_DIR)) fs.mkdirSync(HTML_FORMS_DIR, { recursive: true });
+if (!fs.existsSync(HTML_SNAPSHOTS_DIR)) fs.mkdirSync(HTML_SNAPSHOTS_DIR, { recursive: true });
 
 // Multer storage
 const storage = multer.diskStorage({
@@ -677,6 +682,108 @@ app.delete('/api/template-sources/:filename', (req, res) => {
   if (!fs.existsSync(p)) return res.status(404).json({ error: 'not found' });
   try { fs.unlinkSync(p); res.json({ success: true }); }
   catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── HTML Audit Forms (Mode A: HTML is the form) ────────────
+app.use('/html-forms', express.static(HTML_FORMS_DIR));
+app.use('/html-snapshots', express.static(HTML_SNAPSHOTS_DIR));
+
+function readHtmlForms() {
+  if (!fs.existsSync(HTML_FORMS_FILE)) return [];
+  try { return JSON.parse(fs.readFileSync(HTML_FORMS_FILE, 'utf8')); } catch { return []; }
+}
+function writeHtmlForms(data) { fs.writeFileSync(HTML_FORMS_FILE, JSON.stringify(data, null, 2), 'utf8'); }
+
+const htmlFormStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, HTML_FORMS_DIR),
+  filename: (req, file, cb) => cb(null, `${uuidv4()}.html`)
+});
+const htmlFormUpload = multer({
+  storage: htmlFormStorage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ok = /\.html?$/i.test(file.originalname) || file.mimetype === 'text/html';
+    cb(ok ? null : new Error('Only .html / .htm files allowed'), ok);
+  }
+});
+
+app.get('/api/html-forms', (req, res) => res.json(readHtmlForms()));
+
+app.post('/api/html-forms', requirePermission('edit_templates'), htmlFormUpload.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  const forms = readHtmlForms();
+  const entry = {
+    id: 'hf-' + uuidv4().slice(0, 8),
+    name: (req.body.name || req.file.originalname.replace(/\.html?$/i, '')).trim(),
+    description: (req.body.description || '').trim(),
+    filename: req.file.filename,
+    originalName: req.file.originalname,
+    url: '/html-forms/' + req.file.filename,
+    requiresComponent: req.body.requiresComponent === 'true',
+    componentType: (req.body.componentType || '').trim(),
+    createdAt: new Date().toISOString()
+  };
+  forms.push(entry);
+  writeHtmlForms(forms);
+  res.json({ success: true, form: entry });
+});
+
+app.put('/api/html-forms/:id', requirePermission('edit_templates'), (req, res) => {
+  const forms = readHtmlForms();
+  const idx = forms.findIndex(f => f.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'not found' });
+  const { name, description, requiresComponent, componentType } = req.body;
+  if (name !== undefined) forms[idx].name = name;
+  if (description !== undefined) forms[idx].description = description;
+  if (requiresComponent !== undefined) forms[idx].requiresComponent = !!requiresComponent;
+  if (componentType !== undefined) forms[idx].componentType = componentType;
+  writeHtmlForms(forms);
+  res.json({ success: true, form: forms[idx] });
+});
+
+app.delete('/api/html-forms/:id', requirePermission('edit_templates'), (req, res) => {
+  const forms = readHtmlForms();
+  const idx = forms.findIndex(f => f.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'not found' });
+  const f = forms[idx];
+  try { fs.unlinkSync(path.join(HTML_FORMS_DIR, f.filename)); } catch {}
+  forms.splice(idx, 1);
+  writeHtmlForms(forms);
+  res.json({ success: true });
+});
+
+// POST /api/html-inspection — submit a completed HTML form
+// body: { htmlFormId, location, machine, component, inspector, result, values, snapshotHtml, notes }
+app.post('/api/html-inspection', requirePermission('create_inspections'), (req, res) => {
+  const body = req.body || {};
+  if (!body.htmlFormId || !body.snapshotHtml) return res.status(400).json({ error: 'htmlFormId and snapshotHtml required' });
+  const forms = readHtmlForms();
+  const form = forms.find(f => f.id === body.htmlFormId);
+  if (!form) return res.status(404).json({ error: 'form not found' });
+  const inspections = readInspections();
+  const id = uuidv4();
+  const snapshotFilename = `${id}.html`;
+  fs.writeFileSync(path.join(HTML_SNAPSHOTS_DIR, snapshotFilename), body.snapshotHtml, 'utf8');
+  const record = {
+    id,
+    kind: 'html',
+    htmlFormId: form.id,
+    htmlFormName: form.name,
+    snapshotFilename,
+    snapshotUrl: '/html-snapshots/' + snapshotFilename,
+    location: body.location || '',
+    machine: body.machine || '',
+    guardId: body.component || '',
+    componentId: body.component || '',
+    inspector: body.inspector || (req.user?.displayName || req.user?.username || ''),
+    timestamp: new Date().toISOString(),
+    result: body.result || 'PASS',
+    values: body.values || {},
+    notes: body.notes || ''
+  };
+  inspections.unshift(record);
+  writeInspections(inspections);
+  res.json({ success: true, id: record.id });
 });
 
 // POST /api/templates/media — upload an image or PDF to attach to a question
