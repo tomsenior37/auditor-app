@@ -1970,9 +1970,8 @@ function updateTemplateLabel() {
   if (el && selectedTemplate) el.textContent = selectedTemplate.name;
   const guardLabel = document.getElementById('guard-id-label');
   const refTitle = document.getElementById('ref-photo-title');
-  const ct = selectedTemplate?.componentType;
-  if (guardLabel) guardLabel.textContent = (ct ? ct : 'Component') + ' ID';
-  if (refTitle) refTitle.textContent = (ct ? ct : 'Component') + ' Reference Photo (optional)';
+  if (guardLabel) guardLabel.textContent = 'Component ID';
+  if (refTitle) refTitle.textContent = 'Component Reference Photo (optional)';
 }
 
 function tplQuestions(tpl) {
@@ -4800,13 +4799,23 @@ function updateGuardDropdown() {
   const guardSel = document.getElementById('f-guardId');
   const locName = locSel.value;
   const macName = macSel.value;
-  const ct = selectedTemplate?.componentType || 'Component';
-  guardSel.innerHTML = `<option value="">— Select ${ct.toLowerCase()} ID —</option>`;
+  guardSel.innerHTML = '<option value="">— Select component —</option>';
   if (macName && macName !== '__add_new__' && locName && locName !== '__add_new__') {
     const loc = lists.locations.find(l => l.name === locName);
     const mac = loc && loc.machines.find(m => m.name === macName);
     if (mac && mac.guards.length > 0) {
-      mac.guards.forEach(g => guardSel.appendChild(new Option(g, g)));
+      // Group components by type from asset meta summary
+      const byType = {};
+      mac.guards.forEach(g => {
+        const type = _assetSummary(locName, macName, g).componentType || 'Untyped';
+        (byType[type] = byType[type] || []).push(g);
+      });
+      Object.keys(byType).sort().forEach(type => {
+        const group = document.createElement('optgroup');
+        group.label = type;
+        byType[type].forEach(g => group.appendChild(new Option(g, g)));
+        guardSel.appendChild(group);
+      });
     }
     guardSel.appendChild(new Option('+ Add new…', '__add_new__'));
   }
@@ -4831,7 +4840,30 @@ function onGuardChange() {
     inlineAddGuard();
   } else {
     hideInline('f-guardId');
+    loadComponentRefPhoto(sel.value);
   }
+}
+
+async function loadComponentRefPhoto(component) {
+  const preview = document.getElementById('photo-preview');
+  if (!preview) return;
+  if (!component) { preview.style.display = 'none'; preview.src = ''; preview.dataset.fromComponent = ''; return; }
+  const loc = document.getElementById('f-location').value;
+  const mac = document.getElementById('f-machine').value;
+  try {
+    const r = await fetch(`/api/asset/meta?location=${encodeURIComponent(loc)}&machine=${encodeURIComponent(mac)}&component=${encodeURIComponent(component)}`);
+    const meta = await r.json();
+    const photo = meta?.photos?.[0]?.filename;
+    if (photo) {
+      preview.src = '/photos/' + photo;
+      preview.style.display = 'block';
+      preview.dataset.fromComponent = photo;
+    } else {
+      preview.style.display = 'none';
+      preview.src = '';
+      preview.dataset.fromComponent = '';
+    }
+  } catch {}
 }
 
 function showInline(fieldId) {
