@@ -4961,8 +4961,18 @@ function populateAuditNewCompTypes() {
   const sel = document.getElementById('f-new-comp-type');
   if (!sel) return;
   const types = (lists.componentTypes || []).map(t => typeof t === 'string' ? { name: t, prefix: '' } : t);
-  const preselect = selectedTemplate?.componentType || (types[0]?.name || '');
+  const locked = selectedTemplate?.componentType || '';
+  const preselect = locked || (types[0]?.name || '');
   sel.innerHTML = types.map(t => `<option value="${escHtml(t.name)}"${t.name === preselect ? ' selected' : ''}>${escHtml(t.name)}${t.prefix ? ' (' + t.prefix + ')' : ''}</option>`).join('');
+  if (locked) {
+    sel.disabled = true;
+    sel.title = `Type is locked to "${locked}" by the selected template`;
+    sel.style.opacity = '0.6';
+  } else {
+    sel.disabled = false;
+    sel.title = '';
+    sel.style.opacity = '1';
+  }
   const seqEl = document.getElementById('f-new-comp-seq');
   if (seqEl) { seqEl.value = ''; delete seqEl.dataset.userEdited; seqEl.oninput = () => { seqEl.dataset.userEdited = '1'; updateAuditNewCompPreview(); }; }
   updateAuditNewCompPreview();
