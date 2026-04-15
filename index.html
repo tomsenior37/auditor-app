@@ -3119,6 +3119,21 @@ function buildChecklist() {
   updateAuditProgress();
 }
 
+function _getQuestionByNum(n) {
+  if (!selectedTemplate) return null;
+  if (selectedTemplate.version === 2 && selectedTemplate.items) {
+    const qs = selectedTemplate.items.filter(i => i.itemType === 'question' && i.type !== 'instruction');
+    return qs[n - 1] || null;
+  }
+  return null;
+}
+function _yesnoIsFail(q, val) {
+  const yesIsFail = q?.yesIsFail;
+  if (val === 'yes' || val === true) return !!yesIsFail;
+  if (val === 'no' || val === false) return !yesIsFail;
+  return false;
+}
+
 function setAnswer(n, val) {
   answers[`q${n}`] = val === 'yes' ? true : (val === 'no' ? false : 'na');
   const card = document.getElementById(`qcard-${n}`);
@@ -3127,10 +3142,13 @@ function setAnswer(n, val) {
     if (btn.dataset.val === val) btn.classList.add('selected');
   });
   card.classList.remove('answered-yes', 'answered-no', 'answered-na');
-  card.classList.add(`answered-${val}`);
-  // Show/hide finding panel
+  const q = _getQuestionByNum(n);
+  const isFail = _yesnoIsFail(q, val);
+  if (val === 'na') card.classList.add('answered-na');
+  else card.classList.add(isFail ? 'answered-no' : 'answered-yes');
+  // Show/hide finding panel — when answer counts as fail
   const panel = document.getElementById(`finding-panel-${n}`);
-  if (panel) panel.style.display = val === 'no' ? 'flex' : 'none';
+  if (panel) panel.style.display = isFail ? 'flex' : 'none';
   document.getElementById('result-banner').style.display = 'none';
   resultComputed = null;
   evaluateLogicV2(); updateAuditProgress();
@@ -4001,7 +4019,7 @@ function createRectFromInspection(inspectionId) {
         const key = `q${idx + 1}`;
         const val = insp.answers?.[key];
         let failed = false;
-        if (q.type === 'yesno' && val === false) failed = true;
+        if (q.type === 'yesno' && val !== undefined && val !== 'na' && _yesnoIsFail(q, val)) failed = true;
         if (q.type === 'multichoice' && val !== undefined) {
           const vals = Array.isArray(val) ? val : [val];
           if (vals.some(v => (q.options || []).find(o => (o.id || o.label) === v)?.flagFail)) failed = true;
@@ -6698,6 +6716,10 @@ function bRenderSettings() {
       <label class="bld-toggle-row"><span>Comment box on fail</span>
         <label class="toggle-switch"><input type="checkbox" ${item.commentOnFail!==false?'checked':''} onchange="bUpdateItem('${item.id}','commentOnFail',this.checked)"><span class="toggle-slider"></span></label>
       </label>` : ''}
+      ${item.type==='yesno' ? `
+      <label class="bld-toggle-row"><span>Invert — YES is fail</span>
+        <label class="toggle-switch"><input type="checkbox" ${item.yesIsFail?'checked':''} onchange="bUpdateItem('${item.id}','yesIsFail',this.checked)"><span class="toggle-slider"></span></label>
+      </label>` : ''}
     </div>
     ${mediaHtml}
     ${scoringHtml}
@@ -7155,7 +7177,7 @@ function computeResultV2(items) {
     // Skip logic-hidden questions
     const card = document.getElementById(`qcard-${i+1}`);
     if (card && card.dataset.logicHidden === '1') continue;
-    if (q.type === 'yesno' && val === false) return 'FAIL';
+    if (q.type === 'yesno' && val !== undefined && val !== 'na' && _yesnoIsFail(q, val)) return 'FAIL';
     if (q.type === 'multichoice' && val !== undefined && val !== 'na') {
       const vals = Array.isArray(val) ? val : [val];
       if (vals.some(v => q.options?.find(o => (o.id || o.label) === v)?.flagFail)) return 'FAIL';
