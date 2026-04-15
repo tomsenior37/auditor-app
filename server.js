@@ -2156,19 +2156,20 @@ async function buildPDFBuffer(insp, template) {
       y = doc.y + 8;
     }
 
-    // ── Signature (compact) ───────────────────────
+    // ── Signature ─────────────────────────────────
     if (insp.signature && /^data:image\//.test(insp.signature)) {
-      ensureSpace(70);
+      ensureSpace(140);
       drawSection('Inspector sign-off');
       try {
         const b64 = insp.signature.split(',')[1];
         const buf = Buffer.from(b64, 'base64');
-        doc.image(buf, M, y, { fit: [120, 40] });
+        doc.image(buf, M, y, { fit: [120, 120] });
       } catch {}
-      doc.fillColor(GREY).font('Helvetica').fontSize(9)
-         .text(insp.inspector || '', M + 130, y + 12);
-      doc.text(new Date(insp.timestamp).toLocaleString('en-AU', { dateStyle: 'medium', timeStyle: 'short' }), M + 130, y + 24);
-      y += 50;
+      doc.fillColor(GREY).font('Helvetica').fontSize(10)
+         .text(insp.inspector || '', M + 132, y + 48);
+      doc.fontSize(9)
+         .text(new Date(insp.timestamp).toLocaleString('en-AU', { dateStyle: 'medium', timeStyle: 'short' }), M + 132, y + 64);
+      y += 130;
     }
 
     // ── Footer & page numbers ─────────────────────
