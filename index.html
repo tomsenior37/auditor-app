@@ -1028,8 +1028,38 @@
 <header>
   <button class="back-btn" id="back-btn" onclick="goHome()">&#8592;</button>
   <h1 id="header-title">Auditor</h1>
-
+  <div id="auth-badge" onclick="openAuthMenu()" style="position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:12px;font-weight:600;cursor:pointer;color:var(--text-dim);"></div>
 </header>
+
+<!-- Auth menu -->
+<div id="auth-menu" style="display:none;position:fixed;top:50px;right:12px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:6px;z-index:9998;box-shadow:0 4px 16px rgba(0,0,0,0.4);">
+  <button onclick="openChangePassword()" style="display:block;width:100%;background:none;border:none;color:var(--text);text-align:left;padding:10px 14px;cursor:pointer;font-family:inherit;font-size:14px;">🔑 Change password</button>
+  <button onclick="doLogout()" style="display:block;width:100%;background:none;border:none;color:var(--fail);text-align:left;padding:10px 14px;cursor:pointer;font-family:inherit;font-size:14px;">🚪 Log out</button>
+</div>
+
+<!-- Login overlay -->
+<div id="login-overlay" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:99999;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;max-width:380px;width:100%;display:flex;flex-direction:column;gap:14px;">
+    <div style="text-align:center;font-size:22px;font-weight:800;color:var(--accent);">🔐 Auditor Login</div>
+    <input id="login-username" type="text" placeholder="Username" autocomplete="username" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:14px;border-radius:10px;font-size:15px;font-family:inherit;outline:none;">
+    <input id="login-password" type="password" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:14px;border-radius:10px;font-size:15px;font-family:inherit;outline:none;">
+    <div id="login-error" style="font-size:13px;color:var(--fail);min-height:18px;"></div>
+    <button onclick="doLogin()" style="background:var(--accent);color:#fff;border:none;border-radius:10px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;">Sign in</button>
+    <div style="font-size:12px;color:var(--text-dim);text-align:center;">Contact your administrator if you don't have an account.</div>
+  </div>
+</div>
+
+<!-- Set-password overlay -->
+<div id="setpwd-overlay" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:99999;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;max-width:380px;width:100%;display:flex;flex-direction:column;gap:14px;">
+    <div id="setpwd-title" style="text-align:center;font-size:20px;font-weight:800;color:var(--accent);">Set a new password</div>
+    <div id="setpwd-current-row" style="display:none;"><input id="setpwd-current" type="password" placeholder="Current password" autocomplete="current-password" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:14px;border-radius:10px;font-size:15px;font-family:inherit;outline:none;width:100%;"></div>
+    <input id="setpwd-new" type="password" placeholder="New password (min 6 chars)" autocomplete="new-password" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:14px;border-radius:10px;font-size:15px;font-family:inherit;outline:none;">
+    <input id="setpwd-new2" type="password" placeholder="Confirm new password" autocomplete="new-password" onkeydown="if(event.key==='Enter')doSetPassword()" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:14px;border-radius:10px;font-size:15px;font-family:inherit;outline:none;">
+    <div id="setpwd-error" style="font-size:13px;color:var(--fail);min-height:18px;"></div>
+    <button onclick="doSetPassword()" style="background:var(--accent);color:#fff;border:none;border-radius:10px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;">Save</button>
+  </div>
+</div>
 
 <!-- ══════════════ HOME SCREEN ══════════════ -->
 <div class="screen active" id="home-screen">
@@ -1441,6 +1471,29 @@ Building B,CNC Mill,,,,
     <div onclick="showTemplates()" style="display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;cursor:pointer;">
       <div style="font-weight:700;font-size:15px;color:var(--accent);">📋 Audit Templates</div>
       <span style="color:var(--text-dim);font-size:18px;">›</span>
+    </div>
+
+    <!-- ─── USERS SECTION (admin only) ─── -->
+    <div id="settings-users-section" style="display:none;">
+      <div onclick="toggleSettingsSection('settings-user-accounts');renderUsers();" style="display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;cursor:pointer;">
+        <div style="font-weight:700;font-size:15px;color:var(--accent);">🔐 User Accounts</div>
+        <span id="settings-user-accounts-arrow" style="color:var(--text-dim);font-size:18px;transition:transform .2s;">▾</span>
+      </div>
+      <div id="settings-user-accounts" style="display:none;flex-direction:column;gap:10px;margin-top:12px;">
+        <div style="font-size:12px;color:var(--text-dim);">Manage logins and roles. New users get a one-time password and must set a new one on first login.</div>
+        <div id="users-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:8px;">
+          <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--accent);letter-spacing:.5px;">＋ New User</div>
+          <input type="text" id="new-username" placeholder="Username" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
+          <select id="new-user-role" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
+            <option value="inspector">Inspector</option>
+            <option value="planner">Planner</option>
+            <option value="admin">Admin</option>
+          </select>
+          <input type="text" id="new-user-pwd" placeholder="Initial password (optional — auto-generated if blank)" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
+          <button onclick="createUser()" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:11px;font-size:14px;font-weight:700;cursor:pointer;">Create User</button>
+        </div>
+      </div>
     </div>
 
     <!-- ─── RESPONSE SETS SECTION ─── -->
@@ -2166,10 +2219,191 @@ let sigLastX = 0, sigLastY = 0;
 let _sigMode = 'global'; // 'global' | 'question'
 let _sigQuestionN = null;
 
-// ── Init ───────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
+// ── Auth ───────────────────────────────────────────────────
+let _me = null;
+
+async function checkAuth() {
+  try {
+    const r = await fetch('/api/auth/me');
+    const d = await r.json();
+    if (d.authenticated) { _me = d.user; return true; }
+  } catch {}
+  return false;
+}
+
+function showLoginOverlay() {
+  document.getElementById('login-overlay').style.display = 'flex';
+  document.getElementById('setpwd-overlay').style.display = 'none';
+  document.getElementById('login-error').textContent = '';
+  setTimeout(() => document.getElementById('login-username')?.focus(), 50);
+}
+function hideLoginOverlay() {
+  document.getElementById('login-overlay').style.display = 'none';
+  document.getElementById('setpwd-overlay').style.display = 'none';
+}
+function showSetPasswordOverlay(firstLogin) {
+  document.getElementById('login-overlay').style.display = 'none';
+  document.getElementById('setpwd-overlay').style.display = 'flex';
+  document.getElementById('setpwd-title').textContent = firstLogin ? 'Set a new password' : 'Change password';
+  document.getElementById('setpwd-current-row').style.display = firstLogin ? 'none' : 'block';
+  document.getElementById('setpwd-error').textContent = '';
+  document.getElementById('setpwd-new').value = '';
+  document.getElementById('setpwd-new2').value = '';
+  document.getElementById('setpwd-current').value = '';
+}
+
+async function doLogin() {
+  const username = document.getElementById('login-username').value.trim();
+  const password = document.getElementById('login-password').value;
+  const err = document.getElementById('login-error');
+  err.textContent = '';
+  if (!username || !password) { err.textContent = 'Enter username and password'; return; }
+  try {
+    const r = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
+    const d = await r.json();
+    if (!r.ok) { err.textContent = d.error || 'Login failed'; return; }
+    _me = d.user;
+    if (_me.mustChangePassword) showSetPasswordOverlay(true);
+    else { hideLoginOverlay(); afterLogin(); }
+  } catch { err.textContent = 'Network error'; }
+}
+
+async function doSetPassword() {
+  const newPwd = document.getElementById('setpwd-new').value;
+  const newPwd2 = document.getElementById('setpwd-new2').value;
+  const current = document.getElementById('setpwd-current').value;
+  const err = document.getElementById('setpwd-error');
+  err.textContent = '';
+  if (newPwd.length < 6) { err.textContent = 'Password must be at least 6 characters'; return; }
+  if (newPwd !== newPwd2) { err.textContent = 'Passwords do not match'; return; }
+  const body = { newPassword: newPwd };
+  if (_me && !_me.mustChangePassword) body.currentPassword = current;
+  try {
+    const r = await fetch('/api/auth/set-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const d = await r.json();
+    if (!r.ok) { err.textContent = d.error || 'Failed'; return; }
+    _me.mustChangePassword = false;
+    hideLoginOverlay();
+    afterLogin();
+    toast('Password updated');
+  } catch { err.textContent = 'Network error'; }
+}
+
+async function doLogout() {
+  try { await fetch('/api/auth/logout', { method: 'POST' }); } catch {}
+  _me = null;
+  location.reload();
+}
+
+function afterLogin() {
+  // Badge user in UI
+  applyRoleVisibility();
+  // Start real app loaders
+  initAppAfterAuth();
+}
+
+function applyRoleVisibility() {
+  document.body.setAttribute('data-role', _me?.role || '');
+  const badge = document.getElementById('auth-badge');
+  if (badge && _me) badge.innerHTML = `${escHtml(_me.username)} <span style="color:var(--text-dim);font-size:11px;">· ${escHtml(_me.role)}</span>`;
+  // Reveal admin-only controls
+  const usersSection = document.getElementById('settings-users-section');
+  if (usersSection) usersSection.style.display = (_me?.role === 'admin') ? '' : 'none';
+}
+
+function openAuthMenu() {
+  const m = document.getElementById('auth-menu');
+  m.style.display = m.style.display === 'none' ? 'block' : 'none';
+  const close = (e) => { if (!m.contains(e.target) && e.target.id !== 'auth-badge') { m.style.display = 'none'; document.removeEventListener('click', close); } };
+  setTimeout(() => document.addEventListener('click', close), 0);
+}
+function openChangePassword() {
+  document.getElementById('auth-menu').style.display = 'none';
+  showSetPasswordOverlay(false);
+}
+
+async function renderUsers() {
+  if (!_me || _me.role !== 'admin') return;
+  const el = document.getElementById('users-list');
+  if (!el) return;
+  try {
+    const r = await fetch('/api/users');
+    if (!r.ok) return;
+    const users = await r.json();
+    el.innerHTML = users.map(u => `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;display:flex;gap:8px;align-items:center;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;font-size:14px;">${escHtml(u.username)}${u.id === _me.id ? ' <span style="font-size:10px;color:var(--text-dim);">(you)</span>' : ''}${u.mustChangePassword ? ' <span style="font-size:10px;color:#ff9800;">[must change pw]</span>' : ''}</div>
+          <div style="font-size:12px;color:var(--text-dim);">${escHtml(u.role)}${u.lastLogin ? ' · last login ' + new Date(u.lastLogin).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : ' · never logged in'}</div>
+        </div>
+        <select onchange="changeUserRole('${u.id}', this.value)" ${u.id === _me.id ? 'disabled' : ''} style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px;border-radius:6px;font-size:12px;font-family:inherit;outline:none;">
+          <option value="inspector"${u.role==='inspector'?' selected':''}>Inspector</option>
+          <option value="planner"${u.role==='planner'?' selected':''}>Planner</option>
+          <option value="admin"${u.role==='admin'?' selected':''}>Admin</option>
+        </select>
+        <button onclick="resetUserPassword('${u.id}','${escHtml(u.username)}')" title="Reset password" style="background:none;border:1px solid var(--border);color:var(--text-dim);border-radius:6px;padding:5px 8px;font-size:11px;cursor:pointer;">🔑</button>
+        ${u.id !== _me.id ? `<button onclick="deleteUser('${u.id}','${escHtml(u.username)}')" title="Delete" style="background:none;border:none;color:var(--fail);font-size:14px;cursor:pointer;padding:0 4px;">🗑️</button>` : ''}
+      </div>`).join('');
+  } catch {}
+}
+
+async function createUser() {
+  const username = document.getElementById('new-username').value.trim();
+  const role = document.getElementById('new-user-role').value;
+  const pwd = document.getElementById('new-user-pwd').value.trim();
+  if (!username) return toast('Username required');
+  try {
+    const r = await fetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, role, password: pwd || undefined }) });
+    const d = await r.json();
+    if (!r.ok) return toast(d.error || 'Failed');
+    document.getElementById('new-username').value = '';
+    document.getElementById('new-user-pwd').value = '';
+    alert(`User "${username}" created.\n\nInitial password: ${d.initialPassword}\n\nThey must change it on first login. Share this securely.`);
+    renderUsers();
+  } catch { toast('Network error'); }
+}
+async function changeUserRole(id, role) {
+  try {
+    const r = await fetch('/api/users/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role }) });
+    if (r.ok) { toast('Role updated'); renderUsers(); } else toast('Failed');
+  } catch { toast('Network error'); }
+}
+async function resetUserPassword(id, username) {
+  showConfirmModal(`Reset password for "${username}"? They'll get a new one-time password and must change it on next login.`, async () => {
+    try {
+      const r = await fetch('/api/users/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ resetPassword: true }) });
+      const d = await r.json();
+      if (r.ok) { alert(`New password for ${username}: ${d.initialPassword}\n\nShare this securely.`); renderUsers(); }
+      else toast('Failed');
+    } catch { toast('Network error'); }
+  }, 'Reset', 'var(--accent)');
+}
+async function deleteUser(id, username) {
+  showConfirmModal(`Delete user "${username}"? This cannot be undone.`, async () => {
+    try {
+      const r = await fetch('/api/users/' + id, { method: 'DELETE' });
+      if (r.ok) { toast('User deleted'); renderUsers(); } else toast('Failed');
+    } catch { toast('Network error'); }
+  }, 'Delete', 'var(--fail)');
+}
+
+function initAppAfterAuth() {
   loadTemplates().then(() => buildChecklist());
   loadAnswerSets();
+  loadStats();
+  loadLists();
+  loadPlanners();
+  loadRects();
+}
+
+// ── Init ───────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+  const authed = await checkAuth();
+  if (!authed) { showLoginOverlay(); return; }
+  if (_me.mustChangePassword) { showSetPasswordOverlay(true); return; }
+  applyRoleVisibility();
+  initAppAfterAuth();
+  // existing deep-link handling below
   // Deep-link: ?asset=LOC|MACH|COMP opens the asset detail directly
   try {
     const q = new URLSearchParams(window.location.search);
@@ -2179,10 +2413,6 @@ document.addEventListener('DOMContentLoaded', () => {
       setTimeout(() => { showAssets(); setTimeout(() => { openAssetDetail(loc, mac, comp); }, 250); }, 400);
     }
   } catch {}
-  loadStats();
-  loadLists();
-  loadPlanners();
-  loadRects();
 
   document.getElementById('new-location').addEventListener('keydown', e => { if (e.key === 'Enter') addLocation(); });
   document.getElementById('new-machine').addEventListener('keydown', e => { if (e.key === 'Enter') addMachine(); });

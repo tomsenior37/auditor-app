@@ -5,6 +5,9 @@ const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
 const path = require('path');
 const PDFDocument = require('pdfkit');
+const bcrypt = require('bcryptjs');
+const session = require('express-session');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = 3105;
@@ -12,6 +15,8 @@ const INSPECTIONS_FILE = path.join(__dirname, 'inspections.json');
 const LISTS_FILE = path.join(__dirname, 'lists.json');
 const ARCHIVE_FILE = path.join(__dirname, 'archive.json');
 const TEMPLATES_FILE = path.join(__dirname, 'templates.json');
+const USERS_FILE = path.join(__dirname, 'users.json');
+const SESSION_SECRET_FILE = path.join(__dirname, '.session-secret');
 const ANSWER_SETS_FILE = path.join(__dirname, 'answer-sets.json');
 const EMAIL_CONFIG_FILE = path.join(__dirname, 'emailConfig.json');
 const ASSETS_FILE = path.join(__dirname, 'assets.json');
@@ -37,7 +42,173 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage, limits: { fileSize: 20 * 1024 * 1024 } });
 
-app.use(express.json());
+app.use(express.json({ limit: '5mb' }));
+
+// ── Auth: users & sessions ──────────────────────────────
+function readUsers() {
+  if (!fs.existsSync(USERS_FILE)) return [];
+  try { return JSON.parse(fs.readFileSync(USERS_FILE, 'utf8')); } catch { return []; }
+}
+function writeUsers(data) { fs.writeFileSync(USERS_FILE, JSON.stringify(data, null, 2), 'utf8'); }
+function sanitizeUser(u) { const { passwordHash, ...rest } = u || {}; return rest; }
+
+// Bootstrap: ensure a default admin exists if no users
+(function bootstrapUsers() {
+  const users = readUsers();
+  if (!users.length) {
+    users.push({
+      id: uuidv4(),
+      username: 'admin',
+      role: 'admin',
+      passwordHash: bcrypt.hashSync('admin', 10),
+      mustChangePassword: true,
+      createdAt: new Date().toISOString()
+    });
+    writeUsers(users);
+    console.log('Bootstrapped default admin user: username "admin" / password "admin" (must change on first login)');
+  }
+})();
+
+// Persist session secret across restarts
+let SESSION_SECRET;
+if (fs.existsSync(SESSION_SECRET_FILE)) {
+  SESSION_SECRET = fs.readFileSync(SESSION_SECRET_FILE, 'utf8').trim();
+} else {
+  SESSION_SECRET = crypto.randomBytes(48).toString('hex');
+  fs.writeFileSync(SESSION_SECRET_FILE, SESSION_SECRET, { mode: 0o600 });
+}
+
+app.use(session({
+  secret: SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: { httpOnly: true, sameSite: 'lax', maxAge: 1000 * 60 * 60 * 12 } // 12h
+}));
+
+// Routes that bypass auth: login + static assets + root HTML
+const PUBLIC_PATHS = new Set(['/', '/api/auth/login', '/api/auth/me', '/api/auth/set-password', '/api/auth/logout']);
+function isPublicPath(url) {
+  if (PUBLIC_PATHS.has(url)) return true;
+  // allow static asset prefixes
+  if (url.startsWith('/photos/') || url.startsWith('/documents/') || url.startsWith('/template-media/') ||
+      url.startsWith('/template-sources/') || url.startsWith('/docs/')) return true;
+  return false;
+}
+
+// Require-auth middleware for all /api/* except the public ones
+app.use((req, res, next) => {
+  if (!req.url.startsWith('/api/')) return next();
+  if (isPublicPath(req.url.split('?')[0])) return next();
+  if (!req.session.userId) return res.status(401).json({ error: 'Authentication required' });
+  // Reject user if flagged mustChangePassword except for the set-password route
+  const u = readUsers().find(x => x.id === req.session.userId);
+  if (!u) { req.session.destroy(() => {}); return res.status(401).json({ error: 'Session invalid' }); }
+  req.user = u;
+  next();
+});
+
+function requireRole(...roles) {
+  return (req, res, next) => {
+    if (!req.user) return res.status(401).json({ error: 'Authentication required' });
+    if (!roles.includes(req.user.role)) return res.status(403).json({ error: 'Insufficient permissions' });
+    next();
+  };
+}
+
+// ── Auth API ─────────────────────────────────────────────
+app.post('/api/auth/login', (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) return res.status(400).json({ error: 'username and password required' });
+  const users = readUsers();
+  const u = users.find(x => x.username.toLowerCase() === String(username).toLowerCase());
+  if (!u || !bcrypt.compareSync(password, u.passwordHash)) {
+    return res.status(401).json({ error: 'Invalid username or password' });
+  }
+  u.lastLogin = new Date().toISOString();
+  writeUsers(users);
+  req.session.userId = u.id;
+  res.json({ success: true, user: sanitizeUser(u) });
+});
+
+app.post('/api/auth/logout', (req, res) => {
+  req.session.destroy(() => res.json({ success: true }));
+});
+
+app.get('/api/auth/me', (req, res) => {
+  if (!req.session.userId) return res.json({ authenticated: false });
+  const u = readUsers().find(x => x.id === req.session.userId);
+  if (!u) { req.session.destroy(() => {}); return res.json({ authenticated: false }); }
+  res.json({ authenticated: true, user: sanitizeUser(u) });
+});
+
+app.post('/api/auth/set-password', (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ error: 'Not logged in' });
+  const { newPassword, currentPassword } = req.body;
+  if (!newPassword || newPassword.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  const users = readUsers();
+  const idx = users.findIndex(x => x.id === req.session.userId);
+  if (idx === -1) return res.status(401).json({ error: 'User not found' });
+  // If not first-login, verify current password
+  if (!users[idx].mustChangePassword) {
+    if (!currentPassword || !bcrypt.compareSync(currentPassword, users[idx].passwordHash)) {
+      return res.status(400).json({ error: 'Current password is incorrect' });
+    }
+  }
+  users[idx].passwordHash = bcrypt.hashSync(newPassword, 10);
+  users[idx].mustChangePassword = false;
+  users[idx].passwordChangedAt = new Date().toISOString();
+  writeUsers(users);
+  res.json({ success: true });
+});
+
+// ── User Management (admin only) ─────────────────────────
+app.get('/api/users', (req, res, next) => requireRole('admin')(req, res, next), (req, res) => {
+  res.json(readUsers().map(sanitizeUser));
+});
+
+app.post('/api/users', (req, res, next) => requireRole('admin')(req, res, next), (req, res) => {
+  const { username, role, password } = req.body;
+  if (!username || !role) return res.status(400).json({ error: 'username and role required' });
+  if (!['admin', 'planner', 'inspector'].includes(role)) return res.status(400).json({ error: 'invalid role' });
+  const users = readUsers();
+  if (users.find(u => u.username.toLowerCase() === username.toLowerCase())) return res.status(400).json({ error: 'Username already exists' });
+  const initial = password || Math.random().toString(36).slice(-10);
+  users.push({
+    id: uuidv4(),
+    username: username.trim(),
+    role,
+    passwordHash: bcrypt.hashSync(initial, 10),
+    mustChangePassword: true,
+    createdAt: new Date().toISOString()
+  });
+  writeUsers(users);
+  res.json({ success: true, initialPassword: initial });
+});
+
+app.put('/api/users/:id', (req, res, next) => requireRole('admin')(req, res, next), (req, res) => {
+  const users = readUsers();
+  const idx = users.findIndex(u => u.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'not found' });
+  const { role, resetPassword } = req.body;
+  if (role && ['admin', 'planner', 'inspector'].includes(role)) users[idx].role = role;
+  let initialPassword;
+  if (resetPassword) {
+    initialPassword = Math.random().toString(36).slice(-10);
+    users[idx].passwordHash = bcrypt.hashSync(initialPassword, 10);
+    users[idx].mustChangePassword = true;
+  }
+  writeUsers(users);
+  res.json({ success: true, initialPassword });
+});
+
+app.delete('/api/users/:id', (req, res, next) => requireRole('admin')(req, res, next), (req, res) => {
+  if (req.user.id === req.params.id) return res.status(400).json({ error: 'Cannot delete yourself' });
+  const users = readUsers();
+  const filtered = users.filter(u => u.id !== req.params.id);
+  if (filtered.length === users.length) return res.status(404).json({ error: 'not found' });
+  writeUsers(filtered);
+  res.json({ success: true });
+});
 app.use('/photos', express.static(PHOTOS_DIR));
 app.use('/docs', express.static(path.join(__dirname, 'docs')));
 app.use('/template-media', express.static(TEMPLATE_MEDIA_DIR));
@@ -178,7 +349,7 @@ function writeTemplates(data) {
 // ── Templates API ──────────────────────────────────────────
 app.get('/api/templates', (req, res) => res.json(readTemplates()));
 
-app.post('/api/templates', (req, res) => {
+app.post('/api/templates', requireRole('admin', 'planner'), (req, res) => {
   const { name, standard, description, requiresComponent, componentType, questions, items, version, scoringEnabled } = req.body;
   if (!name || (!questions && !items)) return res.status(400).json({ error: 'name and questions required' });
   const data = readTemplates();
@@ -197,7 +368,7 @@ app.post('/api/templates', (req, res) => {
 });
 
 // Upload template from file (DOC, DOCX, XML, PDF, JSON)
-app.post('/api/templates/upload', upload.single('file'), (req, res) => {
+app.post('/api/templates/upload', requireRole('admin', 'planner'), upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
   
   const fileBuffer = fs.readFileSync(req.file.path);
@@ -262,7 +433,7 @@ app.post('/api/templates/upload', upload.single('file'), (req, res) => {
   }
 });
 
-app.put('/api/templates/:id', (req, res) => {
+app.put('/api/templates/:id', requireRole('admin', 'planner'), (req, res) => {
   const data = readTemplates();
   const idx = data.templates.findIndex(t => t.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'not found' });
@@ -334,7 +505,7 @@ app.delete('/api/templates/media/:filename', (req, res) => {
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/templates/:id', (req, res) => {
+app.delete('/api/templates/:id', requireRole('admin', 'planner'), (req, res) => {
   const data = readTemplates();
   const idx = data.templates.findIndex(t => t.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'not found' });
@@ -678,7 +849,7 @@ app.delete('/api/lists/inspector', (req, res) => {
 });
 
 // ── Component Types API ────────────────────────────
-app.post('/api/lists/componentType', (req, res) => {
+app.post('/api/lists/componentType', requireRole('admin'), (req, res) => {
   const name = (req.body.name || '').trim();
   if (!name) return res.status(400).json({ error: 'name required' });
   const lists = readLists();
@@ -690,7 +861,7 @@ app.post('/api/lists/componentType', (req, res) => {
   res.json({ success: true, componentTypes: lists.componentTypes });
 });
 
-app.delete('/api/lists/componentType', (req, res) => {
+app.delete('/api/lists/componentType', requireRole('admin'), (req, res) => {
   const name = (req.body.name || '').trim();
   const lists = readLists();
   lists.componentTypes = lists.componentTypes.filter(t => t.name !== name);
@@ -699,7 +870,7 @@ app.delete('/api/lists/componentType', (req, res) => {
 });
 
 // Update the custom-fields schema on a component type
-app.put('/api/lists/componentType/fields', (req, res) => {
+app.put('/api/lists/componentType/fields', requireRole('admin'), (req, res) => {
   const { name, fields } = req.body;
   if (!name || !Array.isArray(fields)) return res.status(400).json({ error: 'name and fields[] required' });
   const lists = readLists();
