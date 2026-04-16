@@ -1194,6 +1194,17 @@ app.post('/api/inspection', requireRole('inspector', 'admin'), (req, res) => {
 });
 
 // GET /api/inspections
+// PATCH /api/inspection/:id/corrective-actions — edit corrective actions on an existing inspection
+app.patch('/api/inspection/:id/corrective-actions', (req, res) => {
+  const inspections = readInspections();
+  const idx = inspections.findIndex(i => i.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'not found' });
+  inspections[idx].rectNotes = req.body.rectNotes || {};
+  inspections[idx].updatedAt = new Date().toISOString();
+  writeInspections(inspections);
+  res.json({ success: true });
+});
+
 app.get('/api/inspections', (req, res) => {
   res.json(readInspections());
 });

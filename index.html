@@ -1985,6 +1985,18 @@ Building B,CNC Mill,,,,
   </div>
 </div>
 
+<!-- ══════════════ EDIT CORRECTIVE ACTIONS MODAL ══════════════ -->
+<div id="edit-ca-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9999;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;max-width:560px;width:100%;display:flex;flex-direction:column;gap:12px;margin:auto;">
+    <div style="font-size:17px;font-weight:700;color:#d19900;">🔧 Corrective Actions</div>
+    <div id="edit-ca-body" style="display:flex;flex-direction:column;gap:10px;"></div>
+    <div style="display:flex;gap:10px;">
+      <button onclick="document.getElementById('edit-ca-modal').style.display='none'" style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:14px;font-size:15px;font-weight:600;cursor:pointer;">Cancel</button>
+      <button onclick="saveEditCA()" style="flex:1;background:#d19900;border:none;color:#fff;border-radius:10px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;">Save</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══════════════ COMPONENT TYPE FIELDS MODAL ══════════════ -->
 <div id="ct-fields-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9999;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto;">
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;max-width:520px;width:100%;display:flex;flex-direction:column;gap:12px;margin:auto;">
@@ -5983,6 +5995,11 @@ function buildDetailHtml(rec) {
         </div>
       ` : ''}
     </div>
+    <!-- Edit Corrective Actions -->
+    ${rec.result === 'FAIL' ? `
+    <button onclick="openEditCA('${rec.id}')" style="background:none;border:1px solid #d19900;color:#d19900;border-radius:8px;padding:8px 14px;font-size:12px;cursor:pointer;font-family:inherit;width:100%;">
+      🔧 Edit Corrective Actions
+    </button>` : ''}
     <!-- Delete / Restore / Purge buttons -->
     ${rec.archived ? `
       <div style="display:flex;gap:8px;">
@@ -7916,6 +7933,63 @@ let _logicActions = {};
 let _rectNotes = {}; // { q1: "text", q3: "text" }
 
 function onRectNote(n, value) { _rectNotes['q' + n] = value; saveDraft(); }
+
+let _editCAInspId = null;
+async function openEditCA(inspId) {
+  _editCAInspId = inspId;
+  const rec = inspections.find(i => i.id === inspId);
+  if (!rec) return toast('Inspection not found');
+  const tplData = templates.find(t => t.id === rec.templateId);
+  const qs = (tplData?.version === 2 && tplData?.items)
+    ? tplData.items.filter(i => i.itemType === 'question' && i.type !== 'instruction')
+    : (tplData?.questions || []);
+  const existing = rec.rectNotes || {};
+  const body = document.getElementById('edit-ca-body');
+  // Show only failed questions
+  const failedQs = [];
+  qs.forEach((q, idx) => {
+    const key = 'q' + (idx + 1);
+    const val = rec.answers?.[key];
+    let failed = false;
+    if (q.type === 'yesno' && val === false) failed = true;
+    if (q.type === 'multichoice' && val !== undefined) {
+      const vals = Array.isArray(val) ? val : [val];
+      if (vals.some(v => (q.options || []).find(o => (o.id || o.label) === v)?.flagFail)) failed = true;
+    }
+    if (failed) failedQs.push({ key, num: idx + 1, text: q.text, existing: existing[key] || '' });
+  });
+  if (!failedQs.length) { toast('No failed questions to add corrective actions to'); return; }
+  // Check for logic-rule default text
+  body.innerHTML = failedQs.map(fq => {
+    const logicDefault = qs[fq.num - 1]?.logic?.find(r => r.action === 'add_corrective_action')?.rectNote || '';
+    const val = fq.existing || logicDefault;
+    return `<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;">
+      <div style="font-weight:600;font-size:13px;color:var(--fail);margin-bottom:4px;">Q${fq.num}. ${escHtml(fq.text)}</div>
+      <textarea data-ca-key="${fq.key}" placeholder="Corrective action…" style="width:100%;background:#fff;border:1px solid #d4d1ca;color:#28251d;padding:8px;border-radius:6px;font-size:13px;font-family:inherit;resize:vertical;min-height:50px;outline:none;">${escHtml(val)}</textarea>
+    </div>`;
+  }).join('');
+  document.getElementById('edit-ca-modal').style.display = 'flex';
+}
+
+async function saveEditCA() {
+  if (!_editCAInspId) return;
+  const notes = {};
+  document.querySelectorAll('#edit-ca-body textarea[data-ca-key]').forEach(ta => {
+    const v = ta.value.trim();
+    if (v) notes[ta.dataset.caKey] = v;
+  });
+  try {
+    const r = await fetch('/api/inspection/' + _editCAInspId + '/corrective-actions', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rectNotes: notes })
+    });
+    const d = await r.json();
+    if (d.success) {
+      document.getElementById('edit-ca-modal').style.display = 'none';
+      toast('Corrective actions saved');
+      await renderRecords();
+    } else toast('Failed');
+  } catch { toast('Network error'); }
+}
 
 function evaluateLogicV2() {
   if (!selectedTemplate || selectedTemplate.version !== 2 || !selectedTemplate.items) return;
