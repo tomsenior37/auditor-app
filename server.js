@@ -689,6 +689,51 @@ app.delete('/api/template-sources/:filename', (req, res) => {
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Inspection Drafts (auto-save to server) ────────────────
+const DRAFTS_FILE = path.join(__dirname, 'drafts.json');
+function readDrafts() { try { return JSON.parse(fs.readFileSync(DRAFTS_FILE, 'utf8')); } catch { return {}; } }
+function writeDrafts(d) { fs.writeFileSync(DRAFTS_FILE, JSON.stringify(d, null, 2), 'utf8'); }
+
+app.get('/api/inspection/draft', (req, res) => {
+  const drafts = readDrafts();
+  res.json(drafts[req.session.userId] || null);
+});
+app.post('/api/inspection/draft', (req, res) => {
+  const drafts = readDrafts();
+  drafts[req.session.userId] = { ...req.body, savedAt: new Date().toISOString() };
+  writeDrafts(drafts);
+  res.json({ success: true });
+});
+app.delete('/api/inspection/draft', (req, res) => {
+  const drafts = readDrafts();
+  delete drafts[req.session.userId];
+  writeDrafts(drafts);
+  res.json({ success: true });
+});
+
+// ── Asset UID helpers ──────────────────────────────────────
+function ensureAssetUids() {
+  const assets = readAssets();
+  let dirty = false;
+  Object.keys(assets).forEach(k => {
+    if (!assets[k].uid) { assets[k].uid = uuidv4(); dirty = true; }
+  });
+  if (dirty) writeAssets(assets);
+  return assets;
+}
+function getAssetUid(location, machine, component) {
+  const key = assetKey(location, machine, component);
+  const assets = readAssets();
+  if (!assets[key]) {
+    assets[key] = { description: '', notes: '', status: 'active', photos: [], documents: [], uid: uuidv4(), createdAt: new Date().toISOString() };
+    writeAssets(assets);
+  } else if (!assets[key].uid) {
+    assets[key].uid = uuidv4();
+    writeAssets(assets);
+  }
+  return assets[key].uid;
+}
+
 // ── Todo Lists (inspection work orders) ────────────────────
 function readTodoLists() {
   if (!fs.existsSync(TODO_LISTS_FILE)) return [];
@@ -1120,7 +1165,8 @@ app.post('/api/inspection', requireRole('inspector', 'admin'), (req, res) => {
     signature: body.signature || null,
     result,
     risk: body.risk || null,
-    score: body.score || null
+    score: body.score || null,
+    assetUid: body.guardId ? getAssetUid(body.location, body.machine, body.guardId) : null
   };
   inspections.unshift(record);
   writeInspections(inspections);
@@ -1385,6 +1431,9 @@ app.post('/api/import/assets', (req, res) => {
 });
 
 // ── Asset Database API ─────────────────────────────────
+// Ensure all existing assets have UIDs on startup
+ensureAssetUids();
+
 // Summary of all asset metadata — used by the assets list to show main photos + status
 app.get('/api/assets/meta-summary', (req, res) => {
   const assets = readAssets();
@@ -1395,7 +1444,8 @@ app.get('/api/assets/meta-summary', (req, res) => {
     out[k] = {
       status: a.status || 'active',
       photo: mainFn,
-      componentType: a.componentType || ''
+      componentType: a.componentType || '',
+      uid: a.uid || ''
     };
   });
   res.json(out);
@@ -1407,6 +1457,7 @@ app.get('/api/asset/meta', (req, res) => {
   const key = assetKey(location, machine, component);
   const assets = readAssets();
   const meta = assets[key] || { description: '', notes: '', status: 'active', photos: [], documents: [] };
+  if (!meta.uid) { meta.uid = uuidv4(); assets[key] = meta; writeAssets(assets); }
   // Enrich with last inspection timestamp
   try {
     const inspections = readInspections()
@@ -1551,13 +1602,14 @@ function csvStringify(rows) {
 // GET /api/assets/export.csv — full register dump
 app.get('/api/assets/export.csv', (req, res) => {
   const assets = readAssets();
-  const header = ['location', 'machine', 'component', 'componentType', 'status', 'description', 'notes',
+  const header = ['uid', 'location', 'machine', 'component', 'componentType', 'status', 'description', 'notes',
     'frequencyDays', 'nextDueDate', 'lastInspectedAt', 'customFields'];
   const rows = [header];
   Object.keys(assets).forEach(k => {
     const [loc, mac, comp] = k.split('::');
     const a = assets[k];
     rows.push([
+      a.uid || '',
       loc, mac, comp,
       a.componentType || '',
       a.status || 'active',
@@ -1621,6 +1673,7 @@ app.post('/api/assets/import-csv', (req, res) => {
         existing.customFields[h] = r[idx].trim();
       }
     });
+    if (!existing.uid) existing.uid = uuidv4();
     existing.updatedAt = new Date().toISOString();
     assets[key] = existing;
     updated++;
