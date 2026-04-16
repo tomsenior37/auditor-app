@@ -1724,7 +1724,15 @@ Building B,CNC Mill,,,,
       </label>
       <label class="bld-toggle-row" style="padding:4px 0;">
         <span style="font-size:14px;">Enable Risk Rating (consequence × probability)</span>
-        <label class="toggle-switch"><input type="checkbox" id="bld-risk" onchange="bs.riskRatingEnabled=this.checked;bs.dirty=true;"><span class="toggle-slider"></span></label>
+        <label class="toggle-switch"><input type="checkbox" id="bld-risk" onchange="bs.riskRatingEnabled=this.checked;bs.dirty=true;document.getElementById('bld-risk-req-row').style.display=this.checked?'flex':'none';"><span class="toggle-slider"></span></label>
+      </label>
+      <label class="bld-toggle-row" id="bld-risk-req-row" style="padding:4px 0;display:none;padding-left:16px;">
+        <span style="font-size:13px;color:var(--text-dim);">Required on</span>
+        <select id="bld-risk-req" onchange="bs.riskRatingRequired=this.value;bs.dirty=true;" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px;font-family:inherit;outline:none;">
+          <option value="fail">Fail only</option>
+          <option value="always">Always</option>
+          <option value="optional">Optional (never required)</option>
+        </select>
       </label>
     </div>
     <div id="bld-canvas"></div>
@@ -3473,11 +3481,14 @@ async function handlePhotoSelect(e) {
 
 // ── Progress indicator ────────────────────────────────────
 function updateAuditProgress() {
-  // Live "Risk Rating required" hint when the running result would be FAIL
   if (selectedTemplate?.riskRatingEnabled) {
     const hint = document.getElementById('f-risk-required-hint');
     if (hint) {
-      try { hint.style.display = (computeResult() === 'FAIL') ? '' : 'none'; } catch { hint.style.display = 'none'; }
+      const req = selectedTemplate.riskRatingRequired || 'fail';
+      if (req === 'always') { hint.textContent = '— required'; hint.style.display = ''; }
+      else if (req === 'fail') {
+        try { const isFail = computeResult() === 'FAIL'; hint.textContent = '— required for failed inspections'; hint.style.display = isFail ? '' : 'none'; } catch { hint.style.display = 'none'; }
+      } else { hint.style.display = 'none'; }
     }
   }
   const wrap = document.getElementById('audit-progress-wrap');
@@ -3603,10 +3614,13 @@ async function submitInspection() {
       }
     });
     const risk = getCurrentRisk();
-    if (selectedTemplate?.riskRatingEnabled && result === 'FAIL' && !risk) {
-      // Scroll the risk block into view to make it obvious
-      document.getElementById('f-risk-block')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      return toast('⚠ Failed inspection — complete the Risk Rating before submitting');
+    if (selectedTemplate?.riskRatingEnabled && !risk) {
+      const req = selectedTemplate.riskRatingRequired || 'fail';
+      const needed = req === 'always' || (req === 'fail' && result === 'FAIL');
+      if (needed) {
+        document.getElementById('f-risk-block')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return toast(result === 'FAIL' ? '⚠ Failed inspection — complete the Risk Rating before submitting' : '⚠ Risk Rating is required for this template');
+      }
     }
     const payload = {
       templateId: selectedTemplate?.id || null,
@@ -6212,6 +6226,7 @@ function openBuilder(tplId) {
   bs.requiresComponent = !!tpl.requiresComponent;
   bs.scoringEnabled = !!tpl.scoringEnabled;
   bs.riskRatingEnabled = !!tpl.riskRatingEnabled;
+  bs.riskRatingRequired = tpl.riskRatingRequired || 'fail';
   bs.selectedId = null;
   bs.dirty = false;
   if (tpl.version === 2 && tpl.items && tpl.items.length) {
@@ -6241,6 +6256,7 @@ function newBuilder() {
   bs.requiresComponent = false;
   bs.scoringEnabled = false;
   bs.riskRatingEnabled = false;
+  bs.riskRatingRequired = 'fail';
   bs.selectedId = null;
   bs.dirty = false;
   bs.items = [
@@ -6264,6 +6280,10 @@ function bEnterBuilder() {
   if (scoringCb) scoringCb.checked = bs.scoringEnabled;
   const riskCb = document.getElementById('bld-risk');
   if (riskCb) riskCb.checked = !!bs.riskRatingEnabled;
+  const riskReqRow = document.getElementById('bld-risk-req-row');
+  if (riskReqRow) riskReqRow.style.display = bs.riskRatingEnabled ? 'flex' : 'none';
+  const riskReqSel = document.getElementById('bld-risk-req');
+  if (riskReqSel) riskReqSel.value = bs.riskRatingRequired || 'fail';
   builderSetTab('build');
   bRenderCanvas();
 }
@@ -6957,7 +6977,7 @@ async function saveBuilder() {
   const payload = {
     name: bs.name, standard: bs.standard, description: '',
     requiresComponent: bs.requiresComponent, componentType: bs.componentType,
-    scoringEnabled: bs.scoringEnabled, riskRatingEnabled: !!bs.riskRatingEnabled, version: 2,
+    scoringEnabled: bs.scoringEnabled, riskRatingEnabled: !!bs.riskRatingEnabled, riskRatingRequired: bs.riskRatingRequired || 'fail', version: 2,
     items: bs.items, questions, updatedAt: new Date().toISOString()
   };
   try {
