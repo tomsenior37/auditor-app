@@ -4448,6 +4448,12 @@ function getDraft() {
   try { const s = localStorage.getItem(DRAFT_KEY); return s ? JSON.parse(s) : null; } catch { return null; }
 }
 
+function _getQuestionByNum(n) {
+  if (!selectedTemplate || !selectedTemplate.items) return null;
+  const qs = selectedTemplate.items.filter(i => i.itemType === 'question' && i.type !== 'instruction');
+  return qs[n - 1] || null;
+}
+
 function restoreDraft(draft) {
   const tpl = templates.find(t => t.id === draft.templateId);
   if (!tpl) { toast('Draft template no longer exists'); clearDraft(); return; }
@@ -4499,6 +4505,14 @@ function restoreDraft(draft) {
     } else if (q.type === 'slider') {
       const inp = document.getElementById(`slider-ans-${n}`);
       if (inp) inp.value = val ?? 0;
+    } else if (q.type === 'datetime') {
+      const inp = document.getElementById(`dt-ans-${n}`);
+      if (inp) inp.value = val || '';
+    } else if (q.type === 'media' && val) {
+      const prev = document.getElementById(`media-preview-${n}`);
+      if (prev) { prev.src = val; prev.style.display = 'block'; }
+    } else if (q.type === 'signature' && val) {
+      // Signature data URI — can't easily re-draw on canvas, mark as answered
     }
     // Restore finding comment
     const f = findings[key];
