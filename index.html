@@ -2313,10 +2313,13 @@ async function releaseTodoTask(listId, taskId) {
 // Store active todo context so inspection submission can link back
 let _activeTodoListId = null, _activeTodoTaskId = null;
 
-function startTodoInspection(listId, taskId, templateId) {
+async function startTodoInspection(listId, taskId, templateId) {
+  // Ensure todo-lists are loaded (may be called from home screen before they're fetched)
+  if (!_todoLists.length) { try { const r = await fetch('/api/todo-lists'); _todoLists = await r.json(); } catch {} }
   _activeTodoListId = listId;
   _activeTodoTaskId = taskId;
-  showForm();
+  clearDraft();
+  showForm(true);
   // Pre-select the template
   const tpl = templates.find(t => t.id === templateId);
   if (tpl) {
@@ -2324,7 +2327,6 @@ function startTodoInspection(listId, taskId, templateId) {
     QUESTIONS = tplQuestions(tpl).map(q => q.text);
     document.getElementById('f-template').value = templateId;
     updateTemplateLabel();
-    updateGuardDropdown();
     buildChecklist();
     resetFormAnswers();
     initRiskBlock();
@@ -2335,10 +2337,14 @@ function startTodoInspection(listId, taskId, templateId) {
   if (task) {
     document.getElementById('f-location').value = task.location;
     updateMachineDropdown();
-    document.getElementById('f-machine').value = task.machine;
-    updateGuardDropdown();
-    document.getElementById('f-guardId').value = task.component;
-    loadComponentRefPhoto(task.component);
+    setTimeout(() => {
+      document.getElementById('f-machine').value = task.machine;
+      updateGuardDropdown();
+      setTimeout(() => {
+        document.getElementById('f-guardId').value = task.component;
+        loadComponentRefPhoto(task.component);
+      }, 50);
+    }, 50);
   }
 }
 
