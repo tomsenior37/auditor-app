@@ -2041,6 +2041,7 @@ Building B,CNC Mill,,,,
     <div style="display:flex;gap:6px;">
       <button id="btab-build" class="btab active" onclick="builderSetTab('build')">Build</button>
       <button id="btab-preview" class="btab" onclick="builderSetTab('preview')">Preview</button>
+      <button id="btab-report" class="btab" onclick="builderSetTab('report')">Report</button>
     </div>
     <button onclick="saveBuilder()" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">💾 Save</button>
   </div>
@@ -2068,6 +2069,84 @@ Building B,CNC Mill,,,,
 
   <!-- Preview tab -->
   <div id="bld-preview-tab" style="display:none;padding:16px;padding-bottom:80px;display:flex;flex-direction:column;gap:12px;"></div>
+
+  <!-- Report tab -->
+  <div id="bld-report-tab" style="display:none;padding:16px;padding-bottom:80px;flex-direction:column;gap:14px;">
+    <!-- Page setup -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;gap:12px;">
+      <div style="font-weight:700;font-size:13px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.1em;">Page Setup</div>
+      <div style="display:flex;gap:8px;">
+        <div style="flex:1;">
+          <div style="font-size:12px;color:var(--text-dim);margin-bottom:6px;">Page size</div>
+          <select id="rpt-page-size" onchange="updateReportConfig()" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
+            <option value="A4">A4</option>
+            <option value="LETTER">US Letter</option>
+          </select>
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:12px;color:var(--text-dim);margin-bottom:6px;">Photo resolution</div>
+          <select id="rpt-photo-res" onchange="updateReportConfig()" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
+            <option value="standard">Standard</option>
+            <option value="high">High</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:6px;">Photo thumbnail size</div>
+        <div style="display:flex;gap:6px;">
+          <button class="q-btn rpt-thumb-btn" data-val="small" onclick="setRptThumb('small')" style="flex:1;padding:8px;font-size:12px;">Small</button>
+          <button class="q-btn rpt-thumb-btn" data-val="medium" onclick="setRptThumb('medium')" style="flex:1;padding:8px;font-size:12px;">Medium</button>
+          <button class="q-btn rpt-thumb-btn" data-val="large" onclick="setRptThumb('large')" style="flex:1;padding:8px;font-size:12px;">Large</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Branding -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;gap:12px;">
+      <div style="font-weight:700;font-size:13px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.1em;">Branding</div>
+      <div>
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:6px;">Company logo</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <label for="rpt-logo-file" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;">Choose file</label>
+          <input type="file" id="rpt-logo-file" accept="image/*" style="display:none;" onchange="uploadReportLogo(this)">
+          <span id="rpt-logo-name" style="font-size:12px;color:var(--text-dim);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">No logo</span>
+          <button id="rpt-logo-clear" onclick="clearReportLogo()" style="display:none;background:none;border:none;color:var(--fail);font-size:14px;cursor:pointer;">✕</button>
+        </div>
+        <img id="rpt-logo-preview" style="display:none;max-height:48px;margin-top:8px;border-radius:4px;" alt="Logo">
+      </div>
+      <div>
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:6px;">Cover page (PDF)</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <label for="rpt-cover-file" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;">Choose file</label>
+          <input type="file" id="rpt-cover-file" accept=".pdf" style="display:none;" onchange="uploadReportCover(this)">
+          <span id="rpt-cover-name" style="font-size:12px;color:var(--text-dim);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">No cover page</span>
+          <button id="rpt-cover-clear" onclick="clearReportCover()" style="display:none;background:none;border:none;color:var(--fail);font-size:14px;cursor:pointer;">✕</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Content toggles -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;gap:10px;">
+      <div style="font-weight:700;font-size:13px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.1em;">Report Content</div>
+      <label class="bld-toggle-row"><span>Inspection results</span><label class="toggle-switch"><input type="checkbox" id="rpt-inc-results" checked onchange="updateReportConfig()"><span class="toggle-slider"></span></label></label>
+      <label class="bld-toggle-row"><span>Scores</span><label class="toggle-switch"><input type="checkbox" id="rpt-inc-scores" checked onchange="updateReportConfig()"><span class="toggle-slider"></span></label></label>
+      <label class="bld-toggle-row"><span>Flagged items only (hide passing)</span><label class="toggle-switch"><input type="checkbox" id="rpt-inc-flagged" onchange="updateReportConfig()"><span class="toggle-slider"></span></label></label>
+      <label class="bld-toggle-row"><span>Media summary (all photos on one page)</span><label class="toggle-switch"><input type="checkbox" id="rpt-inc-media" onchange="updateReportConfig()"><span class="toggle-slider"></span></label></label>
+      <label class="bld-toggle-row"><span>Actions / Issues raised</span><label class="toggle-switch"><input type="checkbox" id="rpt-inc-actions" checked onchange="updateReportConfig()"><span class="toggle-slider"></span></label></label>
+      <label class="bld-toggle-row"><span>Table of contents</span><label class="toggle-switch"><input type="checkbox" id="rpt-inc-toc" onchange="updateReportConfig()"><span class="toggle-slider"></span></label></label>
+    </div>
+
+    <!-- File naming -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;gap:10px;">
+      <div style="font-weight:700;font-size:13px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.1em;">File Naming</div>
+      <input type="text" id="rpt-naming" value="{templateName}-{equipment}-{date}-{result}" oninput="updateReportConfig()"
+        style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:14px;font-family:var(--mono);outline:none;width:100%;">
+      <div style="font-size:11px;color:var(--text-dim);line-height:1.6;">
+        Available tokens: <code>{templateName}</code> <code>{location}</code> <code>{equipment}</code> <code>{component}</code> <code>{inspector}</code> <code>{date}</code> <code>{result}</code>
+      </div>
+      <div id="rpt-naming-preview" style="font-family:var(--mono);font-size:12px;color:var(--text-dim);word-break:break-all;"></div>
+    </div>
+  </div>
 
   <!-- Settings bottom sheet -->
   <div id="bld-settings" class="bld-settings">
@@ -3143,6 +3222,138 @@ async function saveAppSetting(key, val) {
     toast('Setting saved');
     if (key === 'scoringEnabled') refreshDashboard();
   } catch { toast('Failed to save'); }
+}
+
+// ── Report config ─────────────────────────────────────
+function getDefaultReportConfig() {
+  return { pageSize:'A4', photoResolution:'standard', thumbnailSize:'medium', logo:null, coverPage:null,
+    includeResults:true, includeScores:true, includeFlaggedOnly:false, includeMediaSummary:false,
+    includeActions:true, includeTOC:false, fileNaming:'{templateName}-{equipment}-{date}-{result}' };
+}
+
+function loadReportTab() {
+  const rc = bs.reportConfig || getDefaultReportConfig();
+  const f = id => document.getElementById(id);
+  if (f('rpt-page-size')) f('rpt-page-size').value = rc.pageSize || 'A4';
+  if (f('rpt-photo-res')) f('rpt-photo-res').value = rc.photoResolution || 'standard';
+  document.querySelectorAll('.rpt-thumb-btn').forEach(b => {
+    b.classList.toggle('yes', b.dataset.val === (rc.thumbnailSize || 'medium'));
+    b.classList.toggle('selected', b.dataset.val === (rc.thumbnailSize || 'medium'));
+  });
+  if (f('rpt-inc-results')) f('rpt-inc-results').checked = rc.includeResults !== false;
+  if (f('rpt-inc-scores')) f('rpt-inc-scores').checked = rc.includeScores !== false;
+  if (f('rpt-inc-flagged')) f('rpt-inc-flagged').checked = !!rc.includeFlaggedOnly;
+  if (f('rpt-inc-media')) f('rpt-inc-media').checked = !!rc.includeMediaSummary;
+  if (f('rpt-inc-actions')) f('rpt-inc-actions').checked = rc.includeActions !== false;
+  if (f('rpt-inc-toc')) f('rpt-inc-toc').checked = !!rc.includeTOC;
+  if (f('rpt-naming')) f('rpt-naming').value = rc.fileNaming || '{templateName}-{equipment}-{date}-{result}';
+  // Logo/cover display
+  const logoName = f('rpt-logo-name'); const logoPreview = f('rpt-logo-preview'); const logoClear = f('rpt-logo-clear');
+  if (rc.logo) {
+    if (logoName) logoName.textContent = rc.logo;
+    if (logoPreview) { logoPreview.src = '/template-media/' + rc.logo; logoPreview.style.display = 'block'; }
+    if (logoClear) logoClear.style.display = 'inline';
+  } else {
+    if (logoName) logoName.textContent = 'No logo';
+    if (logoPreview) logoPreview.style.display = 'none';
+    if (logoClear) logoClear.style.display = 'none';
+  }
+  const coverName = f('rpt-cover-name'); const coverClear = f('rpt-cover-clear');
+  if (rc.coverPage) {
+    if (coverName) coverName.textContent = rc.coverPage;
+    if (coverClear) coverClear.style.display = 'inline';
+  } else {
+    if (coverName) coverName.textContent = 'No cover page';
+    if (coverClear) coverClear.style.display = 'none';
+  }
+  updateNamingPreview();
+}
+
+function updateReportConfig() {
+  const f = id => document.getElementById(id);
+  const rc = bs.reportConfig || getDefaultReportConfig();
+  rc.pageSize = f('rpt-page-size')?.value || 'A4';
+  rc.photoResolution = f('rpt-photo-res')?.value || 'standard';
+  rc.includeResults = f('rpt-inc-results')?.checked !== false;
+  rc.includeScores = f('rpt-inc-scores')?.checked !== false;
+  rc.includeFlaggedOnly = !!f('rpt-inc-flagged')?.checked;
+  rc.includeMediaSummary = !!f('rpt-inc-media')?.checked;
+  rc.includeActions = f('rpt-inc-actions')?.checked !== false;
+  rc.includeTOC = !!f('rpt-inc-toc')?.checked;
+  rc.fileNaming = f('rpt-naming')?.value || '{templateName}-{equipment}-{date}-{result}';
+  bs.reportConfig = rc;
+  bs.dirty = true;
+  updateNamingPreview();
+}
+
+function setRptThumb(size) {
+  if (!bs.reportConfig) bs.reportConfig = getDefaultReportConfig();
+  bs.reportConfig.thumbnailSize = size;
+  bs.dirty = true;
+  document.querySelectorAll('.rpt-thumb-btn').forEach(b => {
+    b.classList.toggle('yes', b.dataset.val === size);
+    b.classList.toggle('selected', b.dataset.val === size);
+  });
+}
+
+function updateNamingPreview() {
+  const el = document.getElementById('rpt-naming-preview');
+  if (!el) return;
+  const pattern = document.getElementById('rpt-naming')?.value || '';
+  const preview = pattern
+    .replace('{templateName}', bs.name || 'Template')
+    .replace('{location}', 'Site-A')
+    .replace('{equipment}', 'Crusher-01')
+    .replace('{component}', 'GRD-001')
+    .replace('{inspector}', 'J-Smith')
+    .replace('{date}', new Date().toISOString().slice(0,10).replace(/-/g,'.'))
+    .replace('{result}', 'PASS')
+    .replace(/[^a-zA-Z0-9.\-_{}]/g, '_');
+  el.textContent = 'Preview: ' + preview + '.pdf';
+}
+
+async function uploadReportLogo(input) {
+  const file = input.files[0];
+  if (!file) return;
+  try {
+    const fd = new FormData(); fd.append('file', file);
+    const r = await fetch('/api/template-media', { method:'POST', body: fd });
+    const d = await r.json();
+    if (!bs.reportConfig) bs.reportConfig = getDefaultReportConfig();
+    bs.reportConfig.logo = d.filename;
+    bs.dirty = true;
+    loadReportTab();
+    toast('Logo uploaded');
+  } catch { toast('Upload failed'); }
+}
+
+function clearReportLogo() {
+  if (!bs.reportConfig) bs.reportConfig = getDefaultReportConfig();
+  bs.reportConfig.logo = null;
+  bs.dirty = true;
+  loadReportTab();
+}
+
+async function uploadReportCover(input) {
+  const file = input.files[0];
+  if (!file) return;
+  try {
+    const fd = new FormData(); fd.append('file', file);
+    const r = await fetch('/api/template-media', { method:'POST', body: fd });
+    const d = await r.json();
+    if (!bs.reportConfig) bs.reportConfig = getDefaultReportConfig();
+    bs.reportConfig.coverPage = d.filename;
+    bs.dirty = true;
+    loadReportTab();
+    toast('Cover page uploaded');
+  } catch { toast('Upload failed'); }
+}
+
+function clearReportCover() {
+  if (!bs.reportConfig) bs.reportConfig = getDefaultReportConfig();
+  bs.reportConfig.coverPage = null;
+  bs.dirty = true;
+  loadReportTab();
 }
 
 async function scImportTemplates() {
@@ -6766,6 +6977,7 @@ function openBuilder(tplId) {
   bs.componentType = tpl.componentType || '';
   bs.requiresComponent = !!tpl.requiresComponent;
   bs.scoringEnabled = !!tpl.scoringEnabled;
+  bs.reportConfig = tpl.reportConfig || getDefaultReportConfig();
   bs.riskRatingEnabled = !!tpl.riskRatingEnabled;
   bs.selectedId = null;
   bs.dirty = false;
@@ -6796,6 +7008,7 @@ function newBuilder() {
   bs.requiresComponent = false;
   bs.scoringEnabled = false;
   bs.riskRatingEnabled = false;
+  bs.reportConfig = getDefaultReportConfig();
   bs.selectedId = null;
   bs.dirty = false;
   bs.items = [
@@ -6825,12 +7038,14 @@ function bEnterBuilder() {
 
 // ── Tabs ──────────────────────────────────────────────
 function builderSetTab(tab) {
-  const isBuild = tab === 'build';
-  document.getElementById('bld-build-tab').style.display = isBuild ? 'flex' : 'none';
-  document.getElementById('bld-preview-tab').style.display = isBuild ? 'none' : 'flex';
-  document.getElementById('btab-build').classList.toggle('active', isBuild);
-  document.getElementById('btab-preview').classList.toggle('active', !isBuild);
-  if (!isBuild) bRenderPreview();
+  ['build','preview','report'].forEach(t => {
+    const el = document.getElementById('bld-' + t + '-tab');
+    if (el) el.style.display = t === tab ? 'flex' : 'none';
+    const btn = document.getElementById('btab-' + t);
+    if (btn) btn.classList.toggle('active', t === tab);
+  });
+  if (tab === 'preview') bRenderPreview();
+  if (tab === 'report') loadReportTab();
 }
 
 // ── Canvas render ─────────────────────────────────────
@@ -7527,7 +7742,8 @@ async function saveBuilder() {
   const payload = {
     name: bs.name, standard: bs.standard, description: '',
     requiresComponent: bs.requiresComponent, componentType: bs.componentType,
-    scoringEnabled: bs.scoringEnabled, riskRatingEnabled: !!bs.riskRatingEnabled, version: 2,
+    scoringEnabled: bs.scoringEnabled, riskRatingEnabled: !!bs.riskRatingEnabled,
+    reportConfig: bs.reportConfig || getDefaultReportConfig(), version: 2,
     items: bs.items, questions, updatedAt: new Date().toISOString()
   };
   try {
