@@ -2958,13 +2958,24 @@ async function buildActionPDFBuffer(rect) {
     // Title row — full width
     doc.fillColor(GREY).font('Helvetica').fontSize(8).text('TITLE', M + 4, y + 4, { characterSpacing: 0.5 });
     doc.fillColor('#28251d').font('Helvetica-Bold').fontSize(12).text(rect.title || '—', M + 4, y + 16, { width: PAGE_W - M*2 - 8 });
-    y = doc.y + 10;
-    // Grid for rest
+    y = doc.y + 8;
+    // Component row — full width (can be long)
+    doc.fillColor(GREY).font('Helvetica').fontSize(8).text('COMPONENT', M + 4, y, { characterSpacing: 0.5 });
+    doc.fillColor('#28251d').font('Helvetica-Bold').fontSize(10).text(rect.component || '—', M + 4, y + 11, { width: PAGE_W - M*2 - 8 });
+    y = doc.y + 8;
+    // Grid for rest (3 columns)
     const colW = (PAGE_W - M*2) / 3;
-    const gridMeta = metaRows.slice(1);
+    const gridMeta = [
+      ['Location', rect.location || '—'],
+      ['Machine', rect.machine || '—'],
+      ['Priority', (rect.priority || '—').toUpperCase()],
+      ['Template', rect.templateName || '—'],
+      ['Raised by', rect.createdBy || '—'],
+      ['Date', rect.createdAt ? new Date(rect.createdAt).toLocaleString('en-AU', { dateStyle: 'medium', timeStyle: 'short' }) : '—'],
+      ['Due', rect.dueDate || '—']
+    ];
     gridMeta.forEach((m, i) => {
       const col = i % 3, row = Math.floor(i / 3);
-      if (col === 0 && i > 0) y += 0; // rows auto-flow
       const x = M + 4 + col * colW;
       const yy = y + row * 28;
       doc.fillColor(GREY).font('Helvetica').fontSize(8).text(m[0].toUpperCase(), x, yy, { characterSpacing: 0.5, width: colW - 8 });
@@ -2972,13 +2983,7 @@ async function buildActionPDFBuffer(rect) {
     });
     y += Math.ceil(gridMeta.length / 3) * 28 + 8;
 
-    // Priority pill
-    if (rect.priority) {
-      const pc = priorityColors[rect.priority] || GREY;
-      doc.roundedRect(PAGE_W - M - 80, 82, 70, 20, 10).fill(pc);
-      doc.fillColor('#fff').font('Helvetica-Bold').fontSize(9)
-         .text(rect.priority.toUpperCase(), PAGE_W - M - 80, 88, { width: 70, align: 'center' });
-    }
+    // (Priority shown inline in metadata grid, no separate pill)
 
     // WR/WO info
     if (rect.workRequestNumber || rect.workOrderNumber) {
