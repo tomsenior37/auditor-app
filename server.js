@@ -705,6 +705,24 @@ app.post('/api/inspection/draft', (req, res) => {
   writeDrafts(drafts);
   res.json({ success: true });
 });
+// All drafts — admin sees all, others see only own
+app.get('/api/inspection/drafts/all', (req, res) => {
+  const drafts = readDrafts();
+  const users = readUsers();
+  const isAdmin = req.user?.role === 'admin';
+  const results = [];
+  Object.entries(drafts).forEach(([userId, draft]) => {
+    if (!isAdmin && userId !== req.session.userId) return;
+    const u = users.find(x => x.id === userId);
+    results.push({
+      userId,
+      username: u?.displayName || u?.username || 'Unknown',
+      ...draft
+    });
+  });
+  res.json(results);
+});
+
 app.delete('/api/inspection/draft', (req, res) => {
   const drafts = readDrafts();
   delete drafts[req.session.userId];

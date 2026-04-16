@@ -5612,27 +5612,63 @@ async function loadInProgressTasks() {
   const wrap = document.getElementById('home-inprogress');
   const body = document.getElementById('home-inprogress-body');
   if (!wrap || !body) return;
+  const items = [];
+  // 1. Todo-list in-progress tasks
   try {
     const r = await fetch('/api/todo-lists');
     const all = await r.json();
-    const inProg = [];
     all.forEach(l => {
       l.tasks.filter(t => t.status === 'in_progress').forEach(t => {
-        inProg.push({ ...t, listId: l.id, listName: l.name, templateId: l.templateId, templateName: l.templateName });
+        items.push({ kind: 'todo', ...t, listId: l.id, listName: l.name, templateId: l.templateId, templateName: l.templateName });
       });
     });
-    if (!inProg.length) { wrap.style.display = 'none'; return; }
-    wrap.style.display = '';
-    body.innerHTML = inProg.map(t => `
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+  } catch {}
+  // 2. Inspection drafts (admin sees all, others see own)
+  try {
+    const r = await fetch('/api/inspection/drafts/all', { credentials: 'include' });
+    if (r.ok) {
+      const drafts = await r.json();
+      drafts.forEach(d => {
+        const tpl = templates.find(t => t.id === d.templateId);
+        items.push({
+          kind: 'draft',
+          username: d.username,
+          userId: d.userId,
+          component: d.component || '',
+          location: d.location || '',
+          machine: d.machine || '',
+          templateName: tpl?.name || d.templateId || '',
+          savedAt: d.savedAt
+        });
+      });
+    }
+  } catch {}
+  if (!items.length) { wrap.style.display = 'none'; return; }
+  wrap.style.display = '';
+  body.innerHTML = items.map(t => {
+    if (t.kind === 'todo') {
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
         <div style="flex:1;min-width:0;">
           <div style="font-weight:600;font-size:14px;font-family:monospace;">${escHtml(t.component)}</div>
           <div style="font-size:12px;color:var(--text-dim);">${escHtml(t.location)} › ${escHtml(t.machine)} · <span style="color:var(--accent);">${escHtml(t.assignedTo || '?')}</span></div>
-          <div style="font-size:11px;color:var(--text-dim);">${escHtml(t.listName)}</div>
+          <div style="font-size:11px;color:var(--text-dim);">📋 ${escHtml(t.listName)}</div>
         </div>
         <button onclick="startTodoInspection('${t.listId}','${t.id}','${escHtml(t.templateId)}')" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">Continue</button>
-      </div>`).join('');
-  } catch {}
+      </div>`;
+    } else {
+      const ago = t.savedAt ? Math.round((Date.now() - new Date(t.savedAt).getTime()) / 60000) : 0;
+      const agoLabel = ago < 1 ? 'just now' : ago < 60 ? `${ago}m ago` : `${Math.round(ago / 60)}h ago`;
+      const isOwn = t.userId === _me?.id;
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;font-size:14px;">${escHtml(t.component || t.machine || 'New inspection')}</div>
+          <div style="font-size:12px;color:var(--text-dim);">${t.location ? escHtml(t.location) + ' › ' + escHtml(t.machine) + ' · ' : ''}${escHtml(t.templateName)}</div>
+          <div style="font-size:11px;color:var(--text-dim);">✏️ Draft by <span style="color:var(--accent);">${escHtml(t.username)}</span> · ${agoLabel}</div>
+        </div>
+        ${isOwn ? `<button onclick="showForm()" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">Resume</button>` : ''}
+      </div>`;
+    }
+  }).join('');
 }
 
 async function refreshDashboard() {
