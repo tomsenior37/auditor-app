@@ -4437,8 +4437,7 @@ function resetFormAnswers() {
   if (banner) banner.style.display = 'none';
 }
 
-// ── Auto-save draft to localStorage ──────────────────────
-const DRAFT_KEY = 'inspection_draft';
+// ── Auto-save draft to server ──────────────────────────────
 let _draftTimer = null;
 
 function saveDraft() {
@@ -4455,20 +4454,23 @@ function saveDraft() {
       answers: { ...answers },
       findings: { ...findings },
       risk: { ..._riskState },
-      savedAt: new Date().toISOString(),
       todoListId: _activeTodoListId || null,
       todoTaskId: _activeTodoTaskId || null
     };
-    try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch {}
-  }, 500);
+    fetch('/api/inspection/draft', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(draft) }).catch(() => {});
+  }, 1000);
 }
 
 function clearDraft() {
-  try { localStorage.removeItem(DRAFT_KEY); } catch {}
+  fetch('/api/inspection/draft', { method: 'DELETE' }).catch(() => {});
 }
 
-function getDraft() {
-  try { const s = localStorage.getItem(DRAFT_KEY); return s ? JSON.parse(s) : null; } catch { return null; }
+async function getDraft() {
+  try {
+    const r = await fetch('/api/inspection/draft');
+    const d = await r.json();
+    return d;
+  } catch { return null; }
 }
 
 function _getQuestionByNum(n) {
@@ -4697,7 +4699,7 @@ function populateTemplateDropdown() {
     templates.filter(t => !t.archived).map(t => `<option value="${t.id}" ${selectedTemplate && selectedTemplate.id === t.id ? 'selected' : ''}>${t.name}</option>`).join('');
 }
 
-function showForm(skipDraftCheck) {
+async function showForm(skipDraftCheck) {
   populateTemplateDropdown();
   updateTemplateLabel();
   populateLocationDropdown();
@@ -4729,9 +4731,9 @@ function showForm(skipDraftCheck) {
 
   switchScreen('form-screen', 'New Inspection');
 
-  // Check for a saved draft
+  // Check for a saved draft on the server
   if (!skipDraftCheck) {
-    const draft = getDraft();
+    const draft = await getDraft();
     if (draft && draft.templateId) {
       const ago = Math.round((Date.now() - new Date(draft.savedAt).getTime()) / 60000);
       const label = ago < 1 ? 'just now' : ago < 60 ? `${ago}m ago` : `${Math.round(ago / 60)}h ago`;
