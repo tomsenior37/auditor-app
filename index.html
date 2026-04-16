@@ -1353,7 +1353,7 @@
     </select>
 
     <!-- Stats row -->
-    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;">
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;">
       <div onclick="showRecordsFiltered('PASS')" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 6px;text-align:center;cursor:pointer;">
         <div style="font-size:22px;font-weight:800;color:var(--pass);" id="stat-pass">0</div>
         <div style="font-size:10px;color:var(--text-dim);margin-top:2px;">Pass</div>
@@ -1362,17 +1362,23 @@
         <div style="font-size:22px;font-weight:800;color:var(--fail);" id="stat-fail">0</div>
         <div style="font-size:10px;color:var(--text-dim);margin-top:2px;">Fail</div>
       </div>
-      <div onclick="showRecordsFiltered('WR_RAISED')" style="background:var(--surface);border:1px solid #ff9800;border-radius:var(--radius);padding:10px 6px;text-align:center;cursor:pointer;">
-        <div style="font-size:22px;font-weight:800;color:#ff9800;" id="stat-wr">0</div>
-        <div style="font-size:10px;color:var(--text-dim);margin-top:2px;">WR</div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 6px;text-align:center;">
+        <div style="font-size:22px;font-weight:800;color:var(--text-dim);" id="stat-avg-score">—</div>
+        <div style="font-size:10px;color:var(--text-dim);margin-top:2px;">Avg Score</div>
       </div>
-      <div onclick="showRecordsFiltered('SERVICEABLE')" style="background:var(--surface);border:1px solid var(--pass);border-radius:var(--radius);padding:10px 4px;text-align:center;cursor:pointer;">
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;">
+      <div onclick="showRecordsFiltered('WR_RAISED')" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 6px;text-align:center;cursor:pointer;">
+        <div style="font-size:22px;font-weight:800;color:var(--amber);" id="stat-wr">0</div>
+        <div style="font-size:10px;color:var(--text-dim);margin-top:2px;">WR Raised</div>
+      </div>
+      <div onclick="showRecordsFiltered('SERVICEABLE')" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 4px;text-align:center;cursor:pointer;">
         <div style="font-size:22px;font-weight:800;color:var(--pass);" id="stat-rect">0</div>
-        <div style="font-size:10px;color:var(--text-dim);margin-top:2px;">Fixed</div>
+        <div style="font-size:10px;color:var(--text-dim);margin-top:2px;">Resolved</div>
       </div>
-      <div onclick="showRects()" style="background:var(--surface);border:1px solid var(--fail);border-radius:var(--radius);padding:10px 4px;text-align:center;cursor:pointer;">
+      <div onclick="showRects()" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 4px;text-align:center;cursor:pointer;">
         <div style="font-size:22px;font-weight:800;color:var(--fail);" id="stat-rects">0</div>
-        <div style="font-size:10px;color:var(--text-dim);margin-top:2px;">Issues</div>
+        <div style="font-size:10px;color:var(--text-dim);margin-top:2px;">Open Issues</div>
       </div>
     </div>
 
@@ -3070,6 +3076,23 @@ async function saveEditTemplate() {
 
 function escHtml(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
+function relTime(iso) {
+  if (!iso) return '';
+  const ms = Date.now() - new Date(iso).getTime();
+  if (!isFinite(ms) || ms < 0) return 'just now';
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return 'just now';
+  const m = Math.floor(s / 60);
+  if (m < 60) return m + 'm ago';
+  const h = Math.floor(m / 60);
+  if (h < 24) return h + 'h ago';
+  const d = Math.floor(h / 24);
+  if (d < 7) return d + 'd ago';
+  if (d < 30) return Math.floor(d / 7) + 'w ago';
+  if (d < 365) return Math.floor(d / 30) + 'mo ago';
+  return Math.floor(d / 365) + 'y ago';
+}
+
 // State
 let answers = {};
 let findings = {}; // { "q3": { comment: "", photo: null } }
@@ -3263,6 +3286,7 @@ async function renderUsers() {
         <div style="flex:1;min-width:0;">
           <div style="font-weight:600;font-size:14px;">${escHtml(u.displayName || u.username)}${u.id === _me.id ? ' <span style="font-size:10px;color:var(--text-dim);">(you)</span>' : ''}${u.mustChangePassword ? ' <span style="font-size:10px;color:#ff9800;">[must change pw]</span>' : ''}</div>
           <div style="font-size:12px;color:var(--text-dim);">${escHtml(u.username)} · ${escHtml(u.role)}${u.email ? ' · ' + escHtml(u.email) : ''}${u.lastLogin ? ' · last login ' + new Date(u.lastLogin).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : ' · never logged in'}</div>
+          <div style="font-size:11px;color:${u.lastSeenAt ? 'var(--pass)' : 'var(--text-faint)'};margin-top:2px;">${u.lastSeenAt ? '● active ' + relTime(u.lastSeenAt) : '○ not active'}</div>
         </div>
         <select onchange="changeUserRole('${u.id}', this.value)" ${u.id === _me.id ? 'disabled' : ''} style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px;border-radius:6px;font-size:12px;font-family:inherit;outline:none;">
           <option value="inspector"${u.role==='inspector'?' selected':''}>Inspector</option>
@@ -5332,6 +5356,16 @@ async function refreshDashboard() {
     setEl('stat-fail', filtered.filter(r => r.result === 'FAIL' && !r.status).length);
     setEl('stat-wr', filtered.filter(r => r.status === 'WR_RAISED').length);
     setEl('stat-rect', filtered.filter(r => r.status === 'SERVICEABLE').length);
+    // Avg score
+    const scored = filtered.filter(r => r.score && r.score.pct != null);
+    const avgPct = scored.length ? Math.round(scored.reduce((s, r) => s + r.score.pct, 0) / scored.length) : null;
+    const avgEl = document.getElementById('stat-avg-score');
+    if (avgEl) {
+      if (avgPct !== null) {
+        avgEl.textContent = avgPct + '%';
+        avgEl.style.color = avgPct >= 80 ? 'var(--pass)' : avgPct >= 50 ? 'var(--amber)' : 'var(--fail)';
+      } else { avgEl.textContent = '—'; avgEl.style.color = 'var(--text-dim)'; }
+    }
     // Recent 5
     const recent = [...filtered].slice(0, 5);
     const el = document.getElementById('dashboard-recent');
@@ -5343,7 +5377,10 @@ async function refreshDashboard() {
           <div style="font-weight:600;font-size:14px;">${escHtml(r.guardId || r.machine)}</div>
           <div style="font-size:12px;color:var(--text-dim);">${escHtml(r.location)} / ${escHtml(r.machine)} · ${new Date(r.timestamp).toLocaleDateString()}</div>
         </div>
-        <span style="font-weight:700;color:${r.result === 'PASS' ? 'var(--pass)' : 'var(--fail)'};font-size:13px;">${r.result}</span>
+        <div style="text-align:right;">
+          <span style="font-weight:700;color:${r.result === 'PASS' ? 'var(--pass)' : 'var(--fail)'};font-size:13px;">${r.result}</span>
+          ${r.score ? `<div style="font-family:var(--mono);font-size:10px;font-weight:600;color:${r.score.pct >= 80 ? 'var(--pass)' : r.score.pct >= 50 ? 'var(--amber)' : 'var(--fail)'};">${r.score.pct}%</div>` : ''}
+        </div>
       </div>
     `).join('');
   } catch(e) { console.error(e); }
@@ -5497,10 +5534,11 @@ async function renderRecords() {
     const riskBadge = rec.risk?.rating
       ? `<span style="background:${riskColors[rec.risk.rating]||'#666'};color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;margin-left:6px;">${escHtml(rec.risk.rating)}</span>`
       : '';
+    const scorePill = rec.score ? `<span style="font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:0.08em;color:${rec.score.pct >= 80 ? 'var(--pass)' : rec.score.pct >= 50 ? 'var(--amber)' : 'var(--fail)'};margin-left:6px;">${rec.score.pct}%</span>` : '';
     card.innerHTML = `
       <div class="record-header" onclick="toggleRecord(this.parentElement)">
         <div class="record-badge ${badgeClass}">${badgeLabel}</div>
-        ${riskBadge}
+        ${scorePill}${riskBadge}
         <div class="record-meta">
           <div class="record-guard-id">${escHtml(rec.guardId)}${archivedBadge}</div>
           <div class="record-time">${dtStr} · ${escHtml(rec.inspector)}</div>
@@ -7753,7 +7791,6 @@ function computeResultV2(items) {
 }
 
 function computeScoreV2(items) {
-  if (!selectedTemplate?.scoringEnabled) return null;
   const qs = items.filter(i => i.itemType === 'question' && i.type !== 'instruction');
   let totalScore = 0, maxScore = 0;
   qs.forEach((q, i) => {
