@@ -1407,6 +1407,12 @@
       <div id="kpi-topfailing" style="font-size:12px;color:var(--text-dim);"></div>
     </div>
 
+    <!-- In-progress inspection tasks -->
+    <div id="home-inprogress" style="display:none;">
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--accent);letter-spacing:.5px;margin-bottom:8px;">In-progress Inspections</div>
+      <div id="home-inprogress-body" style="background:var(--surface);border:1px solid var(--accent);border-radius:var(--radius);padding:2px 14px;margin-bottom:14px;"></div>
+    </div>
+
     <!-- Recent activity -->
     <div>
       <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text-dim);letter-spacing:.5px;margin-bottom:8px;">Recent Activity</div>
@@ -2645,8 +2651,12 @@ async function openTodoDetail(id) {
     const list = await r.json();
     const done = list.tasks.filter(t => t.status === 'completed').length;
     const pct = list.tasks.length ? Math.round(done / list.tasks.length * 100) : 0;
+    const isAdmin = _me?.role === 'admin';
     headerEl.innerHTML = `
-      <div style="font-weight:700;font-size:18px;color:var(--accent);">${escHtml(list.name)}</div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div style="font-weight:700;font-size:18px;color:var(--accent);">${escHtml(list.name)}</div>
+        ${isAdmin ? `<button onclick="deleteTodoList('${list.id}')" style="background:none;border:1px solid var(--fail);color:var(--fail);border-radius:6px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;">🗑️ Delete List</button>` : ''}
+      </div>
       <div style="font-size:13px;color:var(--text-dim);">${escHtml(list.templateName)} · ${done}/${list.tasks.length} completed · ${pct}%</div>
       <div style="background:var(--bg);height:8px;border-radius:4px;overflow:hidden;margin-top:6px;">
         <div style="width:${pct}%;height:100%;background:${pct===100?'var(--pass)':'var(--accent)'};transition:width .3s;"></div>
@@ -2661,6 +2671,8 @@ async function openTodoDetail(id) {
       } else if (t.status === 'in_progress' && t.assignedTo === me) {
         actions = `<button onclick="event.stopPropagation();startTodoInspection('${list.id}','${t.id}','${escHtml(list.templateId)}')" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;">Continue</button>
           <button onclick="event.stopPropagation();releaseTodoTask('${list.id}','${t.id}')" style="background:none;border:1px solid var(--border);color:var(--text-dim);border-radius:6px;padding:7px 10px;font-size:11px;cursor:pointer;">Release</button>`;
+      } else if (t.status === 'in_progress' && isAdmin) {
+        actions = `<button onclick="event.stopPropagation();releaseTodoTask('${list.id}','${t.id}')" style="background:none;border:1px solid var(--fail);color:var(--fail);border-radius:6px;padding:7px 10px;font-size:11px;cursor:pointer;">Release (admin)</button>`;
       } else if (t.status === 'completed' && t.inspectionId) {
         actions = `<a href="/api/report/${t.inspectionId}" target="_blank" style="color:var(--accent);font-size:12px;font-weight:600;text-decoration:none;">📄 Report</a>`;
       }
@@ -2685,6 +2697,16 @@ async function claimTodoTask(listId, taskId) {
     if (d.success) { toast('Task claimed'); openTodoDetail(listId); }
     else toast(d.error || 'Failed');
   } catch { toast('Network error'); }
+}
+
+async function deleteTodoList(listId) {
+  showConfirmModal('Delete this entire todo list? Completed inspections are not affected.', async () => {
+    try {
+      const r = await fetch('/api/todo-lists/' + listId, { method: 'DELETE' });
+      if (r.ok) { toast('Todo list deleted'); showTodoLists(); }
+      else toast('Failed');
+    } catch { toast('Network error'); }
+  }, 'Delete', 'var(--fail)');
 }
 
 async function releaseTodoTask(listId, taskId) {
@@ -6055,8 +6077,36 @@ function showOverdueAssets() {
   alert('Overdue assets:\n\n' + list);
 }
 
+async function loadInProgressTasks() {
+  const wrap = document.getElementById('home-inprogress');
+  const body = document.getElementById('home-inprogress-body');
+  if (!wrap || !body) return;
+  try {
+    const r = await fetch('/api/todo-lists');
+    const all = await r.json();
+    const inProg = [];
+    all.forEach(l => {
+      l.tasks.filter(t => t.status === 'in_progress').forEach(t => {
+        inProg.push({ ...t, listId: l.id, listName: l.name, templateId: l.templateId, templateName: l.templateName });
+      });
+    });
+    if (!inProg.length) { wrap.style.display = 'none'; return; }
+    wrap.style.display = '';
+    body.innerHTML = inProg.map(t => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;font-size:14px;font-family:monospace;">${escHtml(t.component)}</div>
+          <div style="font-size:12px;color:var(--text-dim);">${escHtml(t.location)} › ${escHtml(t.machine)} · <span style="color:var(--accent);">${escHtml(t.assignedTo || '?')}</span></div>
+          <div style="font-size:11px;color:var(--text-dim);">${escHtml(t.listName)}</div>
+        </div>
+        <button onclick="startTodoInspection('${t.listId}','${t.id}','${escHtml(t.templateId)}')" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">Continue</button>
+      </div>`).join('');
+  } catch {}
+}
+
 async function refreshDashboard() {
   loadKpis();
+  loadInProgressTasks();
   try {
     const res = await fetch('/api/inspections');
     inspections = await res.json();
