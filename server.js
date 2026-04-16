@@ -2097,9 +2097,27 @@ app.post('/api/rectifications/:id/photo', upload.single('photo'), (req, res) => 
   res.json({ success: true, photo: req.file.filename, rect });
 });
 
+app.patch('/api/rectifications/:id/archive', (req, res) => {
+  const rects = readRects();
+  const idx = rects.findIndex(r => r.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'not found' });
+  if (req.body.archived) {
+    rects[idx].archived = true;
+    rects[idx].archivedAt = new Date().toISOString();
+  } else {
+    delete rects[idx].archived;
+    delete rects[idx].archivedAt;
+  }
+  writeRects(rects);
+  res.json({ success: true });
+});
+
 app.delete('/api/rectifications/:id', (req, res) => {
-  let rects = readRects();
-  rects = rects.filter(i => i.id !== req.params.id);
+  const rects = readRects();
+  const idx = rects.findIndex(r => r.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'not found' });
+  if (!rects[idx].archived) return res.status(400).json({ error: 'Must be archived before permanent deletion' });
+  rects.splice(idx, 1);
   writeRects(rects);
   res.json({ success: true });
 });

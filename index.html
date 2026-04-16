@@ -4350,9 +4350,9 @@ async function batchSendRects() {
 
 function renderRectsList() {
   const filter = document.getElementById('rects-filter-status')?.value || 'active';
-  let filtered = _rects;
-  if (filter === 'active') filtered = _rects.filter(i => i.status === 'open' || i.status === 'in_progress');
-  else if (filter !== 'all') filtered = _rects.filter(i => i.status === filter);
+  let filtered = _rects.filter(i => !i.archived);
+  if (filter === 'active') filtered = filtered.filter(i => i.status === 'open' || i.status === 'in_progress');
+  else if (filter !== 'all') filtered = filtered.filter(i => i.status === filter);
 
   const el = document.getElementById('rects-list');
   if (!filtered.length) {
@@ -4670,12 +4670,32 @@ async function uploadRectPhoto(id, input) {
 }
 
 async function deleteRect(id) {
-  showConfirmModal('Delete this action permanently?', async () => {
-    await fetch('/api/rectifications/' + id, { method: 'DELETE' });
-    loadRects();
-    showRects();
-    toast('Action deleted');
-  });
+  showConfirmModal('Archive this action? It moves to the archive where you can restore or permanently delete it.', async () => {
+    try {
+      const r = await fetch('/api/rectifications/' + id + '/archive', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ archived: true }) });
+      if (r.ok) { loadRects(); showRects(); toast('Action archived'); }
+      else toast('Failed');
+    } catch { toast('Network error'); }
+  }, 'Archive', 'var(--accent)');
+}
+
+async function restoreAction(id) {
+  showConfirmModal('Restore this action from the archive?', async () => {
+    try {
+      const r = await fetch('/api/rectifications/' + id + '/archive', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ archived: false }) });
+      if (r.ok) { loadRects(); renderArchive(); toast('Action restored'); }
+    } catch { toast('Failed'); }
+  }, 'Restore', 'var(--accent)');
+}
+
+async function purgeAction(id) {
+  showConfirmModal('Permanently delete this action? This cannot be undone.', async () => {
+    try {
+      const r = await fetch('/api/rectifications/' + id, { method: 'DELETE' });
+      if (r.ok) { loadRects(); renderArchive(); toast('Action permanently deleted'); }
+      else { const d = await r.json(); toast(d.error || 'Failed'); }
+    } catch { toast('Failed'); }
+  }, 'Delete Forever', 'var(--fail)');
 }
 
 async function emailRectReport(id) {
@@ -8500,8 +8520,9 @@ async function renderArchive() {
     const inspectors = data.inspectors || [];
     const archivedInspections = allInsp.filter(i => i.archived);
     const archivedTemplates = (templates || []).filter(t => t.archived);
+    const archivedActions = (_rects || []).filter(r => r.archived);
 
-    if (!guards.length && !locations.length && !inspectors.length && !archivedInspections.length && !archivedTemplates.length) {
+    if (!guards.length && !locations.length && !inspectors.length && !archivedInspections.length && !archivedTemplates.length && !archivedActions.length) {
       body.innerHTML = '<div class="empty-state"><div class="icon">🗄️</div>Archive is empty.<br>Archive templates, inspections, guards / locations / inspectors to populate this view.</div>';
       return;
     }
@@ -8523,6 +8544,19 @@ async function renderArchive() {
           <div class="archive-meta">${qCount} question${qCount !== 1 ? 's' : ''} · Archived ${d}</div>
         </div>`;
       }, 'No archived templates') +
+      archiveSectionHTML('Archived Actions', '⚠️', archivedActions, a => {
+        const d = a.archivedAt ? new Date(a.archivedAt).toLocaleDateString('en-AU', { dateStyle: 'short' }) : '—';
+        return `<div class="archive-card">
+          <div class="archive-card-header">
+            <span class="archive-guard-id">${escHtml(a.id)} <span style="font-size:11px;color:var(--text-dim);font-weight:normal;">· ${escHtml(a.title || '')}</span></span>
+            <div style="display:flex;gap:6px;">
+              <button class="btn-restore" onclick="restoreAction('${a.id}')">↩ Restore</button>
+              <button onclick="purgeAction('${a.id}')" style="background:none;border:1px solid var(--fail);color:var(--fail);border-radius:6px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">🗑️ Delete</button>
+            </div>
+          </div>
+          <div class="archive-meta">📍 ${escHtml(a.location||'')} / ⚙️ ${escHtml(a.machine||'')} · Archived ${d}</div>
+        </div>`;
+      }, 'No archived actions') +
       archiveSectionHTML('Deleted Inspections', '📋', archivedInspections, i => {
         const d = i.archivedAt ? new Date(i.archivedAt).toLocaleDateString('en-AU', { dateStyle: 'short' }) : '—';
         const insDate = new Date(i.timestamp).toLocaleDateString('en-AU', { dateStyle: 'short' });
