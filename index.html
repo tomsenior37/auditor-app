@@ -3576,6 +3576,7 @@ function _getQuestionByNum(n) {
 }
 
 function setAnswer(n, val) {
+  _formInProgress = true;
   answers[`q${n}`] = val === 'yes' ? true : (val === 'no' ? false : 'na');
   const card = document.getElementById(`qcard-${n}`);
   card.querySelectorAll('.q-btn').forEach(btn => {
@@ -4022,29 +4023,6 @@ function restoreDraft(draft) {
   _activeTodoTaskId = draft.todoTaskId || null;
   evaluateLogicV2();
   updateAuditProgress();
-
-  // Deferred photo restoration — ensures DOM is settled after buildChecklist
-  setTimeout(() => {
-    Object.entries(findings).forEach(([key, f]) => {
-      if (!f?.photo) return;
-      const n = parseInt(key.replace('q', ''), 10);
-      if (isNaN(n)) return;
-      // Make sure the finding panel is visible
-      const panel = document.getElementById(`finding-panel-${n}`);
-      if (panel && panel.style.display === 'none') panel.style.display = 'flex';
-      const preview = document.getElementById(`finding-photo-preview-${n}`);
-      if (preview) {
-        preview.src = '/photos/' + f.photo;
-        preview.style.display = 'block';
-        preview.onclick = function() { annotatePhoto(this.src, 'finding-photo-preview-' + n, key); };
-      }
-      const annBtn = document.getElementById(`finding-annotate-${n}`);
-      if (annBtn) {
-        annBtn.style.display = 'inline';
-        annBtn.onclick = function() { annotatePhoto(document.getElementById('finding-photo-preview-' + n).src, 'finding-photo-preview-' + n, key); };
-      }
-    });
-  }, 100);
 }
 
 // ── Submit ─────────────────────────────────────────────────
@@ -4150,6 +4128,7 @@ async function submitInspection() {
     if (!res.ok) throw new Error('Server error');
     const saved = await res.json();
     clearDraft();
+    _formInProgress = false;
     await loadStats();
     // Complete the todo task if this inspection was started from a todo list
     if (_activeTodoListId && _activeTodoTaskId) {
@@ -4188,6 +4167,16 @@ function populateTemplateDropdown() {
     templates.filter(t => !t.archived).map(t => `<option value="${t.id}" ${selectedTemplate && selectedTemplate.id === t.id ? 'selected' : ''}>${t.name}</option>`).join('');
 }
 
+let _formInProgress = false;
+
+function resumeForm() {
+  if (_formInProgress) {
+    switchScreen('form-screen', 'Inspection');
+    return;
+  }
+  showForm();
+}
+
 async function showForm(skipDraftCheck) {
   populateTemplateDropdown();
   updateTemplateLabel();
@@ -4218,6 +4207,7 @@ async function showForm(skipDraftCheck) {
     if (opt) sel.value = savedInspector;
   }
 
+  _formInProgress = false;
   switchScreen('form-screen', 'New Inspection');
 
   // Check for a saved draft
@@ -5703,7 +5693,7 @@ async function loadInProgressTasks() {
           <div style="font-size:12px;color:var(--text-dim);">${t.location ? escHtml(t.location) + ' › ' + escHtml(t.machine) + ' · ' : ''}${escHtml(t.templateName)}</div>
           <div style="font-size:11px;color:var(--text-dim);">✏️ Draft by <span style="color:var(--accent);">${escHtml(t.username)}</span> · ${agoLabel}</div>
         </div>
-        ${isOwn ? `<button onclick="showForm()" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">Resume</button>` : ''}
+        ${isOwn ? `<button onclick="resumeForm()" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">Resume</button>` : ''}
       </div>`;
     }
   }).join('');
@@ -7832,6 +7822,7 @@ function buildChecklistV2(items) {
 
 // ── V2 answer setters ─────────────────────────────────
 function setMcAnswer(n, optId, optIdx, qItemId) {
+  _formInProgress = true;
   answers[`q${n}`] = optId;
   const card = document.getElementById(`qcard-${n}`);
   if (!card) return;
@@ -7851,6 +7842,7 @@ function setMcAnswer(n, optId, optIdx, qItemId) {
 }
 
 function toggleMcAnswer(n, optId, optIdx, qItemId) {
+  _formInProgress = true;
   const key = `q${n}`;
   if (!Array.isArray(answers[key])) answers[key] = [];
   const arr = answers[key];
@@ -8477,7 +8469,7 @@ async function doRestoreGuard(guardId, location, machine) {
   <button onclick="showAssets()" data-nav="assets-screen">
     <span class="nav-icon">🏭</span>Assets
   </button>
-  <button onclick="showForm()" data-nav="form-screen" style="position:relative;">
+  <button onclick="resumeForm()" data-nav="form-screen" style="position:relative;">
     <span class="nav-icon" style="background:var(--accent);color:#fff;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;margin-top:-12px;">＋</span>
     <span style="margin-top:-2px;">Audit</span>
   </button>
