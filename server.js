@@ -2363,22 +2363,24 @@ async function buildPDFBuffer(insp, template) {
       y = doc.y + 8;
     }
 
-    // ── Rectification Notes ─────────────────────────
+    // ── Corrective Actions ─────────────────────────
     if (insp.rectNotes && Object.keys(insp.rectNotes).length) {
       ensureSpace(40);
-      drawSection('Rectification Notes');
-      let rnNum = 0;
+      drawSection('Corrective Actions');
+      let caNum = 0;
       const qs = (template && template.version === 2 && Array.isArray(template.items))
         ? template.items.filter(i => i.itemType === 'question' && i.type !== 'instruction') : [];
       Object.entries(insp.rectNotes).forEach(([key, note]) => {
         if (!note) return;
-        rnNum++;
+        caNum++;
         const qIdx = parseInt(key.replace('q', ''), 10) - 1;
         const qText = (qs[qIdx]?.text || key).slice(0, 80);
-        ensureSpace(30);
-        doc.fillColor('#d19900').font('Helvetica-Bold').fontSize(10).text(`${rnNum}. ${qText}`);
-        doc.fillColor('#28251d').font('Helvetica').fontSize(10).text('   🔧 ' + note, { width: PAGE_W - M*2 - 28 });
-        y = doc.y + 6;
+        ensureSpace(36);
+        doc.roundedRect(M, y, PAGE_W - M*2, 0, 4); // spacer
+        doc.fillColor(RED).font('Helvetica-Bold').fontSize(10).text(`CA${caNum}. ${qText}`, M, y);
+        y = doc.y + 2;
+        doc.fillColor('#28251d').font('Helvetica').fontSize(10).text(note, M + 14, y, { width: PAGE_W - M*2 - 28 });
+        y = doc.y + 8;
       });
     }
 
