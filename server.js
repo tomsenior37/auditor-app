@@ -1391,9 +1391,10 @@ app.get('/api/assets/meta-summary', (req, res) => {
   const out = {};
   Object.keys(assets).forEach(k => {
     const a = assets[k];
+    const mainFn = a.mainPhotoFilename || ((a.photos && a.photos[0]) ? a.photos[0].filename : null);
     out[k] = {
       status: a.status || 'active',
-      photo: (a.photos && a.photos[0]) ? a.photos[0].filename : null,
+      photo: mainFn,
       componentType: a.componentType || ''
     };
   });
@@ -1437,6 +1438,7 @@ app.post('/api/asset/meta', (req, res) => {
   if (componentType !== undefined) assets[key].componentType = componentType;
   if (customFields !== undefined) assets[key].customFields = customFields;
   if (schedule !== undefined) assets[key].schedule = schedule;
+  if (req.body.mainPhotoFilename !== undefined) assets[key].mainPhotoFilename = req.body.mainPhotoFilename;
   // Auto-compute nextDue from lastInspected + intervalDays
   if (assets[key].schedule && assets[key].schedule.intervalDays) {
     const last = assets[key].schedule.lastInspectedAt || assets[key].createdAt;

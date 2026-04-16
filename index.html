@@ -1762,6 +1762,10 @@ Building B,CNC Mill,,,,
         <option value="">No component required</option>
       </select>
       <label class="bld-toggle-row" style="padding:4px 0;">
+        <span style="font-size:14px;">Show component reference photo</span>
+        <label class="toggle-switch"><input type="checkbox" id="bld-refphoto" onchange="bs.showRefPhoto=this.checked;bs.dirty=true;"><span class="toggle-slider"></span></label>
+      </label>
+      <label class="bld-toggle-row" style="padding:4px 0;">
         <span style="font-size:14px;">Enable Scoring</span>
         <label class="toggle-switch"><input type="checkbox" id="bld-scoring" onchange="bs.scoringEnabled=this.checked;bs.dirty=true;"><span class="toggle-slider"></span></label>
       </label>
@@ -2118,6 +2122,11 @@ function updateTemplateLabel() {
   const refTitle = document.getElementById('ref-photo-title');
   if (guardLabel) guardLabel.textContent = 'Component ID';
   if (refTitle) refTitle.textContent = 'Component Reference Photo (optional)';
+  const refBlock = refTitle?.parentElement;
+  const photoArea = refBlock?.nextElementSibling;
+  const showRef = selectedTemplate?.showRefPhoto !== false;
+  if (refBlock) refBlock.style.display = showRef ? '' : 'none';
+  if (photoArea && photoArea.classList.contains('photo-area')) photoArea.style.display = showRef ? '' : 'none';
 }
 
 function tplQuestions(tpl) {
@@ -3732,6 +3741,20 @@ async function handlePhotoSelect(e) {
     const data = await res.json();
     uploadedPhoto = data.filename;
     toast('Photo uploaded ✓');
+    // Also add to the component's asset photos
+    const comp = document.getElementById('f-guardId')?.value;
+    const loc = document.getElementById('f-location')?.value;
+    const mac = document.getElementById('f-machine')?.value;
+    if (comp && loc && mac && data.filename) {
+      try {
+        const fd2 = new FormData();
+        fd2.append('photo', file);
+        fd2.append('location', loc);
+        fd2.append('machine', mac);
+        fd2.append('component', comp);
+        await fetch('/api/asset/photo', { method: 'POST', body: fd2 });
+      } catch {}
+    }
   } catch (err) {
     toast('Photo upload failed — will save without photo');
     uploadedPhoto = null;
@@ -4963,7 +4986,8 @@ function renderAssetInfo() {
 
   const qrBtn = comp ? `<button onclick="showAssetQr()" style="background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;width:100%;">🔲 Show QR Code</button>` : '';
 
-  const mainPhoto = (m.photos && m.photos[0]) ? m.photos[0] : null;
+  const mainFn = m.mainPhotoFilename || (m.photos && m.photos[0] ? m.photos[0].filename : null);
+  const mainPhoto = mainFn ? { filename: mainFn } : null;
   const mainPhotoHtml = `
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px;display:flex;gap:12px;align-items:center;">
       ${mainPhoto
@@ -5081,6 +5105,7 @@ async function saveAssetMeta() {
 function renderAssetPhotos() {
   const el = document.getElementById('asset-tab-photos');
   const photos = (_assetMeta?.photos || []);
+  const mainFn = _assetMeta?.mainPhotoFilename || (photos[0]?.filename || '');
   el.innerHTML = `
     <div style="display:flex;gap:8px;margin-bottom:8px;">
       <label style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--surface);border:2px dashed var(--border);border-radius:var(--radius);padding:14px;cursor:pointer;font-size:14px;color:var(--text-dim);">
@@ -5089,12 +5114,34 @@ function renderAssetPhotos() {
       </label>
     </div>
     ${photos.length ? `<div class="asset-photo-grid">
-      ${photos.map(p => `
-        <div style="position:relative;">
-          <img src="/photos/${p.filename}" alt="${escHtml(p.originalName||'')}" onclick="window.open('/photos/${p.filename}','_blank')">
-          <button onclick="deleteAssetPhoto('${p.filename}')" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.7);border:none;color:#fff;width:22px;height:22px;border-radius:50%;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
-        </div>`).join('')}
+      ${photos.map(p => {
+        const isMain = p.filename === mainFn;
+        return `<div style="position:relative;border:${isMain ? '2px solid var(--accent)' : '1px solid var(--border)'};border-radius:8px;overflow:hidden;">
+          <img src="/photos/${p.filename}" alt="${escHtml(p.originalName||'')}" onclick="window.open('/photos/${p.filename}','_blank')" style="display:block;width:100%;aspect-ratio:1;object-fit:cover;">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 6px;background:var(--surface);">
+            <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:${isMain ? 'var(--accent)' : 'var(--text-dim)'};cursor:pointer;">
+              <input type="radio" name="main-photo" ${isMain ? 'checked' : ''} onchange="setMainPhoto('${p.filename}')" style="accent-color:var(--accent);"> ${isMain ? 'Main' : 'Set main'}
+            </label>
+            <button onclick="deleteAssetPhoto('${p.filename}')" style="background:none;border:none;color:var(--fail);font-size:14px;cursor:pointer;padding:0 2px;">✕</button>
+          </div>
+        </div>`;
+      }).join('')}
     </div>` : '<div style="color:var(--text-dim);text-align:center;padding:20px;">No photos yet</div>'}`;
+}
+
+async function setMainPhoto(filename) {
+  _assetMeta.mainPhotoFilename = filename;
+  try {
+    await fetch('/api/asset/meta', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        location: _assetNav._detailLoc || '', machine: _assetNav._detailMac || '', component: _assetNav._detailComp || '',
+        mainPhotoFilename: filename
+      })
+    });
+    toast('Main photo updated');
+    renderAssetPhotos();
+    renderAssetInfo();
+  } catch { toast('Failed'); }
 }
 
 async function uploadAssetPhoto(input) {
@@ -5880,7 +5927,7 @@ async function loadComponentRefPhoto(component) {
   try {
     const r = await fetch(`/api/asset/meta?location=${encodeURIComponent(loc)}&machine=${encodeURIComponent(mac)}&component=${encodeURIComponent(component)}`);
     const meta = await r.json();
-    const photo = meta?.photos?.[0]?.filename;
+    const photo = meta?.mainPhotoFilename || meta?.photos?.[0]?.filename;
     if (photo) {
       preview.src = '/photos/' + photo;
       preview.style.display = 'block';
@@ -6665,6 +6712,7 @@ function openBuilder(tplId) {
   bs.scoringEnabled = !!tpl.scoringEnabled;
   bs.riskRatingEnabled = !!tpl.riskRatingEnabled;
   bs.riskRatingRequired = tpl.riskRatingRequired || 'fail';
+  bs.showRefPhoto = tpl.showRefPhoto !== false;
   bs.selectedId = null;
   bs.dirty = false;
   if (tpl.version === 2 && tpl.items && tpl.items.length) {
@@ -6695,6 +6743,7 @@ function newBuilder() {
   bs.scoringEnabled = false;
   bs.riskRatingEnabled = false;
   bs.riskRatingRequired = 'fail';
+  bs.showRefPhoto = true;
   bs.selectedId = null;
   bs.dirty = false;
   bs.items = [
@@ -6716,6 +6765,8 @@ function bEnterBuilder() {
   compSel.value = bs.componentType;
   const scoringCb = document.getElementById('bld-scoring');
   if (scoringCb) scoringCb.checked = bs.scoringEnabled;
+  const refPhotoCb = document.getElementById('bld-refphoto');
+  if (refPhotoCb) refPhotoCb.checked = bs.showRefPhoto !== false;
   const riskCb = document.getElementById('bld-risk');
   if (riskCb) riskCb.checked = !!bs.riskRatingEnabled;
   const riskReqRow = document.getElementById('bld-risk-req-row');
@@ -7415,7 +7466,7 @@ async function saveBuilder() {
   const payload = {
     name: bs.name, standard: bs.standard, description: '',
     requiresComponent: bs.requiresComponent, componentType: bs.componentType,
-    scoringEnabled: bs.scoringEnabled, riskRatingEnabled: !!bs.riskRatingEnabled, riskRatingRequired: bs.riskRatingRequired || 'fail', version: 2,
+    scoringEnabled: bs.scoringEnabled, riskRatingEnabled: !!bs.riskRatingEnabled, riskRatingRequired: bs.riskRatingRequired || 'fail', showRefPhoto: bs.showRefPhoto !== false, version: 2,
     items: bs.items, questions, updatedAt: new Date().toISOString()
   };
   try {
