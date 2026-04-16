@@ -1633,15 +1633,14 @@
 <!-- ══════════════ ISSUES SCREEN ══════════════ -->
 <div class="screen" id="rects-screen">
   <div style="padding:16px;display:flex;flex-direction:column;gap:12px;">
+    <!-- Issues / Actions tabs -->
+    <div style="display:flex;gap:0;border-bottom:2px solid var(--border);">
+      <button id="rects-tab-issues" onclick="setRectsTab('issues')" class="asset-tab active" style="flex:1;text-align:center;">Issues</button>
+      <button id="rects-tab-actions" onclick="setRectsTab('actions')" class="asset-tab" style="flex:1;text-align:center;">Actions</button>
+    </div>
     <!-- Filter bar -->
     <div style="display:flex;gap:8px;">
       <select id="rects-filter-status" onchange="renderRectsList()" style="flex:1;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
-        <option value="active">Open & In Progress</option>
-        <option value="all">All Issues</option>
-        <option value="open">Open</option>
-        <option value="in_progress">In Progress</option>
-        <option value="resolved">Resolved</option>
-        <option value="closed">Closed</option>
       </select>
       <button onclick="createRectManual()" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">＋ New</button>
     </div>
@@ -4085,9 +4084,22 @@ function updateRectsBadge() {
   if (homeEl) homeEl.textContent = openCount;
 }
 
+let _rectsTab = 'issues';
+function setRectsTab(tab) {
+  _rectsTab = tab;
+  document.getElementById('rects-tab-issues').classList.toggle('active', tab === 'issues');
+  document.getElementById('rects-tab-actions').classList.toggle('active', tab === 'actions');
+  const sel = document.getElementById('rects-filter-status');
+  if (tab === 'issues') {
+    sel.innerHTML = '<option value="open">Open</option><option value="all_issues">All Unresolved</option>';
+  } else {
+    sel.innerHTML = '<option value="in_progress">In Progress</option><option value="resolved">Resolved</option><option value="closed">Closed</option><option value="all_actions">All</option>';
+  }
+  renderRectsList();
+}
 function showRects() {
-  switchScreen('rects-screen', 'Issues');
-  loadRects().then(() => renderRectsList());
+  switchScreen('rects-screen', 'Issues & Actions');
+  loadRects().then(() => { setRectsTab(_rectsTab); });
 }
 
 let _rectBatchMode = false;
@@ -4143,14 +4155,16 @@ async function batchSendRects() {
 }
 
 function renderRectsList() {
-  const filter = document.getElementById('rects-filter-status')?.value || 'active';
+  const filter = document.getElementById('rects-filter-status')?.value || 'open';
   let filtered = _rects;
-  if (filter === 'active') filtered = _rects.filter(i => i.status === 'open' || i.status === 'in_progress');
+  if (filter === 'all_issues') filtered = _rects.filter(i => i.status === 'open' || i.status === 'in_progress');
+  else if (filter === 'all_actions') filtered = _rects.filter(i => i.status !== 'open');
   else if (filter !== 'all') filtered = _rects.filter(i => i.status === filter);
 
   const el = document.getElementById('rects-list');
+  const emptyMsg = _rectsTab === 'issues' ? 'No open issues' : 'No actions found';
   if (!filtered.length) {
-    el.innerHTML = `<div style="color:var(--text-dim);text-align:center;padding:30px 0;">${filter === 'active' ? 'No open issues' : 'No issues found'}</div>`;
+    el.innerHTML = `<div style="color:var(--text-dim);text-align:center;padding:30px 0;">${emptyMsg}</div>`;
     return;
   }
   el.innerHTML = filtered.map(rect => {
