@@ -3334,6 +3334,14 @@ function initAppAfterAuth() {
   loadRects();
 }
 
+// Save draft on browser close/refresh
+window.addEventListener('beforeunload', () => {
+  if (document.getElementById('form-screen')?.classList.contains('active') && selectedTemplate && Object.keys(answers).length) {
+    const draft = _buildDraft();
+    if (draft) { try { localStorage.setItem(DRAFT_LS_KEY, JSON.stringify(draft)); } catch {} }
+  }
+});
+
 // ── Init ───────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
   const authed = await checkAuth();
@@ -3896,9 +3904,11 @@ function saveDraft() {
   _draftTimer = setTimeout(() => {
     const draft = _buildDraft();
     if (!draft) return;
-    // Always save to localStorage (instant, works offline)
-    try { localStorage.setItem(DRAFT_LS_KEY, JSON.stringify(draft)); } catch {}
-    // Also try server (may fail if cookie issue — that's OK, localStorage is the primary)
+    // Save to localStorage
+    try {
+      localStorage.setItem(DRAFT_LS_KEY, JSON.stringify(draft));
+    } catch (e) { console.error('localStorage save failed:', e); }
+    // Also try server
     fetch('/api/inspection/draft', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(draft), credentials: 'include' }).catch(() => {});
   }, 800);
 }
@@ -4166,9 +4176,10 @@ async function showForm(skipDraftCheck) {
 
   switchScreen('form-screen', 'New Inspection');
 
-  // Check for a saved draft on the server
+  // Check for a saved draft
   if (!skipDraftCheck) {
     const draft = await getDraft();
+    console.log('Draft check result:', draft ? ('found — tpl: ' + draft.templateId + ' savedAt: ' + draft.savedAt) : 'none');
     if (draft && draft.templateId) {
       const ago = Math.round((Date.now() - new Date(draft.savedAt).getTime()) / 60000);
       const label = ago < 1 ? 'just now' : ago < 60 ? `${ago}m ago` : `${Math.round(ago / 60)}h ago`;
@@ -5657,12 +5668,25 @@ function goHome() {
     if (btn) { btn.textContent = 'Discard'; btn.style.background = ''; }
     return;
   }
+  // Force-save draft immediately if leaving the form screen mid-inspection
+  if (document.getElementById('form-screen')?.classList.contains('active') && selectedTemplate && Object.keys(answers).length) {
+    clearTimeout(_draftTimer);
+    const draft = _buildDraft();
+    if (draft) { try { localStorage.setItem(DRAFT_LS_KEY, JSON.stringify(draft)); } catch {} }
+  }
   switchScreen('home-screen', 'Auditor');
   populateDashboardTemplateDropdown();
   refreshDashboard();
 }
 
 function switchScreen(id, title) {
+  // Force-save draft if leaving the form screen with answers in progress
+  const formActive = document.getElementById('form-screen')?.classList.contains('active');
+  if (formActive && id !== 'form-screen' && selectedTemplate && Object.keys(answers).length) {
+    clearTimeout(_draftTimer);
+    const draft = _buildDraft();
+    if (draft) { try { localStorage.setItem(DRAFT_LS_KEY, JSON.stringify(draft)); } catch {} }
+  }
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   document.getElementById('header-title').textContent = title;
