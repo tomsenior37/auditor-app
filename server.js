@@ -31,6 +31,7 @@ const HTML_FORMS_DIR = path.join(__dirname, 'html-forms');
 const HTML_FORMS_FILE = path.join(__dirname, 'html-forms.json');
 const TODO_LISTS_FILE = path.join(__dirname, 'todo-lists.json');
 const HTML_SNAPSHOTS_DIR = path.join(__dirname, 'html-snapshots');
+const REPORTS_DIR = path.join(__dirname, 'reports');
 
 // Ensure dirs exist
 if (!fs.existsSync(PHOTOS_DIR)) fs.mkdirSync(PHOTOS_DIR, { recursive: true });
@@ -39,6 +40,7 @@ if (!fs.existsSync(TEMPLATE_MEDIA_DIR)) fs.mkdirSync(TEMPLATE_MEDIA_DIR, { recur
 if (!fs.existsSync(TEMPLATE_SOURCES_DIR)) fs.mkdirSync(TEMPLATE_SOURCES_DIR, { recursive: true });
 if (!fs.existsSync(HTML_FORMS_DIR)) fs.mkdirSync(HTML_FORMS_DIR, { recursive: true });
 if (!fs.existsSync(HTML_SNAPSHOTS_DIR)) fs.mkdirSync(HTML_SNAPSHOTS_DIR, { recursive: true });
+if (!fs.existsSync(REPORTS_DIR)) fs.mkdirSync(REPORTS_DIR, { recursive: true });
 
 // Multer storage
 const storage = multer.diskStorage({
@@ -1252,6 +1254,10 @@ app.post('/api/inspection', requireRole('inspector', 'admin'), (req, res) => {
     rects.unshift(autoAction);
     writeRects(rects);
   }
+
+  // Cache inspection PDF to disk in background
+  cacheInspectionPDF(record);
+  if (autoAction) cacheActionPDF(autoAction);
 
   res.json({ success: true, id: record.id, result: record.result, actionId: autoAction?.id || null });
 });
@@ -2875,15 +2881,26 @@ app.get('/api/report/:id', async (req, res) => {
   const inspections = readInspections();
   const rec = inspections.find(r => r.id === id);
   if (!rec) return res.status(404).json({ error: 'Inspection not found' });
+  // Serve cached PDF if available
+  if (rec.cachedPdfPath && fs.existsSync(rec.cachedPdfPath)) {
+    const safeName = path.basename(rec.cachedPdfPath);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${safeName}"`);
+    return res.sendFile(rec.cachedPdfPath);
+  }
+  // Generate, cache, and serve
   const tplData = readTemplates();
   const tpl = tplData.templates.find(t => t.id === rec.templateId) || null;
   try {
     const buf = await buildPDFBuffer(rec, tpl);
-    const d = new Date(rec.timestamp);
-    const dateStr = `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getFullYear()).slice(2)}`;
-    const safeName = `${(rec.guardId || rec.machine || 'inspection')}-${dateStr}-${rec.result}.pdf`.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+    // Cache to disk
+    const rp = getReportPath(rec, 'inspection');
+    fs.mkdirSync(rp.dir, { recursive: true });
+    fs.writeFileSync(rp.fullPath, buf);
+    rec.cachedPdfPath = rp.fullPath;
+    writeInspections(inspections);
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `inline; filename="${safeName}"`);
+    res.setHeader('Content-Disposition', `inline; filename="${rp.filename}"`);
     res.send(buf);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -2926,11 +2943,14 @@ app.get('/api/report/action/:id', async (req, res) => {
   const rects = readRects();
   const rect = rects.find(r => r.id === req.params.id);
   if (!rect) return res.status(404).json({ error: 'Action not found' });
+  // Action PDFs always regenerate (status/WR/WO change frequently)
   try {
     const buf = await buildActionPDFBuffer(rect);
-    const safeName = `Action-${rect.id}.pdf`.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+    const rp = getActionReportPath(rect);
+    fs.mkdirSync(rp.dir, { recursive: true });
+    fs.writeFileSync(rp.fullPath, buf);
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `inline; filename="${safeName}"`);
+    res.setHeader('Content-Disposition', `inline; filename="${rp.filename}"`);
     res.send(buf);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -3118,6 +3138,84 @@ async function buildActionPDFBuffer(rect) {
     doc.end();
   });
 }
+
+// ── Report caching ──────────────────────────────────────────
+function safeDirName(s) { return String(s || 'unknown').replace(/[<>:"/\\|?*]+/g, '_').replace(/\.+$/,'').slice(0, 100).trim() || 'unknown'; }
+
+function getReportPath(insp, type) {
+  const tplName = safeDirName(insp.templateName || insp.htmlFormName || 'General');
+  const loc = safeDirName(insp.location);
+  const mac = safeDirName(insp.machine);
+  const comp = insp.guardId ? safeDirName(insp.guardId) : null;
+  const d = new Date(insp.timestamp);
+  const ds = `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getFullYear()).slice(2)}`;
+  const filename = `${safeDirName(insp.guardId || insp.machine)}-${ds}-${insp.result || type}.pdf`.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+  const dir = comp
+    ? path.join(REPORTS_DIR, tplName, loc, mac, comp)
+    : path.join(REPORTS_DIR, tplName, loc, mac);
+  return { dir, filename, fullPath: path.join(dir, filename) };
+}
+
+function getActionReportPath(rect) {
+  const loc = safeDirName(rect.location);
+  const mac = safeDirName(rect.machine);
+  const comp = rect.component ? safeDirName(rect.component) : null;
+  const filename = `Action-${rect.id}.pdf`;
+  const dir = comp
+    ? path.join(REPORTS_DIR, 'Actions', loc, mac, comp)
+    : path.join(REPORTS_DIR, 'Actions', loc, mac);
+  return { dir, filename, fullPath: path.join(dir, filename) };
+}
+
+async function cacheInspectionPDF(record) {
+  try {
+    const tplData = readTemplates();
+    const tpl = tplData.templates.find(t => t.id === record.templateId) || null;
+    const buf = await buildPDFBuffer(record, tpl);
+    const rp = getReportPath(record, 'inspection');
+    fs.mkdirSync(rp.dir, { recursive: true });
+    fs.writeFileSync(rp.fullPath, buf);
+    // Store path on the record
+    const inspections = readInspections();
+    const idx = inspections.findIndex(i => i.id === record.id);
+    if (idx !== -1) { inspections[idx].cachedPdfPath = rp.fullPath; writeInspections(inspections); }
+  } catch (e) { console.error('PDF cache error:', e.message); }
+}
+
+async function cacheActionPDF(rect) {
+  try {
+    const buf = await buildActionPDFBuffer(rect);
+    const rp = getActionReportPath(rect);
+    fs.mkdirSync(rp.dir, { recursive: true });
+    fs.writeFileSync(rp.fullPath, buf);
+  } catch (e) { console.error('Action PDF cache error:', e.message); }
+}
+
+// POST /api/reports/regenerate — backfill all cached PDFs (admin only)
+app.post('/api/reports/regenerate', requireRole('admin'), async (req, res) => {
+  const inspections = readInspections().filter(i => !i.archived && i.kind !== 'html');
+  const tplData = readTemplates();
+  let count = 0, errors = 0;
+  for (const rec of inspections) {
+    try {
+      const tpl = tplData.templates.find(t => t.id === rec.templateId) || null;
+      const buf = await buildPDFBuffer(rec, tpl);
+      const rp = getReportPath(rec, 'inspection');
+      fs.mkdirSync(rp.dir, { recursive: true });
+      fs.writeFileSync(rp.fullPath, buf);
+      rec.cachedPdfPath = rp.fullPath;
+      count++;
+    } catch { errors++; }
+  }
+  writeInspections(inspections);
+  // Also regenerate action PDFs
+  const rects = readRects().filter(r => !r.archived);
+  let actionCount = 0;
+  for (const rect of rects) {
+    try { await cacheActionPDF(rect); actionCount++; } catch {}
+  }
+  res.json({ success: true, inspections: count, actions: actionCount, errors });
+});
 
 // POST /api/photo
 app.post('/api/photo', upload.single('photo'), (req, res) => {
