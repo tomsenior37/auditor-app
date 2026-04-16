@@ -967,7 +967,7 @@
       font-size: 14px;
       cursor: pointer;
     }
-    /* ── Issues ── */
+    /* ── Actions ── */
     .rect-card {
       background: var(--surface); border: 1px solid var(--border);
       border-radius: var(--radius); padding: 14px; cursor: pointer;
@@ -1090,7 +1090,7 @@
       </div>
       <div onclick="showRects()" style="background:var(--surface);border:1px solid var(--fail);border-radius:var(--radius);padding:10px 4px;text-align:center;cursor:pointer;">
         <div style="font-size:22px;font-weight:800;color:var(--fail);" id="stat-rects">0</div>
-        <div style="font-size:10px;color:var(--text-dim);margin-top:2px;">Issues</div>
+        <div style="font-size:10px;color:var(--text-dim);margin-top:2px;">Actions</div>
       </div>
     </div>
 
@@ -1166,7 +1166,7 @@
     <!-- ══════ IMPORT HTML AS NATIVE TEMPLATE ══════ -->
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:12px;">
       <div style="font-weight:700;font-size:15px;margin-bottom:8px;color:var(--accent);">🌐 Import HTML as Template</div>
-      <div style="font-size:13px;color:var(--text-dim);margin-bottom:12px;">Upload an <code>.html</code> audit form. Its inputs are parsed into sections and questions and it becomes a normal template in your list — usable, editable, and integrated with logic, issues, reports, etc.</div>
+      <div style="font-size:13px;color:var(--text-dim);margin-bottom:12px;">Upload an <code>.html</code> audit form. Its inputs are parsed into sections and questions and it becomes a normal template in your list — usable, editable, and integrated with logic, actions, reports, etc.</div>
       <input type="file" id="import-html-tpl-file" accept=".html,.htm" style="width:100%;padding:6px;margin-bottom:6px;">
       <input type="text" id="import-html-tpl-name" placeholder="Template name (defaults to &lt;title&gt;)" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:9px;border-radius:6px;font-size:13px;font-family:inherit;outline:none;margin-bottom:6px;">
       <button onclick="importHtmlAsTemplate()" class="btn-primary" style="width:100%;">Parse &amp; Import</button>
@@ -1377,7 +1377,7 @@
     <div style="display:flex;gap:8px;">
       <select id="rects-filter-status" onchange="renderRectsList()" style="flex:1;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
         <option value="active">Open & In Progress</option>
-        <option value="all">All Issues</option>
+        <option value="all">All Actions</option>
         <option value="open">Open</option>
         <option value="in_progress">In Progress</option>
         <option value="resolved">Resolved</option>
@@ -1892,7 +1892,7 @@ Building B,CNC Mill,,,,
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px 20px;max-width:420px;width:100%;display:flex;flex-direction:column;gap:14px;">
     <div style="font-size:18px;font-weight:700;color:var(--fail);">&#x274C; Inspection Failed</div>
     <div style="font-size:14px;color:var(--text-dim);">The inspection has been saved. What would you like to do?</div>
-    <button onclick="failOptionCreateRect()" style="background:var(--accent);color:#fff;border:none;border-radius:10px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;width:100%;">⚠️ Create Issue</button>
+    <button onclick="failOptionCreateRect()" style="background:var(--accent);color:#fff;border:none;border-radius:10px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;width:100%;">⚠️ Create Action</button>
     <button onclick="failOptionSaveOnly()" style="background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:14px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;width:100%;">Save Only — No Action</button>
   </div>
 </div>
@@ -1912,7 +1912,7 @@ Building B,CNC Mill,,,,
 <!-- ══════════════ CREATE ISSUE MODAL ══════════════ -->
 <div id="create-rect-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9999;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto;pointer-events:auto;touch-action:auto;">
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;max-width:480px;width:100%;display:flex;flex-direction:column;gap:12px;margin:auto;">
-    <div style="font-size:17px;font-weight:700;color:var(--accent);">⚠️ Create Issue</div>
+    <div style="font-size:17px;font-weight:700;color:var(--accent);">⚠️ Create Action</div>
     <div class="field-group">
       <label>Title *</label>
       <input id="create-rect-title" type="text" placeholder="Brief description">
@@ -1944,14 +1944,14 @@ Building B,CNC Mill,,,,
     </div>
     <div class="field-group">
       <label>Description / rectification details</label>
-      <textarea id="create-rect-description" placeholder="What needs to happen to resolve this issue?" style="width:100%;min-height:80px;resize:vertical;"></textarea>
+      <textarea id="create-rect-description" placeholder="What needs to happen to resolve this action?" style="width:100%;min-height:80px;resize:vertical;"></textarea>
     </div>
     <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;">
       <input type="checkbox" id="create-rect-notify" checked> Email assigned planner (includes inspection PDF + WR/WO reply link)
     </label>
     <div style="display:flex;gap:8px;margin-top:4px;">
       <button onclick="closeCreateRectModal()" style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:14px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
-      <button onclick="submitCreateRect()" style="flex:1;background:var(--accent);border:none;color:#fff;border-radius:10px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;">Create Issue</button>
+      <button onclick="submitCreateRect()" style="flex:1;background:var(--accent);border:none;color:#fff;border-radius:10px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;">Create Action</button>
     </div>
   </div>
 </div>
@@ -4159,13 +4159,17 @@ async function submitInspection() {
       const retId = _activeTodoListId;
       _activeTodoListId = null; _activeTodoTaskId = null;
       if (result === 'FAIL') {
-        showFailOptionsModal(saved.id || null);
+        toast('❌ FAIL — Action ' + (saved.actionId || '') + ' auto-created');
+        loadRects();
+        setTimeout(() => openTodoDetail(retId), 1500);
       } else {
         toast('✅ Inspection saved — PASS');
         setTimeout(() => openTodoDetail(retId), 1200);
       }
     } else if (result === 'FAIL') {
-      showFailOptionsModal(saved.id || null);
+      toast('❌ FAIL — Action ' + (saved.actionId || '') + ' auto-created');
+      loadRects();
+      setTimeout(() => goHome(), 1500);
     } else {
       toast('✅ Inspection saved — PASS');
       setTimeout(() => goHome(), 1200);
@@ -4288,7 +4292,7 @@ function updateRectsBadge() {
 }
 
 function showRects() {
-  switchScreen('rects-screen', 'Issues');
+  switchScreen('rects-screen', 'Actions');
   loadRects().then(() => renderRectsList());
 }
 
@@ -4317,7 +4321,7 @@ function toggleRectBatchItem(id) {
 }
 
 async function batchSendRects() {
-  if (!_rectBatchSelected.size) return toast('Select issues first');
+  if (!_rectBatchSelected.size) return toast('Select actions first');
   const sel = document.getElementById('rects-batch-planner');
   const email = sel.value;
   const name = sel.options[sel.selectedIndex]?.dataset?.name || '';
@@ -4352,7 +4356,7 @@ function renderRectsList() {
 
   const el = document.getElementById('rects-list');
   if (!filtered.length) {
-    el.innerHTML = `<div style="color:var(--text-dim);text-align:center;padding:30px 0;">${filter === 'active' ? 'No open issues' : 'No issues found'}</div>`;
+    el.innerHTML = `<div style="color:var(--text-dim);text-align:center;padding:30px 0;">${filter === 'active' ? 'No open actions' : 'No actions found'}</div>`;
     return;
   }
   el.innerHTML = filtered.map(rect => {
@@ -4403,16 +4407,16 @@ function dueLabel(dateStr) {
   return `<span>Due in ${diffDays}d</span>`;
 }
 
-// ── Issue Detail ─────────────────────────────────────
+// ── Action Detail ─────────────────────────────────────
 async function openRectDetail(id) {
-  switchScreen('rect-detail-screen', 'Issue Detail');
+  switchScreen('rect-detail-screen', 'Action Detail');
   const body = document.getElementById('rect-detail-body');
   body.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-dim);">Loading...</div>';
   try {
     const r = await fetch('/api/rectifications/' + id);
     const rect = await r.json();
     renderRectDetail(rect);
-  } catch { body.innerHTML = '<div style="color:var(--fail);text-align:center;padding:30px;">Failed to load issue</div>'; }
+  } catch { body.innerHTML = '<div style="color:var(--fail);text-align:center;padding:30px;">Failed to load action</div>'; }
 }
 
 function renderRectDetail(rect) {
@@ -4479,7 +4483,7 @@ function renderRectDetail(rect) {
     <!-- Line Items -->
     ${(rect.lineItems && rect.lineItems.length) ? `
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;">
-      <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--fail);letter-spacing:.5px;margin-bottom:8px;">Issue Items (${rect.lineItems.length})</div>
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--fail);letter-spacing:.5px;margin-bottom:8px;">Action Items (${rect.lineItems.length})</div>
       ${rect.lineItems.map((li, idx) => {
         const liStatus = li.status || 'open';
         const statusColor = liStatus === 'done' ? 'var(--pass)' : (liStatus === 'in_progress' ? '#ff9800' : 'var(--fail)');
@@ -4494,6 +4498,11 @@ function renderRectDetail(rect) {
           </div>
           <div style="font-size:13px;color:var(--text-dim);">${escHtml(li.finding || 'No finding notes')}</div>
           ${li.photo ? `<img src="/photos/${li.photo}" style="max-width:120px;border-radius:6px;margin-top:6px;border:1px solid var(--border);cursor:pointer;" onclick="window.open('/photos/${li.photo}','_blank')">` : ''}
+          <div style="margin-top:6px;">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#d19900;letter-spacing:.5px;margin-bottom:3px;">🔧 Corrective Action</div>
+            <textarea placeholder="Corrective action for this item…" oninput="updateRectLineItemCA('${rect.id}',${idx},this.value)"
+              style="width:100%;background:#fff;border:1px solid #d4d1ca;color:#28251d;padding:8px;border-radius:6px;font-size:13px;font-family:inherit;resize:vertical;min-height:40px;outline:none;">${escHtml(li.correctiveAction || '')}</textarea>
+          </div>
         </div>`;
       }).join('')}
     </div>` : ''}
@@ -4533,7 +4542,7 @@ function renderRectDetail(rect) {
           style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
       </div>
       ${(rect.status === 'open' || rect.status === 'in_progress') && rect.workOrderNumber && rect.completionDate ? `
-      <button onclick="updateRectField('${rect.id}','status','resolved')" style="background:var(--pass);color:#fff;border:none;border-radius:8px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;width:100%;font-family:inherit;">✅ Close Out Issue</button>
+      <button onclick="updateRectField('${rect.id}','status','resolved')" style="background:var(--pass);color:#fff;border:none;border-radius:8px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;width:100%;font-family:inherit;">✅ Close Out Action</button>
       ` : ''}
     </div>
 
@@ -4567,8 +4576,23 @@ function renderRectDetail(rect) {
     ${rect.assignedTo ? `<button onclick="emailRectReport('${rect.id}')" class="btn-secondary" style="font-size:14px;">📧 Email Report to ${escHtml(rect.assignedTo.name)}</button>` : ''}
 
     <!-- Delete -->
-    <button onclick="deleteRect('${rect.id}')" style="background:none;border:1px solid var(--fail);color:var(--fail);border-radius:var(--radius);padding:12px;font-size:14px;font-weight:600;cursor:pointer;width:100%;font-family:inherit;">Delete Issue</button>
+    <button onclick="deleteRect('${rect.id}')" style="background:none;border:1px solid var(--fail);color:var(--fail);border-radius:var(--radius);padding:12px;font-size:14px;font-weight:600;cursor:pointer;width:100%;font-family:inherit;">Delete Action</button>
   `;
+}
+
+let _caDebounce = null;
+function updateRectLineItemCA(id, idx, text) {
+  clearTimeout(_caDebounce);
+  _caDebounce = setTimeout(async () => {
+    try {
+      const r = await fetch('/api/rectifications/' + id);
+      const rect = await r.json();
+      if (rect.lineItems && rect.lineItems[idx]) {
+        rect.lineItems[idx].correctiveAction = text;
+        await fetch('/api/rectifications/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lineItems: rect.lineItems }) });
+      }
+    } catch {}
+  }, 800);
 }
 
 async function updateRectLineItem(id, idx, status) {
@@ -4645,11 +4669,11 @@ async function uploadRectPhoto(id, input) {
 }
 
 async function deleteRect(id) {
-  showConfirmModal('Delete this issue permanently?', async () => {
+  showConfirmModal('Delete this action permanently?', async () => {
     await fetch('/api/rectifications/' + id, { method: 'DELETE' });
     loadRects();
     showRects();
-    toast('Issue deleted');
+    toast('Action deleted');
   });
 }
 
@@ -4799,10 +4823,10 @@ async function submitCreateRect() {
       closeCreateRectModal();
       loadRects();
       const emailLine = d.emailSent ? ' · ✉️ sent to planner' : (payload.notifyPlanner ? ' · ⚠️ email not sent (' + (d.emailError || 'check SMTP') + ')' : '');
-      toast('Issue ' + d.rect.id + ' created' + emailLine);
+      toast('Action ' + d.rect.id + ' created' + emailLine);
       setTimeout(() => goHome(), 1500);
     }
-  } catch { toast('Failed to create issue'); }
+  } catch { toast('Failed to create action'); }
 }
 
 function createRectManual() {
@@ -5398,7 +5422,7 @@ async function loadAssetHistory() {
       return false;
     });
     if (assetRects.length) {
-      el.innerHTML = `<div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--accent);letter-spacing:.5px;margin-bottom:6px;">Open Issues (${assetRects.filter(i=>i.status==='open'||i.status==='in_progress').length})</div>` +
+      el.innerHTML = `<div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--accent);letter-spacing:.5px;margin-bottom:6px;">Open Actions (${assetRects.filter(i=>i.status==='open'||i.status==='in_progress').length})</div>` +
         assetRects.slice(0, 10).map(iss => `<div class="rect-card" onclick="openRectDetail('${iss.id}')" style="margin-bottom:8px;">
           <div style="display:flex;justify-content:space-between;align-items:center;">
             <span style="font-weight:600;font-size:13px;">${escHtml(iss.title)}</span>
@@ -5981,7 +6005,7 @@ function buildDetailHtml(rec) {
       ${rec.status === 'WR_RAISED' || rec.status === 'SERVICEABLE' ? `
         <div style="background:var(--surface);border:1px solid ${rec.status==='SERVICEABLE'?'var(--pass)':'var(--border)'};border-radius:8px;padding:12px;">
           <div style="font-size:12px;font-weight:700;color:${rec.status==='SERVICEABLE'?'var(--pass)':'var(--text-dim)'};margin-bottom:8px;">
-            ✅ Issue Complete
+            ✅ Action Complete
             ${rec.completionDate?` — <strong>${escHtml(rec.completionDate)}</strong>`:''}
             ${rec.rectificationWorkOrder?` — WO: <strong>${escHtml(rec.rectificationWorkOrder)}</strong>`:''}
           </div>
@@ -8593,7 +8617,7 @@ async function doRestoreGuard(guardId, location, machine) {
     <span style="margin-top:-2px;">Audit</span>
   </button>
   <button onclick="showRects()" data-nav="rects-screen">
-    <span class="nav-icon" style="position:relative;">⚠️<span id="rects-badge" style="display:none;position:absolute;top:-4px;right:-8px;background:var(--fail);color:#fff;font-size:9px;font-weight:800;min-width:16px;height:16px;border-radius:8px;display:none;align-items:center;justify-content:center;padding:0 4px;">0</span></span>Issues
+    <span class="nav-icon" style="position:relative;">⚠️<span id="rects-badge" style="display:none;position:absolute;top:-4px;right:-8px;background:var(--fail);color:#fff;font-size:9px;font-weight:800;min-width:16px;height:16px;border-radius:8px;display:none;align-items:center;justify-content:center;padding:0 4px;">0</span></span>Actions
   </button>
   <button onclick="showSetup()" data-nav="setup-screen">
     <span class="nav-icon">⚙️</span>More

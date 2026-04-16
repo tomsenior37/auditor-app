@@ -1190,7 +1190,70 @@ app.post('/api/inspection', requireRole('inspector', 'admin'), (req, res) => {
   };
   inspections.unshift(record);
   writeInspections(inspections);
-  res.json({ success: true, id: record.id, result: record.result });
+
+  // Auto-create an Action for failed inspections
+  let autoAction = null;
+  if (result === 'FAIL') {
+    const tplData = readTemplates();
+    const tpl = tplData.templates.find(t => t.id === body.templateId);
+    const qs = (tpl?.version === 2 && Array.isArray(tpl?.items))
+      ? tpl.items.filter(i => i.itemType === 'question' && i.type !== 'instruction')
+      : (tpl?.questions || []);
+    const lineItems = [];
+    qs.forEach((q, idx) => {
+      const key = q.id || ('q' + (idx + 1));
+      const val = body.answers?.[key] !== undefined ? body.answers[key] : body.answers?.['q' + (idx + 1)];
+      let failed = false;
+      if (q.type === 'yesno' && val === false) failed = true;
+      if (q.type === 'multichoice' && val !== undefined) {
+        const vals = Array.isArray(val) ? val : [val];
+        if (vals.some(v => (q.options || []).find(o => (o.id || o.label) === v)?.flagFail)) failed = true;
+      }
+      if (failed) {
+        const finding = body.findings?.[key] || body.findings?.['q' + (idx + 1)];
+        const rectNote = body.rectNotes?.['q' + (idx + 1)] || '';
+        lineItems.push({
+          questionNum: idx + 1,
+          questionText: q.text || '',
+          finding: finding?.comment || '',
+          photo: finding?.photo || null,
+          correctiveAction: rectNote,
+          status: 'open'
+        });
+      }
+    });
+    const rects = readRects();
+    const id = nextRectId(rects);
+    autoAction = {
+      id,
+      inspectionId: record.id,
+      templateName: body.templateName || tpl?.name || '',
+      title: `Failed audit — ${body.machine || ''}${body.guardId ? ' (' + body.guardId + ')' : ''}`.trim(),
+      description: '',
+      location: body.location || '',
+      machine: body.machine || '',
+      component: body.guardId || '',
+      status: 'open',
+      priority: 'medium',
+      assignedTo: null,
+      createdBy: body.inspector || '',
+      createdAt: new Date().toISOString(),
+      dueDate: null,
+      resolvedAt: null,
+      workRequestNumber: '',
+      workOrderNumber: '',
+      workOrderExecutionDate: null,
+      photos: [],
+      lineItems,
+      findings: body.findings || {},
+      comments: [],
+      history: [{ action: 'created', by: body.inspector || 'System', at: new Date().toISOString(), note: 'Auto-created from failed inspection' }]
+    };
+    rects.unshift(autoAction);
+    writeRects(rects);
+  }
+
+  res.json({ success: true, id: record.id, result: record.result, actionId: autoAction?.id || null });
 });
 
 // GET /api/inspections
@@ -1813,7 +1876,7 @@ app.post('/api/rectifications', async (req, res) => {
     id,
     inspectionId: req.body.inspectionId || null,
     templateName: req.body.templateName || '',
-    title: req.body.title || 'Untitled Issue',
+    title: req.body.title || 'Untitled Action',
     description: req.body.description || '',
     location: req.body.location || '',
     machine: req.body.machine || '',
@@ -1874,10 +1937,10 @@ app.post('/api/rectifications', async (req, res) => {
         await transporter.sendMail({
           from: `"${cfg.fromName || 'Auditor App'}" <${cfg.fromEmail || cfg.user}>`,
           to: `"${rect.assignedTo.name}" <${rect.assignedTo.email}>`,
-          subject: `⚠️ Issue ${rect.id} raised — ${rect.title}`,
+          subject: `⚠️ Action ${rect.id} raised — ${rect.title}`,
           html: `
             <div style="font-family:Arial,sans-serif;max-width:640px;">
-              <h2 style="color:#a13544;margin:0 0 6px;">⚠️ New Issue Raised</h2>
+              <h2 style="color:#a13544;margin:0 0 6px;">⚠️ New Action Raised</h2>
               <div style="color:#666;font-size:14px;margin-bottom:16px;">${rect.id}</div>
               <table style="border-collapse:collapse;background:#f7f6f2;border-radius:8px;padding:12px;margin-bottom:16px;">
                 <tr><td style="padding:6px 14px 6px 12px;color:#555;">Title</td><td style="padding:6px 0;"><strong>${rect.title.replace(/</g,'&lt;')}</strong></td></tr>
@@ -1915,7 +1978,7 @@ app.post('/api/rectifications', async (req, res) => {
 app.post('/api/rectifications/:id/workorder', (req, res) => {
   const rects = readRects();
   const idx = rects.findIndex(r => r.id === req.params.id);
-  if (idx === -1) return res.status(404).json({ error: 'Issue not found' });
+  if (idx === -1) return res.status(404).json({ error: 'Action not found' });
   const { workRequestNumber, workOrderNumber, workOrderExecutionDate, plannerNote, plannerName } = req.body;
   const rect = rects[idx];
   const by = plannerName || rect.assignedTo?.name || 'Planner';
