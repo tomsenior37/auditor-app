@@ -1515,14 +1515,15 @@ Building B,CNC Mill,,,,
 
 <!-- ══════════════ REPORTS SCREEN ══════════════ -->
 <div class="screen" id="reports-screen">
-  <div style="padding:16px;display:flex;flex-direction:column;gap:12px;">
-    <input type="search" id="reports-search" placeholder="Search reports…" oninput="renderReportsList()"
+  <div style="padding:16px;display:flex;flex-direction:column;gap:10px;">
+    <div id="reports-breadcrumb" style="display:flex;align-items:center;gap:6px;font-size:13px;flex-wrap:wrap;"></div>
+    <input type="search" id="reports-search" placeholder="Filter files in this folder…" oninput="renderReportsView()"
       style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:10px;font-size:14px;font-family:inherit;outline:none;">
     <div style="display:flex;gap:8px;align-items:center;">
       <label style="font-size:13px;display:flex;align-items:center;gap:4px;cursor:pointer;">
         <input type="checkbox" id="reports-select-all" onchange="toggleAllReports(this.checked)"> Select all
       </label>
-      <button onclick="downloadSelectedReports()" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;">⬇ Download selected</button>
+      <button onclick="downloadSelectedReports()" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;">⬇ Download</button>
       <span id="reports-selected-count" style="font-size:12px;color:var(--text-dim);"></span>
     </div>
     <div id="reports-list-body"></div>
@@ -2248,10 +2249,12 @@ function getCurrentRisk() {
   return { consequence: _riskState.consequence, probability: _riskState.probability, rating: m ? m[0] : '' };
 }
 
-// ── Reports screen ─────────────────────────────────────────
+// ── Reports screen (file explorer) ─────────────────────────
 let _reportsList = [];
+let _reportsPath = []; // breadcrumb segments
 
 function showReportsScreen() {
+  _reportsPath = [];
   switchScreen('reports-screen', '📄 Reports');
   loadReportsList();
 }
@@ -2262,40 +2265,100 @@ async function loadReportsList() {
   try {
     const r = await fetch('/api/reports/list');
     _reportsList = await r.json();
-    renderReportsList();
+    renderReportsView();
   } catch { body.innerHTML = '<div style="color:var(--fail);">Failed to load</div>'; }
 }
 
-function renderReportsList() {
+function reportsNavTo(depth) {
+  _reportsPath = _reportsPath.slice(0, depth);
+  document.getElementById('reports-search').value = '';
+  renderReportsView();
+}
+
+function reportsEnterFolder(name) {
+  _reportsPath.push(name);
+  document.getElementById('reports-search').value = '';
+  renderReportsView();
+}
+
+function renderReportsView() {
   const body = document.getElementById('reports-list-body');
+  const bc = document.getElementById('reports-breadcrumb');
   const q = (document.getElementById('reports-search')?.value || '').toLowerCase();
-  const filtered = q ? _reportsList.filter(r => r.path.toLowerCase().includes(q) || r.folder.toLowerCase().includes(q)) : _reportsList;
-  if (!filtered.length) {
-    body.innerHTML = '<div style="color:var(--text-dim);text-align:center;padding:20px;">No reports found.' + (!_reportsList.length ? ' Generate reports by viewing inspections or running regenerate.' : '') + '</div>';
+  const currentPrefix = _reportsPath.length ? _reportsPath.join('/') + '/' : '';
+
+  // Breadcrumb
+  let crumbs = `<span onclick="reportsNavTo(0)" style="cursor:pointer;color:var(--accent);font-weight:600;">📁 All Reports</span>`;
+  _reportsPath.forEach((seg, i) => {
+    crumbs += ` <span style="color:var(--text-dim);">›</span> <span onclick="reportsNavTo(${i + 1})" style="cursor:pointer;color:var(--accent);font-weight:600;">${escHtml(seg)}</span>`;
+  });
+  bc.innerHTML = crumbs;
+
+  // Items at current level
+  const subfolders = new Set();
+  const files = [];
+  _reportsList.forEach(r => {
+    if (!r.path.startsWith(currentPrefix)) return;
+    const rest = r.path.slice(currentPrefix.length);
+    const slashIdx = rest.indexOf('/');
+    if (slashIdx >= 0) {
+      subfolders.add(rest.slice(0, slashIdx));
+    } else {
+      files.push(r);
+    }
+  });
+
+  const filteredFolders = q ? [...subfolders].filter(f => f.toLowerCase().includes(q)) : [...subfolders];
+  const filteredFiles = q ? files.filter(f => f.filename.toLowerCase().includes(q)) : files;
+  filteredFolders.sort((a, b) => a.localeCompare(b));
+
+  if (!filteredFolders.length && !filteredFiles.length) {
+    body.innerHTML = '<div style="color:var(--text-dim);text-align:center;padding:30px;">No reports here.' + (!_reportsList.length ? ' Complete inspections to generate reports.' : '') + '</div>';
+    document.getElementById('reports-select-all').checked = false;
+    updateReportsCount();
     return;
   }
-  // Group by folder
-  const groups = {};
-  filtered.forEach(r => { (groups[r.folder] = groups[r.folder] || []).push(r); });
+
+  // Count files recursively per subfolder
+  function countInFolder(prefix) {
+    return _reportsList.filter(r => r.path.startsWith(prefix)).length;
+  }
+
   let html = '';
-  Object.keys(groups).sort().forEach(folder => {
-    html += `<div style="margin-bottom:12px;">
-      <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--accent);letter-spacing:.5px;margin-bottom:6px;">📁 ${escHtml(folder || 'Root')}</div>`;
-    groups[folder].forEach(r => {
-      const kb = (r.size / 1024).toFixed(0);
-      const when = new Date(r.createdAt).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' });
-      html += `<div style="display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:4px;">
-        <input type="checkbox" class="report-cb" data-path="${escHtml(r.path)}" onchange="updateReportsCount()">
-        <div style="flex:1;min-width:0;">
-          <div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(r.filename)}</div>
-          <div style="font-size:11px;color:var(--text-dim);">${kb} KB · ${when}</div>
-        </div>
-        <a href="/reports/${encodeURIComponent(r.path.split('/').map(encodeURIComponent).join('/'))}" target="_blank" style="color:var(--accent);font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap;">View</a>
-      </div>`;
-    });
-    html += '</div>';
+  // Subfolders
+  filteredFolders.forEach(name => {
+    const fullPrefix = currentPrefix + name + '/';
+    const count = countInFolder(fullPrefix);
+    html += `<div onclick="reportsEnterFolder('${escHtml(name)}')" style="display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px;cursor:pointer;margin-bottom:6px;">
+      <span style="font-size:24px;">📁</span>
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:600;font-size:14px;">${escHtml(name)}</div>
+        <div style="font-size:12px;color:var(--text-dim);">${count} report${count !== 1 ? 's' : ''}</div>
+      </div>
+      <span style="color:var(--text-dim);font-size:18px;">›</span>
+    </div>`;
   });
+
+  // Files
+  filteredFiles.forEach(r => {
+    const kb = (r.size / 1024).toFixed(0);
+    const when = new Date(r.createdAt).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' });
+    const isFail = r.filename.includes('-FAIL');
+    const isAction = r.filename.startsWith('Action-');
+    const icon = isAction ? '⚠️' : (isFail ? '📕' : '📗');
+    html += `<div style="display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:4px;">
+      <input type="checkbox" class="report-cb" data-path="${escHtml(r.path)}" onchange="updateReportsCount()" style="flex-shrink:0;">
+      <span style="font-size:20px;flex-shrink:0;">${icon}</span>
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(r.filename)}</div>
+        <div style="font-size:11px;color:var(--text-dim);">${kb} KB · ${when}</div>
+      </div>
+      <a href="/reports/${r.path.split('/').map(encodeURIComponent).join('/')}" target="_blank" onclick="event.stopPropagation()" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap;">View</a>
+    </div>`;
+  });
+
   body.innerHTML = html;
+  document.getElementById('reports-select-all').checked = false;
   updateReportsCount();
 }
 
