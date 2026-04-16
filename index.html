@@ -3897,8 +3897,9 @@ function _buildDraft() {
     inspector: document.getElementById('f-inspector')?.value || '',
     notes: document.getElementById('f-notes')?.value || '',
     answers: { ...answers },
-    findings: { ...findings },
+    findings: JSON.parse(JSON.stringify(findings)),
     risk: { ..._riskState },
+    uploadedPhoto: uploadedPhoto || null,
     todoListId: _activeTodoListId || null,
     todoTaskId: _activeTodoTaskId || null,
     savedAt: new Date().toISOString()
@@ -3990,11 +3991,17 @@ function restoreDraft(draft) {
       const inp = document.getElementById(`slider-ans-${n}`);
       if (inp) inp.value = val ?? 0;
     }
-    // Restore finding comment
+    // Restore finding comment + photo preview
     const f = findings[key];
     if (f?.comment) {
       const cmt = document.getElementById(`finding-comment-${n}`);
       if (cmt) cmt.value = f.comment;
+    }
+    if (f?.photo) {
+      const preview = document.getElementById(`finding-photo-preview-${n}`);
+      if (preview) { preview.src = '/photos/' + f.photo; preview.style.display = 'block'; }
+      const annBtn = document.getElementById(`finding-annotate-${n}`);
+      if (annBtn) annBtn.style.display = 'inline';
     }
   });
   // Restore risk
@@ -4003,6 +4010,12 @@ function restoreDraft(draft) {
     initRiskBlock();
     if (_riskState.consequence) pickRisk('cons', _riskState.consequence);
     if (_riskState.probability) pickRisk('prob', _riskState.probability);
+  }
+  // Restore main inspection photo
+  if (draft.uploadedPhoto) {
+    uploadedPhoto = draft.uploadedPhoto;
+    const preview = document.getElementById('photo-preview');
+    if (preview) { preview.src = '/photos/' + draft.uploadedPhoto; preview.style.display = 'block'; }
   }
   // Restore todo context
   _activeTodoListId = draft.todoListId || null;
@@ -5628,7 +5641,7 @@ async function loadInProgressTasks() {
     const r = await fetch('/api/inspection/drafts/all', { credentials: 'include' });
     if (r.ok) {
       const drafts = await r.json();
-      drafts.forEach(d => {
+      drafts.filter(d => !d.todoListId).forEach(d => {
         const tpl = templates.find(t => t.id === d.templateId);
         items.push({
           kind: 'draft',
