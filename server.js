@@ -2971,7 +2971,7 @@ async function buildActionPDFBuffer(rect) {
     // ── Metadata ──
     let y = 82;
     const metaRows = [
-      ['Title', rect.title || '—'],
+
       ['Location', rect.location || '—'],
       ['Machine', rect.machine || '—'],
       ['Component', rect.component || '—'],
@@ -2980,10 +2980,6 @@ async function buildActionPDFBuffer(rect) {
       ['Date', rect.createdAt ? new Date(rect.createdAt).toLocaleString('en-AU', { dateStyle: 'medium', timeStyle: 'short' }) : '—'],
       ['Due', rect.dueDate || '—']
     ];
-    // Title row — full width
-    doc.fillColor(GREY).font('Helvetica').fontSize(8).text('TITLE', M + 4, y + 4, { characterSpacing: 0.5 });
-    doc.fillColor('#28251d').font('Helvetica-Bold').fontSize(12).text(rect.title || '—', M + 4, y + 16, { width: PAGE_W - M*2 - 8 });
-    y = doc.y + 8;
     // Component row — full width (can be long)
     doc.fillColor(GREY).font('Helvetica').fontSize(8).text('COMPONENT', M + 4, y, { characterSpacing: 0.5 });
     doc.fillColor('#28251d').font('Helvetica-Bold').fontSize(10).text(rect.component || '—', M + 4, y + 11, { width: PAGE_W - M*2 - 8 });
