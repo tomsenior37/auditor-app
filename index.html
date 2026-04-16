@@ -1546,7 +1546,7 @@
     <!-- Notes -->
     <div class="field-group">
       <label>Notes</label>
-      <textarea id="f-notes" placeholder="Observations, defect descriptions, follow-up actions…"></textarea>
+      <textarea id="f-notes" placeholder="Observations, defect descriptions, follow-up actions…" oninput="saveDraft()"></textarea>
     </div>
 
     <!-- Inspector (select, near bottom) -->
@@ -4106,13 +4106,14 @@ function setAnswer(n, val) {
   if (panel) panel.style.display = val === 'no' ? 'flex' : 'none';
   document.getElementById('result-banner').style.display = 'none';
   resultComputed = null;
-  evaluateLogicV2(); updateAuditProgress();
+  evaluateLogicV2(); updateAuditProgress(); saveDraft(); saveDraft();
 }
 
 function onFindingComment(n) {
   const key = `q${n}`;
   if (!findings[key]) findings[key] = { comment: '', photo: null };
   findings[key].comment = document.getElementById(`finding-comment-${n}`).value;
+  saveDraft();
 }
 
 async function handleFindingPhotoSelect(e) {
@@ -4380,8 +4381,116 @@ function resetFormAnswers() {
   resultComputed = null;
   _sigMode = 'global';
   _sigQuestionN = null;
+  _riskState = { consequence: '', probability: '' };
   const banner = document.getElementById('result-banner');
   if (banner) banner.style.display = 'none';
+}
+
+// ── Auto-save draft to localStorage ──────────────────────
+const DRAFT_KEY = 'inspection_draft';
+let _draftTimer = null;
+
+function saveDraft() {
+  clearTimeout(_draftTimer);
+  _draftTimer = setTimeout(() => {
+    if (!selectedTemplate) return;
+    const draft = {
+      templateId: selectedTemplate.id,
+      location: document.getElementById('f-location')?.value || '',
+      machine: document.getElementById('f-machine')?.value || '',
+      component: document.getElementById('f-guardId')?.value || '',
+      inspector: document.getElementById('f-inspector')?.value || '',
+      notes: document.getElementById('f-notes')?.value || '',
+      answers: { ...answers },
+      findings: { ...findings },
+      risk: { ..._riskState },
+      savedAt: new Date().toISOString(),
+      todoListId: _activeTodoListId || null,
+      todoTaskId: _activeTodoTaskId || null
+    };
+    try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch {}
+  }, 500);
+}
+
+function clearDraft() {
+  try { localStorage.removeItem(DRAFT_KEY); } catch {}
+}
+
+function getDraft() {
+  try { const s = localStorage.getItem(DRAFT_KEY); return s ? JSON.parse(s) : null; } catch { return null; }
+}
+
+function restoreDraft(draft) {
+  const tpl = templates.find(t => t.id === draft.templateId);
+  if (!tpl) { toast('Draft template no longer exists'); clearDraft(); return; }
+  selectedTemplate = tpl;
+  QUESTIONS = tplQuestions(tpl).map(q => q.text);
+  document.getElementById('f-template').value = draft.templateId;
+  updateTemplateLabel();
+  buildChecklist();
+  // Restore field values
+  if (draft.location) { document.getElementById('f-location').value = draft.location; updateMachineDropdown(); }
+  if (draft.machine) { document.getElementById('f-machine').value = draft.machine; updateGuardDropdown(); }
+  if (draft.component) { document.getElementById('f-guardId').value = draft.component; loadComponentRefPhoto(draft.component); }
+  if (draft.inspector) document.getElementById('f-inspector').value = draft.inspector;
+  if (draft.notes) document.getElementById('f-notes').value = draft.notes;
+  // Restore answers — replay each through the UI
+  answers = draft.answers || {};
+  findings = draft.findings || {};
+  Object.entries(answers).forEach(([key, val]) => {
+    const n = parseInt(key.replace('q', ''), 10);
+    if (isNaN(n)) return;
+    const card = document.getElementById(`qcard-${n}`);
+    if (!card) return;
+    const q = _getQuestionByNum(n);
+    if (!q) return;
+    if (q.type === 'yesno') {
+      const strVal = val === true ? 'yes' : val === false ? 'no' : 'na';
+      card.querySelectorAll('.q-btn').forEach(b => { b.classList.remove('selected'); if (b.dataset.val === strVal) b.classList.add('selected'); });
+      const isFail = val === false;
+      card.classList.remove('answered-yes','answered-no','answered-na');
+      card.classList.add(isFail ? 'answered-no' : val === true ? 'answered-yes' : 'answered-na');
+      const panel = document.getElementById(`finding-panel-${n}`);
+      if (panel) panel.style.display = isFail ? 'flex' : 'none';
+    } else if (q.type === 'multichoice') {
+      const vals = Array.isArray(val) ? val : [val];
+      (q.options || []).forEach((o, oi) => {
+        const b = document.getElementById(`mc-opt-${n}-${oi}`);
+        if (!b) return;
+        b.classList.remove('selected', 'yes', 'no');
+        if (vals.includes(o.id || o.label)) b.classList.add('selected', o.flagFail ? 'no' : 'yes');
+      });
+      card.classList.remove('answered-yes','answered-no','answered-na');
+      if (vals.length) card.classList.add('answered-yes');
+    } else if (q.type === 'text') {
+      const ta = document.getElementById(`text-ans-${n}`);
+      if (ta) ta.value = val || '';
+    } else if (q.type === 'number') {
+      const inp = document.getElementById(`num-ans-${n}`);
+      if (inp) inp.value = val ?? '';
+    } else if (q.type === 'slider') {
+      const inp = document.getElementById(`slider-ans-${n}`);
+      if (inp) inp.value = val ?? 0;
+    }
+    // Restore finding comment
+    const f = findings[key];
+    if (f?.comment) {
+      const cmt = document.getElementById(`finding-comment-${n}`);
+      if (cmt) cmt.value = f.comment;
+    }
+  });
+  // Restore risk
+  if (draft.risk) {
+    _riskState = draft.risk;
+    initRiskBlock();
+    if (_riskState.consequence) pickRisk('cons', _riskState.consequence);
+    if (_riskState.probability) pickRisk('prob', _riskState.probability);
+  }
+  // Restore todo context
+  _activeTodoListId = draft.todoListId || null;
+  _activeTodoTaskId = draft.todoTaskId || null;
+  evaluateLogicV2();
+  updateAuditProgress();
 }
 
 // ── Submit ─────────────────────────────────────────────────
@@ -4484,6 +4593,7 @@ async function submitInspection() {
     });
     if (!res.ok) throw new Error('Server error');
     const saved = await res.json();
+    clearDraft();
     await loadStats();
     // Complete the todo task if this inspection was started from a todo list
     if (_activeTodoListId && _activeTodoTaskId) {
@@ -4522,7 +4632,7 @@ function populateTemplateDropdown() {
     templates.filter(t => !t.archived).map(t => `<option value="${t.id}" ${selectedTemplate && selectedTemplate.id === t.id ? 'selected' : ''}>${t.name}</option>`).join('');
 }
 
-function showForm() {
+function showForm(skipDraftCheck) {
   populateTemplateDropdown();
   updateTemplateLabel();
   populateLocationDropdown();
@@ -4540,11 +4650,12 @@ function showForm() {
   findings = {};
   uploadedPhoto = null;
   resultComputed = null;
-  buildChecklist(); // also resets all finding panels
+  buildChecklist();
   clearSignature();
+  initRiskBlock();
 
   // Pre-select last inspector
-  const savedInspector = localStorage.getItem('inspector_name');
+  const savedInspector = _me?.displayName || _me?.username || localStorage.getItem('inspector_name') || '';
   if (savedInspector) {
     const sel = document.getElementById('f-inspector');
     const opt = Array.from(sel.options).find(o => o.value === savedInspector);
@@ -4552,6 +4663,21 @@ function showForm() {
   }
 
   switchScreen('form-screen', 'New Inspection');
+
+  // Check for a saved draft
+  if (!skipDraftCheck) {
+    const draft = getDraft();
+    if (draft && draft.templateId) {
+      const ago = Math.round((Date.now() - new Date(draft.savedAt).getTime()) / 60000);
+      const label = ago < 1 ? 'just now' : ago < 60 ? `${ago}m ago` : `${Math.round(ago / 60)}h ago`;
+      showConfirmModal(
+        `You have an inspection in progress (${label}). Resume where you left off?`,
+        () => { restoreDraft(draft); },
+        'Resume', 'var(--accent)',
+        { label: 'Discard', action: () => { clearDraft(); } }
+      );
+    }
+  }
 }
 
 function showRecords(title) {
@@ -5958,18 +6084,20 @@ async function refreshDashboard() {
     const el = document.getElementById('dashboard-recent');
     if (!el) return;
     if (!recent.length) { el.innerHTML = '<div style="color:var(--text-dim);font-size:14px;">No audits yet for this template.</div>'; return; }
-    el.innerHTML = recent.map(r => `
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
-        <div>
+    el.innerHTML = recent.map(r => {
+      const riskBadge = r.risk?.rating ? `<span style="background:${{Low:'#437a22',Medium:'#d19900',High:'#da7101','Very High':'#a13544'}[r.risk.rating]||'#666'};color:#fff;font-size:9px;font-weight:700;padding:2px 5px;border-radius:4px;margin-left:6px;">${escHtml(r.risk.rating)}</span>` : '';
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+        <div style="flex:1;min-width:0;">
           <div style="font-weight:600;font-size:14px;">${escHtml(r.guardId || r.machine)}</div>
           <div style="font-size:12px;color:var(--text-dim);">${escHtml(r.location)} / ${escHtml(r.machine)} · ${new Date(r.timestamp).toLocaleDateString()}</div>
         </div>
         <div style="text-align:right;">
-          <span style="font-weight:700;color:${r.result === 'PASS' ? 'var(--pass)' : 'var(--fail)'};font-size:13px;">${r.result}</span>
-          ${r.score ? `<div style="font-family:var(--mono);font-size:10px;font-weight:600;color:${r.score.pct >= 80 ? 'var(--pass)' : r.score.pct >= 50 ? 'var(--amber)' : 'var(--fail)'};">${r.score.pct}%</div>` : ''}
+          <span style="font-weight:700;color:${r.result === 'PASS' ? 'var(--pass)' : 'var(--fail)'};font-size:13px;">${r.result}${riskBadge}</span>
+          ${(_appSettings.scoringEnabled && r.score) ? `<div style="font-family:var(--mono);font-size:10px;font-weight:600;color:${r.score.pct >= 80 ? 'var(--pass)' : r.score.pct >= 50 ? 'var(--amber)' : 'var(--fail)'};">${r.score.pct}%</div>` : ''}
         </div>
-      </div>
-    `).join('');
+        <a href="/api/report/${r.id}" target="_blank" onclick="event.stopPropagation()" style="margin-left:8px;color:var(--accent);font-size:12px;text-decoration:none;font-weight:600;white-space:nowrap;">📄</a>
+      </div>`;
+    }).join('');
   } catch(e) { console.error(e); }
 }
 
@@ -8231,7 +8359,7 @@ function setMcAnswer(n, optId, optIdx, qItemId) {
   if (panel) panel.style.display = isFail ? 'flex' : 'none';
   document.getElementById('result-banner').style.display = 'none';
   resultComputed = null;
-  evaluateLogicV2(); updateAuditProgress();
+  evaluateLogicV2(); updateAuditProgress(); saveDraft();
 }
 
 function toggleMcAnswer(n, optId, optIdx, qItemId) {
@@ -8259,14 +8387,14 @@ function toggleMcAnswer(n, optId, optIdx, qItemId) {
   if (panel) panel.style.display = hasFail ? 'flex' : 'none';
   document.getElementById('result-banner').style.display = 'none';
   resultComputed = null;
-  evaluateLogicV2(); updateAuditProgress();
+  evaluateLogicV2(); updateAuditProgress(); saveDraft();
 }
 
 function setTextAnswer(n, value) {
   answers[`q${n}`] = value;
   const card = document.getElementById(`qcard-${n}`);
   if (card) { card.classList.remove('answered-yes','answered-no','answered-na'); if (value.trim()) card.classList.add('answered-yes'); }
-  evaluateLogicV2(); updateAuditProgress();
+  evaluateLogicV2(); updateAuditProgress(); saveDraft();
 }
 
 function setNumberAnswer(n, value) {
@@ -8275,7 +8403,7 @@ function setNumberAnswer(n, value) {
   const card = document.getElementById(`qcard-${n}`);
   if (card) { card.classList.remove('answered-yes','answered-no','answered-na'); if (!isNaN(num)) card.classList.add('answered-yes'); }
   resultComputed = null;
-  evaluateLogicV2(); updateAuditProgress();
+  evaluateLogicV2(); updateAuditProgress(); saveDraft();
 }
 
 function setSliderAnswer(n, value, unit) {
@@ -8285,7 +8413,7 @@ function setSliderAnswer(n, value, unit) {
   const card = document.getElementById(`qcard-${n}`);
   if (card) { card.classList.remove('answered-yes','answered-no','answered-na'); card.classList.add('answered-yes'); }
   resultComputed = null;
-  evaluateLogicV2(); updateAuditProgress();
+  evaluateLogicV2(); updateAuditProgress(); saveDraft();
 }
 
 function setDatetimeAnswer(n, value) {
