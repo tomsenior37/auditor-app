@@ -23,6 +23,7 @@ const EMAIL_CONFIG_FILE = path.join(__dirname, 'emailConfig.json');
 const APP_SETTINGS_FILE = path.join(__dirname, 'appSettings.json');
 const ASSETS_FILE = path.join(__dirname, 'assets.json');
 const RECTS_FILE = path.join(__dirname, 'rectifications.json');
+const ITEMS_FEED_FILE = path.join(__dirname, 'inspection-items.json');
 const PHOTOS_DIR = path.join(__dirname, 'photos');
 const DOCS_DIR = path.join(__dirname, 'documents');
 const TEMPLATE_MEDIA_DIR = path.join(__dirname, 'template-media');
@@ -433,6 +434,39 @@ function readInspections() {
 
 function writeInspections(data) {
   fs.writeFileSync(INSPECTIONS_FILE, JSON.stringify(data, null, 2), 'utf8');
+}
+
+function denormalizeInspectionItems(record) {
+  try {
+    const tpl = record.templateId ? readTemplates().templates.find(t => t.id === record.templateId) : null;
+    const qs = (tpl && tpl.version === 2 && tpl.items) ? tpl.items.filter(i => i.itemType === 'question' && i.type !== 'instruction') : [];
+    const items = [];
+    const answers = record.answers || {};
+    Object.keys(answers).forEach(key => {
+      const n = parseInt(key.replace('q', ''));
+      const q = qs[n - 1];
+      items.push({
+        inspectionId: record.id,
+        templateId: record.templateId,
+        questionNum: n,
+        questionText: q ? q.text : '',
+        questionType: q ? q.type : 'yesno',
+        answer: answers[key],
+        result: answers[key] === false ? 'FAIL' : answers[key] === true ? 'PASS' : (answers[key] === 'na' ? 'N/A' : 'DATA'),
+        location: record.location,
+        machine: record.machine,
+        component: record.guardId || record.componentId || '',
+        inspector: record.inspector,
+        timestamp: record.timestamp
+      });
+    });
+    if (!items.length) return;
+    let feed = [];
+    try { feed = JSON.parse(fs.readFileSync(ITEMS_FEED_FILE, 'utf8')); } catch {}
+    feed = items.concat(feed);
+    if (feed.length > 10000) feed = feed.slice(0, 10000);
+    fs.writeFileSync(ITEMS_FEED_FILE, JSON.stringify(feed), 'utf8');
+  } catch {}
 }
 
 function readEmailConfig() {
@@ -1141,12 +1175,17 @@ app.post('/api/inspection', requireRole('inspector', 'admin'), (req, res) => {
   };
   inspections.unshift(record);
   writeInspections(inspections);
+  denormalizeInspectionItems(record);
   res.json({ success: true, id: record.id, result: record.result });
 });
 
 // GET /api/inspections
 app.get('/api/inspections', (req, res) => {
   res.json(readInspections());
+});
+
+app.get('/api/inspection-items', (req, res) => {
+  try { res.json(JSON.parse(fs.readFileSync(ITEMS_FEED_FILE, 'utf8'))); } catch { res.json([]); }
 });
 
 // GET /api/export/csv
