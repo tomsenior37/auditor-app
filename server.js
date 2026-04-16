@@ -2934,7 +2934,7 @@ async function buildActionPDFBuffer(rect) {
     // ── Header ──
     doc.rect(0, 0, PAGE_W, 70).fill(ACCENT);
     doc.fillColor('#fff').font('Helvetica-Bold').fontSize(20)
-       .text('Action Report', M, 22, { width: PAGE_W - M*2 - 160 });
+       .text('Corrective Action', M, 22, { width: PAGE_W - M*2 - 160 });
     doc.font('Helvetica').fontSize(10).text(rect.id, M, 48);
     // Status pill
     const sColor = statusColors[rect.status] || GREY;
@@ -3019,7 +3019,7 @@ async function buildActionPDFBuffer(rect) {
       if (y + needed > PAGE_H - 60) {
         doc.addPage();
         doc.rect(0, 0, PAGE_W, 36).fill('#0c4e54');
-        doc.fillColor('#fff').font('Helvetica-Bold').fontSize(11).text('Action Report — ' + rect.id, M, 12);
+        doc.fillColor('#fff').font('Helvetica-Bold').fontSize(11).text('Corrective Action — ' + rect.id, M, 12);
         doc.fillColor('#000');
         y = 56;
       }
