@@ -1362,7 +1362,7 @@
         <div style="font-size:22px;font-weight:800;color:var(--fail);" id="stat-fail">0</div>
         <div style="font-size:10px;color:var(--text-dim);margin-top:2px;">Fail</div>
       </div>
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 6px;text-align:center;">
+      <div id="stat-avg-score-card" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 6px;text-align:center;">
         <div style="font-size:22px;font-weight:800;color:var(--text-dim);" id="stat-avg-score">—</div>
         <div style="font-size:10px;color:var(--text-dim);margin-top:2px;">Avg Score</div>
       </div>
@@ -1794,6 +1794,25 @@ Building B,CNC Mill,,,,
 
   <!-- PANEL 1: Main settings view -->
   <div id="setup-locations-panel" style="padding:16px;display:flex;flex-direction:column;gap:12px;">
+
+    <!-- ─── FEATURES SECTION ─── -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;gap:12px;">
+      <div style="font-weight:700;font-size:13px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.1em;">Features</div>
+      <label style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
+        <div>
+          <div style="font-weight:600;font-size:14px;">Scoring</div>
+          <div style="font-size:12px;color:var(--text-dim);">Show percentage scores on inspections</div>
+        </div>
+        <label class="toggle-switch"><input type="checkbox" id="setting-scoring" onchange="saveAppSetting('scoringEnabled',this.checked)"><span class="toggle-slider"></span></label>
+      </label>
+      <label style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
+        <div>
+          <div style="font-weight:600;font-size:14px;">User Activity Tracking</div>
+          <div style="font-size:12px;color:var(--text-dim);">Show when users were last active</div>
+        </div>
+        <label class="toggle-switch"><input type="checkbox" id="setting-tracking" onchange="saveAppSetting('trackUserActivity',this.checked)"><span class="toggle-slider"></span></label>
+      </label>
+    </div>
 
     <!-- ─── TEMPLATES SECTION ─── -->
     <div onclick="showTemplates()" style="display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;cursor:pointer;">
@@ -3109,6 +3128,27 @@ let _sigQuestionN = null;
 
 // ── Auth ───────────────────────────────────────────────────
 let _me = null;
+let _appSettings = { scoringEnabled: true, trackUserActivity: true };
+
+async function loadAppSettings() {
+  try {
+    const r = await fetch('/api/settings');
+    if (r.ok) _appSettings = await r.json();
+  } catch {}
+  const s1 = document.getElementById('setting-scoring');
+  const s2 = document.getElementById('setting-tracking');
+  if (s1) s1.checked = _appSettings.scoringEnabled;
+  if (s2) s2.checked = _appSettings.trackUserActivity;
+}
+
+async function saveAppSetting(key, val) {
+  _appSettings[key] = val;
+  try {
+    await fetch('/api/settings', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ [key]: val }) });
+    toast('Setting saved');
+    if (key === 'scoringEnabled') refreshDashboard();
+  } catch { toast('Failed to save'); }
+}
 
 async function checkAuth() {
   try {
@@ -3286,7 +3326,7 @@ async function renderUsers() {
         <div style="flex:1;min-width:0;">
           <div style="font-weight:600;font-size:14px;">${escHtml(u.displayName || u.username)}${u.id === _me.id ? ' <span style="font-size:10px;color:var(--text-dim);">(you)</span>' : ''}${u.mustChangePassword ? ' <span style="font-size:10px;color:#ff9800;">[must change pw]</span>' : ''}</div>
           <div style="font-size:12px;color:var(--text-dim);">${escHtml(u.username)} · ${escHtml(u.role)}${u.email ? ' · ' + escHtml(u.email) : ''}${u.lastLogin ? ' · last login ' + new Date(u.lastLogin).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : ' · never logged in'}</div>
-          <div style="font-size:11px;color:${u.lastSeenAt ? 'var(--pass)' : 'var(--text-faint)'};margin-top:2px;">${u.lastSeenAt ? '● active ' + relTime(u.lastSeenAt) : '○ not active'}</div>
+          ${_appSettings.trackUserActivity ? `<div style="font-size:11px;color:${u.lastSeenAt ? 'var(--pass)' : 'var(--text-faint)'};margin-top:2px;">${u.lastSeenAt ? '● active ' + relTime(u.lastSeenAt) : '○ not active'}</div>` : ''}
         </div>
         <select onchange="changeUserRole('${u.id}', this.value)" ${u.id === _me.id ? 'disabled' : ''} style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px;border-radius:6px;font-size:12px;font-family:inherit;outline:none;">
           <option value="inspector"${u.role==='inspector'?' selected':''}>Inspector</option>
@@ -3360,6 +3400,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!authed) { showLoginOverlay(); return; }
   if (_me.mustChangePassword) { showSetPasswordOverlay(true); return; }
   applyRoleVisibility();
+  await loadAppSettings();
   initAppAfterAuth();
   // existing deep-link handling below
   // Deep-link: ?asset=LOC|MACH|COMP opens the asset detail directly
@@ -5356,8 +5397,10 @@ async function refreshDashboard() {
     setEl('stat-fail', filtered.filter(r => r.result === 'FAIL' && !r.status).length);
     setEl('stat-wr', filtered.filter(r => r.status === 'WR_RAISED').length);
     setEl('stat-rect', filtered.filter(r => r.status === 'SERVICEABLE').length);
-    // Avg score
-    const scored = filtered.filter(r => r.score && r.score.pct != null);
+    // Avg score (gated by settings)
+    const avgCard = document.getElementById('stat-avg-score-card');
+    if (avgCard) avgCard.style.display = _appSettings.scoringEnabled ? '' : 'none';
+    const scored = _appSettings.scoringEnabled ? filtered.filter(r => r.score && r.score.pct != null) : [];
     const avgPct = scored.length ? Math.round(scored.reduce((s, r) => s + r.score.pct, 0) / scored.length) : null;
     const avgEl = document.getElementById('stat-avg-score');
     if (avgEl) {
@@ -5534,7 +5577,7 @@ async function renderRecords() {
     const riskBadge = rec.risk?.rating
       ? `<span style="background:${riskColors[rec.risk.rating]||'#666'};color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;margin-left:6px;">${escHtml(rec.risk.rating)}</span>`
       : '';
-    const scorePill = rec.score ? `<span style="font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:0.08em;color:${rec.score.pct >= 80 ? 'var(--pass)' : rec.score.pct >= 50 ? 'var(--amber)' : 'var(--fail)'};margin-left:6px;">${rec.score.pct}%</span>` : '';
+    const scorePill = (_appSettings.scoringEnabled && rec.score) ? `<span style="font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:0.08em;color:${rec.score.pct >= 80 ? 'var(--pass)' : rec.score.pct >= 50 ? 'var(--amber)' : 'var(--fail)'};margin-left:6px;">${rec.score.pct}%</span>` : '';
     card.innerHTML = `
       <div class="record-header" onclick="toggleRecord(this.parentElement)">
         <div class="record-badge ${badgeClass}">${badgeLabel}</div>
@@ -7791,6 +7834,7 @@ function computeResultV2(items) {
 }
 
 function computeScoreV2(items) {
+  if (!_appSettings.scoringEnabled) return null;
   const qs = items.filter(i => i.itemType === 'question' && i.type !== 'instruction');
   let totalScore = 0, maxScore = 0;
   qs.forEach((q, i) => {

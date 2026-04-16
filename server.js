@@ -20,6 +20,7 @@ const ROLES_FILE = path.join(__dirname, 'roles.json');
 const SESSION_SECRET_FILE = path.join(__dirname, '.session-secret');
 const ANSWER_SETS_FILE = path.join(__dirname, 'answer-sets.json');
 const EMAIL_CONFIG_FILE = path.join(__dirname, 'emailConfig.json');
+const APP_SETTINGS_FILE = path.join(__dirname, 'appSettings.json');
 const ASSETS_FILE = path.join(__dirname, 'assets.json');
 const RECTS_FILE = path.join(__dirname, 'rectifications.json');
 const PHOTOS_DIR = path.join(__dirname, 'photos');
@@ -165,10 +166,19 @@ app.use((req, res, next) => {
   if (!req.url.startsWith('/api/')) return next();
   if (isPublicPath(req.url.split('?')[0])) return next();
   if (!req.session.userId) return res.status(401).json({ error: 'Authentication required' });
-  // Reject user if flagged mustChangePassword except for the set-password route
-  const u = readUsers().find(x => x.id === req.session.userId);
-  if (!u) { req.session.destroy(() => {}); return res.status(401).json({ error: 'Session invalid' }); }
-  req.user = u;
+  const users = readUsers();
+  const idx = users.findIndex(x => x.id === req.session.userId);
+  if (idx === -1) { req.session.destroy(() => {}); return res.status(401).json({ error: 'Session invalid' }); }
+  req.user = users[idx];
+  // Stamp lastSeenAt (debounced to once per 60s per user to avoid disk thrash)
+  if (readAppSettings().trackUserActivity) {
+    const now = Date.now();
+    const prev = users[idx].lastSeenAt ? Date.parse(users[idx].lastSeenAt) : 0;
+    if (!prev || now - prev > 60 * 1000) {
+      users[idx].lastSeenAt = new Date(now).toISOString();
+      try { writeUsers(users); } catch {}
+    }
+  }
   next();
 });
 
@@ -436,6 +446,15 @@ function readEmailConfig() {
 
 function writeEmailConfig(data) {
   fs.writeFileSync(EMAIL_CONFIG_FILE, JSON.stringify(data, null, 2), 'utf8');
+}
+
+function readAppSettings() {
+  const defaults = { scoringEnabled: true, trackUserActivity: true };
+  if (!fs.existsSync(APP_SETTINGS_FILE)) return defaults;
+  try { return { ...defaults, ...JSON.parse(fs.readFileSync(APP_SETTINGS_FILE, 'utf8')) }; } catch { return defaults; }
+}
+function writeAppSettings(data) {
+  fs.writeFileSync(APP_SETTINGS_FILE, JSON.stringify(data, null, 2), 'utf8');
 }
 
 // ── Gmail API (OAuth2 refresh-token flow) ─────────────────
@@ -2069,6 +2088,17 @@ app.post('/api/email/gmail/disconnect', (req, res) => {
   cfg.refreshToken = '';
   writeEmailConfig(cfg);
   res.json({ success: true });
+});
+
+// ── App Settings API ──────────────────────────────────────
+app.get('/api/settings', (req, res) => res.json(readAppSettings()));
+app.post('/api/settings', (req, res) => {
+  const current = readAppSettings();
+  const { scoringEnabled, trackUserActivity } = req.body;
+  if (typeof scoringEnabled === 'boolean') current.scoringEnabled = scoringEnabled;
+  if (typeof trackUserActivity === 'boolean') current.trackUserActivity = trackUserActivity;
+  writeAppSettings(current);
+  res.json({ success: true, settings: current });
 });
 
 app.post('/api/email/send-report', async (req, res) => {

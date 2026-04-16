@@ -10,3 +10,4 @@ emailConfig.json
 .session-secret
 roles.json
 users.json
+appSettings.json
