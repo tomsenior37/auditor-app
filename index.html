@@ -1382,7 +1382,10 @@
       </div>
     </div>
 
-    <button class="btn-primary" onclick="showForm()" data-perm="create_inspections">＋ New Audit</button>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <button class="btn-primary" onclick="showForm()" data-perm="create_inspections">＋ New Audit</button>
+      <button class="btn-secondary" onclick="showTodoLists()" style="font-size:14px;padding:12px;">📋 Todo Lists</button>
+    </div>
 
     <!-- Asset KPIs -->
     <div id="kpi-row" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;">
@@ -1758,6 +1761,37 @@
     <div style="display:none;"><input type="file" id="import-html-file"><div id="html-import-stage"></div></div>
 
     <button class="btn-secondary" onclick="goHome()" style="width:100%;">&#8592; Back</button>
+  </div>
+</div>
+
+<!-- ══════════════ TODO LISTS SCREEN ══════════════ -->
+<div class="screen" id="todo-screen">
+  <div style="padding:16px;display:flex;flex-direction:column;gap:12px;">
+    <button onclick="openCreateTodo()" class="btn-primary" data-perm="edit_templates">＋ Create Inspection Todo List</button>
+    <div id="todo-lists-body"></div>
+  </div>
+</div>
+
+<!-- ══════════════ TODO DETAIL SCREEN ══════════════ -->
+<div class="screen" id="todo-detail-screen">
+  <div style="padding:16px;display:flex;flex-direction:column;gap:12px;">
+    <div id="todo-detail-header"></div>
+    <div id="todo-detail-tasks"></div>
+  </div>
+</div>
+
+<!-- ══════════════ CREATE TODO MODAL ══════════════ -->
+<div id="create-todo-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9999;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;max-width:520px;width:100%;display:flex;flex-direction:column;gap:12px;margin:auto;">
+    <div style="font-size:17px;font-weight:700;color:var(--accent);">📋 Create Inspection Todo List</div>
+    <div class="field-group"><label>Name *</label><input id="todo-name" type="text" placeholder="e.g. Q1 2026 Guard Audit - Building A"></div>
+    <div class="field-group"><label>Template *</label><select id="todo-template" style="width:100%;"></select></div>
+    <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--accent);letter-spacing:.5px;">Select components to inspect</div>
+    <div id="todo-tree" style="max-height:300px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;"></div>
+    <div style="display:flex;gap:10px;">
+      <button onclick="document.getElementById('create-todo-modal').style.display='none'" style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:14px;font-size:15px;font-weight:600;cursor:pointer;">Cancel</button>
+      <button onclick="submitCreateTodo()" style="flex:1;background:var(--accent);border:none;color:#fff;border-radius:10px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;">Generate</button>
+    </div>
   </div>
 </div>
 
@@ -2562,6 +2596,199 @@ function getCurrentRisk() {
   if (!_riskState.consequence || !_riskState.probability) return null;
   const m = RISK_MATRIX[_riskState.consequence + _riskState.probability];
   return { consequence: _riskState.consequence, probability: _riskState.probability, rating: m ? m[0] : '' };
+}
+
+// ── Todo Lists (inspection work orders) ────────────────────
+let _todoLists = [];
+
+function showTodoLists() {
+  switchScreen('todo-screen', '📋 Todo Lists');
+  loadTodoLists();
+}
+
+async function loadTodoLists() {
+  try { const r = await fetch('/api/todo-lists'); _todoLists = await r.json(); } catch { _todoLists = []; }
+  renderTodoLists();
+}
+
+function renderTodoLists() {
+  const el = document.getElementById('todo-lists-body');
+  if (!el) return;
+  if (!_todoLists.length) { el.innerHTML = '<div style="color:var(--text-dim);text-align:center;padding:30px;">No todo lists yet.</div>'; return; }
+  el.innerHTML = _todoLists.map(l => {
+    const done = l.tasks.filter(t => t.status === 'completed').length;
+    const inProg = l.tasks.filter(t => t.status === 'in_progress').length;
+    const total = l.tasks.length;
+    const pct = total ? Math.round(done / total * 100) : 0;
+    const barColor = pct === 100 ? 'var(--pass)' : (inProg ? 'var(--accent)' : 'var(--border)');
+    return `<div onclick="openTodoDetail('${l.id}')" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;cursor:pointer;margin-bottom:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-weight:700;font-size:15px;">${escHtml(l.name)}</div>
+        <span style="font-size:12px;color:var(--text-dim);">${pct}%</span>
+      </div>
+      <div style="font-size:12px;color:var(--text-dim);margin:4px 0;">${escHtml(l.templateName)} · ${done}/${total} done${inProg ? ` · ${inProg} in progress` : ''}</div>
+      <div style="background:var(--bg);height:6px;border-radius:3px;overflow:hidden;">
+        <div style="width:${pct}%;height:100%;background:${barColor};transition:width .3s;"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function openTodoDetail(id) {
+  switchScreen('todo-detail-screen', 'Todo List');
+  const headerEl = document.getElementById('todo-detail-header');
+  const tasksEl = document.getElementById('todo-detail-tasks');
+  headerEl.innerHTML = '<div style="color:var(--text-dim);">Loading…</div>';
+  tasksEl.innerHTML = '';
+  try {
+    const r = await fetch('/api/todo-lists/' + id);
+    const list = await r.json();
+    const done = list.tasks.filter(t => t.status === 'completed').length;
+    const pct = list.tasks.length ? Math.round(done / list.tasks.length * 100) : 0;
+    headerEl.innerHTML = `
+      <div style="font-weight:700;font-size:18px;color:var(--accent);">${escHtml(list.name)}</div>
+      <div style="font-size:13px;color:var(--text-dim);">${escHtml(list.templateName)} · ${done}/${list.tasks.length} completed · ${pct}%</div>
+      <div style="background:var(--bg);height:8px;border-radius:4px;overflow:hidden;margin-top:6px;">
+        <div style="width:${pct}%;height:100%;background:${pct===100?'var(--pass)':'var(--accent)'};transition:width .3s;"></div>
+      </div>`;
+    const me = _me?.displayName || _me?.username || '';
+    tasksEl.innerHTML = list.tasks.map(t => {
+      const statusColor = t.status === 'completed' ? 'var(--pass)' : t.status === 'in_progress' ? 'var(--accent)' : 'var(--text-dim)';
+      const statusLabel = t.status === 'completed' ? 'Completed' : t.status === 'in_progress' ? 'In Progress' : 'Pending';
+      let actions = '';
+      if (t.status === 'pending') {
+        actions = `<button onclick="event.stopPropagation();claimTodoTask('${list.id}','${t.id}')" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;">Start</button>`;
+      } else if (t.status === 'in_progress' && t.assignedTo === me) {
+        actions = `<button onclick="event.stopPropagation();startTodoInspection('${list.id}','${t.id}','${escHtml(list.templateId)}')" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;">Continue</button>
+          <button onclick="event.stopPropagation();releaseTodoTask('${list.id}','${t.id}')" style="background:none;border:1px solid var(--border);color:var(--text-dim);border-radius:6px;padding:7px 10px;font-size:11px;cursor:pointer;">Release</button>`;
+      } else if (t.status === 'completed' && t.inspectionId) {
+        actions = `<a href="/api/report/${t.inspectionId}" target="_blank" style="color:var(--accent);font-size:12px;font-weight:600;text-decoration:none;">📄 Report</a>`;
+      }
+      return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+        <div style="width:10px;height:10px;border-radius:50%;background:${statusColor};flex-shrink:0;"></div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;font-size:13px;font-family:monospace;">${escHtml(t.component)}</div>
+          <div style="font-size:12px;color:var(--text-dim);">${escHtml(t.location)} › ${escHtml(t.machine)}${t.assignedTo ? ' · ' + escHtml(t.assignedTo) : ''}</div>
+        </div>
+        <div style="font-size:11px;color:${statusColor};font-weight:700;white-space:nowrap;">${statusLabel}</div>
+        <div style="display:flex;gap:4px;align-items:center;">${actions}</div>
+      </div>`;
+    }).join('');
+  } catch { headerEl.innerHTML = '<div style="color:var(--fail);">Failed to load</div>'; }
+}
+
+async function claimTodoTask(listId, taskId) {
+  const me = _me?.displayName || _me?.username || '';
+  try {
+    const r = await fetch(`/api/todo-lists/${listId}/tasks/${taskId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'claim', inspectorName: me }) });
+    const d = await r.json();
+    if (d.success) { toast('Task claimed'); openTodoDetail(listId); }
+    else toast(d.error || 'Failed');
+  } catch { toast('Network error'); }
+}
+
+async function releaseTodoTask(listId, taskId) {
+  try {
+    const r = await fetch(`/api/todo-lists/${listId}/tasks/${taskId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'release' }) });
+    const d = await r.json();
+    if (d.success) { toast('Task released'); openTodoDetail(listId); }
+    else toast(d.error || 'Failed');
+  } catch { toast('Network error'); }
+}
+
+// Store active todo context so inspection submission can link back
+let _activeTodoListId = null, _activeTodoTaskId = null;
+
+function startTodoInspection(listId, taskId, templateId) {
+  _activeTodoListId = listId;
+  _activeTodoTaskId = taskId;
+  showForm();
+  // Pre-select the template
+  const tpl = templates.find(t => t.id === templateId);
+  if (tpl) {
+    selectedTemplate = tpl;
+    QUESTIONS = tplQuestions(tpl).map(q => q.text);
+    document.getElementById('f-template').value = templateId;
+    updateTemplateLabel();
+    updateGuardDropdown();
+    buildChecklist();
+    resetFormAnswers();
+    initRiskBlock();
+  }
+  // Find the task to pre-fill location/machine/component
+  const list = _todoLists.find(l => l.id === listId);
+  const task = list?.tasks.find(t => t.id === taskId);
+  if (task) {
+    document.getElementById('f-location').value = task.location;
+    updateMachineDropdown();
+    document.getElementById('f-machine').value = task.machine;
+    updateGuardDropdown();
+    document.getElementById('f-guardId').value = task.component;
+    loadComponentRefPhoto(task.component);
+  }
+}
+
+function openCreateTodo() {
+  const sel = document.getElementById('todo-template');
+  sel.innerHTML = templates.filter(t => !t.archived).map(t => `<option value="${t.id}">${escHtml(t.name)}</option>`).join('');
+  // Build location/machine/component tree with checkboxes
+  const tree = document.getElementById('todo-tree');
+  tree.innerHTML = (lists.locations || []).map(loc => {
+    return `<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;">
+      <label style="font-weight:700;font-size:14px;display:flex;align-items:center;gap:6px;cursor:pointer;">
+        <input type="checkbox" class="todo-loc-cb" data-loc="${escHtml(loc.name)}" onchange="todoToggleLoc(this)"> 📍 ${escHtml(loc.name)}
+      </label>
+      ${loc.machines.map(m => `
+        <div style="margin-left:16px;margin-top:6px;">
+          <label style="font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;">
+            <input type="checkbox" class="todo-mac-cb" data-loc="${escHtml(loc.name)}" data-mac="${escHtml(m.name)}" onchange="todoToggleMac(this)"> 🔧 ${escHtml(m.name)}
+          </label>
+          ${(m.guards || []).map(g => `
+            <label style="margin-left:16px;font-size:12px;display:flex;align-items:center;gap:6px;cursor:pointer;margin-top:2px;">
+              <input type="checkbox" class="todo-comp-cb" data-loc="${escHtml(loc.name)}" data-mac="${escHtml(m.name)}" data-comp="${escHtml(g)}"> 🏷️ ${escHtml(g)}
+            </label>`).join('')}
+        </div>`).join('')}
+    </div>`;
+  }).join('');
+  document.getElementById('create-todo-modal').style.display = 'flex';
+}
+
+function todoToggleLoc(cb) {
+  const loc = cb.dataset.loc;
+  document.querySelectorAll(`.todo-mac-cb[data-loc="${loc}"],.todo-comp-cb[data-loc="${loc}"]`).forEach(c => c.checked = cb.checked);
+}
+function todoToggleMac(cb) {
+  const loc = cb.dataset.loc, mac = cb.dataset.mac;
+  document.querySelectorAll(`.todo-comp-cb[data-loc="${loc}"][data-mac="${mac}"]`).forEach(c => c.checked = cb.checked);
+}
+
+async function submitCreateTodo() {
+  const name = document.getElementById('todo-name').value.trim();
+  const templateId = document.getElementById('todo-template').value;
+  if (!name) return toast('Name required');
+  if (!templateId) return toast('Select a template');
+  // Collect checked components grouped by location → machine
+  const locMap = {};
+  document.querySelectorAll('.todo-comp-cb:checked').forEach(cb => {
+    const loc = cb.dataset.loc, mac = cb.dataset.mac, comp = cb.dataset.comp;
+    if (!locMap[loc]) locMap[loc] = {};
+    if (!locMap[loc][mac]) locMap[loc][mac] = [];
+    locMap[loc][mac].push(comp);
+  });
+  const locations = Object.entries(locMap).map(([name, machines]) => ({
+    name,
+    machines: Object.entries(machines).map(([name, components]) => ({ name, components }))
+  }));
+  if (!locations.length) return toast('Select at least one component');
+  try {
+    const r = await fetch('/api/todo-lists', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, templateId, locations }) });
+    const d = await r.json();
+    if (d.success) {
+      document.getElementById('create-todo-modal').style.display = 'none';
+      toast(`Generated ${d.todoList.tasks.length} task(s)`);
+      openTodoDetail(d.todoList.id);
+    } else toast(d.error || 'Failed');
+  } catch { toast('Network error'); }
 }
 
 // ── HTML → Native Template parser (Mode B) ─────────────────
@@ -4258,8 +4485,23 @@ async function submitInspection() {
     if (!res.ok) throw new Error('Server error');
     const saved = await res.json();
     await loadStats();
-    if (result === 'FAIL') {
-      // Show fail options: create issue or just save
+    // Complete the todo task if this inspection was started from a todo list
+    if (_activeTodoListId && _activeTodoTaskId) {
+      try {
+        await fetch(`/api/todo-lists/${_activeTodoListId}/tasks/${_activeTodoTaskId}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'complete', inspectionId: saved.id })
+        });
+      } catch {}
+      const retId = _activeTodoListId;
+      _activeTodoListId = null; _activeTodoTaskId = null;
+      if (result === 'FAIL') {
+        showFailOptionsModal(saved.id || null);
+      } else {
+        toast('✅ Inspection saved — PASS');
+        setTimeout(() => openTodoDetail(retId), 1200);
+      }
+    } else if (result === 'FAIL') {
       showFailOptionsModal(saved.id || null);
     } else {
       toast('✅ Inspection saved — PASS');

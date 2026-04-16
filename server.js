@@ -30,6 +30,7 @@ const TEMPLATE_MEDIA_DIR = path.join(__dirname, 'template-media');
 const TEMPLATE_SOURCES_DIR = path.join(__dirname, 'template-sources');
 const HTML_FORMS_DIR = path.join(__dirname, 'html-forms');
 const HTML_FORMS_FILE = path.join(__dirname, 'html-forms.json');
+const TODO_LISTS_FILE = path.join(__dirname, 'todo-lists.json');
 const HTML_SNAPSHOTS_DIR = path.join(__dirname, 'html-snapshots');
 
 // Ensure dirs exist
@@ -836,6 +837,103 @@ app.delete('/api/template-sources/:filename', (req, res) => {
   if (!fs.existsSync(p)) return res.status(404).json({ error: 'not found' });
   try { fs.unlinkSync(p); res.json({ success: true }); }
   catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Todo Lists (inspection work orders) ────────────────────
+function readTodoLists() {
+  if (!fs.existsSync(TODO_LISTS_FILE)) return [];
+  try { return JSON.parse(fs.readFileSync(TODO_LISTS_FILE, 'utf8')); } catch { return []; }
+}
+function writeTodoLists(data) { fs.writeFileSync(TODO_LISTS_FILE, JSON.stringify(data, null, 2), 'utf8'); }
+
+app.get('/api/todo-lists', (req, res) => res.json(readTodoLists()));
+
+app.get('/api/todo-lists/:id', (req, res) => {
+  const lists = readTodoLists();
+  const list = lists.find(l => l.id === req.params.id);
+  if (!list) return res.status(404).json({ error: 'not found' });
+  res.json(list);
+});
+
+// POST /api/todo-lists — generate a batch of inspection tasks
+// body: { name, templateId, locations: [{name, machines: [{name, components: [string]}]}] }
+app.post('/api/todo-lists', requireRole('admin', 'planner'), (req, res) => {
+  const { name, templateId, locations } = req.body;
+  if (!name || !templateId || !Array.isArray(locations)) return res.status(400).json({ error: 'name, templateId, and locations required' });
+  const tplData = readTemplates();
+  const tpl = tplData.templates.find(t => t.id === templateId);
+  if (!tpl) return res.status(404).json({ error: 'template not found' });
+  const tasks = [];
+  locations.forEach(loc => {
+    (loc.machines || []).forEach(mac => {
+      (mac.components || []).forEach(comp => {
+        tasks.push({
+          id: uuidv4().slice(0, 8),
+          location: loc.name,
+          machine: mac.name,
+          component: comp,
+          status: 'pending',
+          assignedTo: null,
+          startedAt: null,
+          completedAt: null,
+          inspectionId: null
+        });
+      });
+    });
+  });
+  if (!tasks.length) return res.status(400).json({ error: 'no components selected' });
+  const todo = {
+    id: 'todo-' + uuidv4().slice(0, 8),
+    name,
+    templateId,
+    templateName: tpl.name,
+    status: 'active',
+    createdBy: req.user?.displayName || req.user?.username || '',
+    createdAt: new Date().toISOString(),
+    tasks
+  };
+  const all = readTodoLists();
+  all.unshift(todo);
+  writeTodoLists(all);
+  res.json({ success: true, todoList: todo });
+});
+
+// PATCH /api/todo-lists/:id/tasks/:taskId — claim or complete a task
+app.patch('/api/todo-lists/:id/tasks/:taskId', (req, res) => {
+  const all = readTodoLists();
+  const list = all.find(l => l.id === req.params.id);
+  if (!list) return res.status(404).json({ error: 'list not found' });
+  const task = list.tasks.find(t => t.id === req.params.taskId);
+  if (!task) return res.status(404).json({ error: 'task not found' });
+  const { action, inspectorName, inspectionId } = req.body;
+  if (action === 'claim') {
+    if (task.status !== 'pending') return res.status(400).json({ error: 'task already claimed' });
+    task.status = 'in_progress';
+    task.assignedTo = inspectorName || req.user?.displayName || req.user?.username || '';
+    task.startedAt = new Date().toISOString();
+  } else if (action === 'complete') {
+    if (task.status !== 'in_progress') return res.status(400).json({ error: 'task not in progress' });
+    task.status = 'completed';
+    task.completedAt = new Date().toISOString();
+    if (inspectionId) task.inspectionId = inspectionId;
+  } else if (action === 'release') {
+    if (task.status !== 'in_progress') return res.status(400).json({ error: 'task not in progress' });
+    task.status = 'pending';
+    task.assignedTo = null;
+    task.startedAt = null;
+  }
+  // Update list status
+  const allDone = list.tasks.every(t => t.status === 'completed');
+  if (allDone) list.status = 'completed';
+  writeTodoLists(all);
+  res.json({ success: true, task, listStatus: list.status });
+});
+
+app.delete('/api/todo-lists/:id', requireRole('admin', 'planner'), (req, res) => {
+  let all = readTodoLists();
+  all = all.filter(l => l.id !== req.params.id);
+  writeTodoLists(all);
+  res.json({ success: true });
 });
 
 // ── HTML Audit Forms (Mode A: HTML is the form) ────────────
