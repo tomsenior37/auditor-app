@@ -4022,6 +4022,29 @@ function restoreDraft(draft) {
   _activeTodoTaskId = draft.todoTaskId || null;
   evaluateLogicV2();
   updateAuditProgress();
+
+  // Deferred photo restoration — ensures DOM is settled after buildChecklist
+  setTimeout(() => {
+    Object.entries(findings).forEach(([key, f]) => {
+      if (!f?.photo) return;
+      const n = parseInt(key.replace('q', ''), 10);
+      if (isNaN(n)) return;
+      // Make sure the finding panel is visible
+      const panel = document.getElementById(`finding-panel-${n}`);
+      if (panel && panel.style.display === 'none') panel.style.display = 'flex';
+      const preview = document.getElementById(`finding-photo-preview-${n}`);
+      if (preview) {
+        preview.src = '/photos/' + f.photo;
+        preview.style.display = 'block';
+        preview.onclick = function() { annotatePhoto(this.src, 'finding-photo-preview-' + n, key); };
+      }
+      const annBtn = document.getElementById(`finding-annotate-${n}`);
+      if (annBtn) {
+        annBtn.style.display = 'inline';
+        annBtn.onclick = function() { annotatePhoto(document.getElementById('finding-photo-preview-' + n).src, 'finding-photo-preview-' + n, key); };
+      }
+    });
+  }, 100);
 }
 
 // ── Submit ─────────────────────────────────────────────────
