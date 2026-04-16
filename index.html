@@ -5602,15 +5602,23 @@ function toggleRecord(card) {
 }
 
 function buildDetailHtml(rec) {
+  const tpl = templates.find(t => t.id === rec.templateId);
+  const tplItems = (tpl && tpl.version === 2 && tpl.items) ? tpl.items.filter(i => i.itemType === 'question' && i.type !== 'instruction') : null;
   const answerRows = QUESTIONS.map((q, i) => {
     const key = `q${i + 1}`;
     const val = rec.answers[key];
-    let chip, label;
-    if (val === true)   { chip = 'yes'; label = 'YES'; }
-    else if (val === false) { chip = 'no'; label = 'NO'; }
-    else if (val === 'na')  { chip = 'na'; label = 'N/A'; }
+    const qType = tplItems && tplItems[i] ? tplItems[i].type : 'yesno';
+    let chip, label, ansExtra = '';
+    if (val === true)        { chip = 'yes'; label = 'YES'; }
+    else if (val === false)  { chip = 'no'; label = 'NO'; }
+    else if (val === 'na')   { chip = 'na'; label = 'N/A'; }
+    else if (qType === 'datetime' && val) { chip = 'yes'; label = String(val).replace('T', ' '); }
+    else if (qType === 'signature' && val) { chip = 'yes'; label = 'Signed'; ansExtra = `<img src="${val}" style="max-width:200px;max-height:80px;border-radius:4px;border:1px solid var(--border);margin-top:4px;" alt="Signature">`; }
+    else if (qType === 'media' && val) { chip = 'yes'; label = 'Photo'; ansExtra = `<img src="${escHtml(val)}" style="max-width:200px;max-height:120px;border-radius:4px;border:1px solid var(--border);margin-top:4px;object-fit:cover;" alt="Photo">`; }
+    else if ((qType === 'number' || qType === 'slider') && val !== undefined && val !== null) { chip = 'yes'; label = String(val) + (tplItems?.[i]?.unit ? ' ' + tplItems[i].unit : ''); }
+    else if (qType === 'text' && val) { chip = 'yes'; label = String(val).slice(0, 80) + (val.length > 80 ? '…' : ''); }
+    else if (typeof val === 'string' && val) { chip = 'yes'; label = val.slice(0, 60); }
     else { chip = 'na'; label = '—'; }
-    // For NO answers, include finding details
     let findingHtml = '';
     if (val === false && rec.findings && rec.findings[key]) {
       const f = rec.findings[key];
@@ -5622,10 +5630,10 @@ function buildDetailHtml(rec) {
     }
     return `<div class="detail-answer-row" style="flex-direction:column;align-items:flex-start;">
       <div style="display:flex;align-items:flex-start;gap:8px;width:100%">
-        <span class="answer-chip ${chip}">${label}</span>
+        <span class="answer-chip ${chip}">${escHtml(label)}</span>
         <span>${i + 1}. ${escHtml(q)}</span>
       </div>
-      ${findingHtml}
+      ${ansExtra}${findingHtml}
     </div>`;
   }).join('');
 
@@ -6819,7 +6827,7 @@ function bSectionHtml(sec, questions) {
     </div>`;
 }
 
-const TYPE_LABELS = { yesno:'Yes/No/N/A', multichoice:'Choice', text:'Text', number:'Number', slider:'Slider' };
+const TYPE_LABELS = { yesno:'Yes/No/N/A', multichoice:'Choice', text:'Text', number:'Number', slider:'Slider', datetime:'Date/Time', signature:'Signature', media:'Photo' };
 
 function bQCardHtml(q) {
   const lbl = TYPE_LABELS[q.type] || q.type;
@@ -6976,6 +6984,9 @@ function bSetType(id, type) {
   if (type === 'number') { item.unit = item.unit || ''; item.min = item.min ?? null; item.max = item.max ?? null; }
   if (type === 'slider') { item.min = item.min ?? 0; item.max = item.max ?? 100; item.unit = item.unit || ''; }
   if (type === 'text') { item.maxLength = item.maxLength || 500; }
+  if (type === 'datetime') { item.datetimeMode = item.datetimeMode || 'datetime'; }
+  if (type === 'signature') {}
+  if (type === 'media') {}
   bs.dirty = true;
   bRenderCanvas();
   bRenderSettings();
@@ -7184,7 +7195,8 @@ function bRenderSettings() {
   const types = [
     { id:'yesno', label:'Yes/No/N/A', icon:'✓✗' }, { id:'multichoice', label:'Choice', icon:'☰' },
     { id:'text', label:'Text', icon:'Aa' }, { id:'number', label:'Number', icon:'#' },
-    { id:'slider', label:'Slider', icon:'↔' }
+    { id:'slider', label:'Slider', icon:'↔' }, { id:'datetime', label:'Date/Time', icon:'📅' },
+    { id:'signature', label:'Signature', icon:'✍️' }, { id:'media', label:'Photo', icon:'📷' }
   ];
   const typeBtns = types.map(t => `
     <button class="btype-btn${item.type === t.id ? ' active' : ''}" onclick="bSetType('${item.id}','${t.id}')">
@@ -7251,6 +7263,17 @@ function bRenderSettings() {
       <input type="text" value="${escHtml(item.unit||'')}" placeholder="Unit (e.g. %)" oninput="bUpdateItem('${item.id}','unit',this.value)"
         style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;width:100%;">
     </div>`;
+  } else if (item.type === 'datetime') {
+    typeConfig = `<div style="margin-top:12px;">
+      <div style="font-size:12px;color:var(--text-dim);margin-bottom:6px;">Capture mode</div>
+      <div style="display:flex;gap:6px;">
+        ${['date','time','datetime'].map(m => `<button class="q-btn ${(item.datetimeMode||'datetime')===m?'yes selected':''}" onclick="bUpdateItem('${item.id}','datetimeMode','${m}');bRenderSettings()" style="flex:1;padding:8px;font-size:12px;">${m==='datetime'?'Date + Time':m==='date'?'Date only':'Time only'}</button>`).join('')}
+      </div>
+    </div>`;
+  } else if (item.type === 'signature') {
+    typeConfig = `<div style="margin-top:12px;font-size:12px;color:var(--text-dim);">Inspector draws their signature inline on the form.</div>`;
+  } else if (item.type === 'media') {
+    typeConfig = `<div style="margin-top:12px;font-size:12px;color:var(--text-dim);">Inspector takes or uploads a photo. The photo becomes the answer.</div>`;
   }
 
   // Scoring config (weight)
@@ -7550,6 +7573,28 @@ function buildChecklistV2(items) {
           <input type="range" id="slider-ans-${n}" min="${item.min??0}" max="${item.max??100}" value="${initVal}"
             oninput="setSliderAnswer(${n},this.value,'${escHtml(item.unit||'')}')" style="width:100%;accent-color:var(--accent);">
         </div>`;
+      } else if (item.type === 'datetime') {
+        const mode = item.datetimeMode || 'datetime';
+        const inputType = mode === 'date' ? 'date' : mode === 'time' ? 'time' : 'datetime-local';
+        ansHtml = `<input type="${inputType}" id="dt-ans-${n}" oninput="setDatetimeAnswer(${n},this.value)"
+          style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:12px;border-radius:8px;font-size:16px;font-family:inherit;outline:none;width:100%;">`;
+      } else if (item.type === 'signature') {
+        ansHtml = `<div id="sig-area-${n}" style="position:relative;">
+          <canvas id="sig-canvas-${n}" width="320" height="140"
+            style="width:100%;height:140px;background:var(--bg);border:1px solid var(--border);border-radius:8px;cursor:crosshair;touch-action:none;"></canvas>
+          <div style="display:flex;gap:8px;margin-top:6px;">
+            <button type="button" onclick="clearQSig(${n})" style="background:var(--surface);border:1px solid var(--border);color:var(--text-dim);border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;">Clear</button>
+            <div style="flex:1;font-size:11px;color:var(--text-dim);display:flex;align-items:center;">Draw signature above</div>
+          </div>
+        </div>`;
+      } else if (item.type === 'media') {
+        ansHtml = `<div>
+          <label for="media-ans-${n}" style="display:flex;align-items:center;justify-content:center;gap:8px;background:var(--surface);border:2px dashed var(--border);border-radius:8px;padding:24px;cursor:pointer;color:var(--text-dim);font-size:14px;">
+            📷 <span>Take or choose photo</span>
+          </label>
+          <input type="file" id="media-ans-${n}" accept="image/*" capture="environment" data-q="${n}" style="display:none;">
+          <img id="media-preview-${n}" style="display:none;max-width:100%;margin-top:8px;border-radius:8px;border:1px solid var(--border);" alt="">
+        </div>`;
       }
       // Photo attachment button (for types that support it)
       const photoCapture = item.allowPhoto ? `
@@ -7587,6 +7632,13 @@ function buildChecklistV2(items) {
       if (item.allowPhoto) {
         const qPhoto = card.querySelector(`#q-photo-${n}`);
         if (qPhoto) qPhoto.addEventListener('change', handleQuestionPhotoSelect);
+      }
+      if (item.type === 'signature') {
+        setTimeout(() => initQSigCanvas(n), 0);
+      }
+      if (item.type === 'media') {
+        const mediaInput = card.querySelector(`#media-ans-${n}`);
+        if (mediaInput) mediaInput.addEventListener('change', handleMediaAnswer);
       }
     }
   });
@@ -7679,6 +7731,62 @@ function setSliderAnswer(n, value, unit) {
   if (card) { card.classList.remove('answered-yes','answered-no','answered-na'); card.classList.add('answered-yes'); }
   resultComputed = null;
   evaluateLogicV2(); updateAuditProgress();
+}
+
+function setDatetimeAnswer(n, value) {
+  answers[`q${n}`] = value || undefined;
+  const card = document.getElementById(`qcard-${n}`);
+  if (card) { card.classList.remove('answered-yes','answered-no','answered-na'); if (value) card.classList.add('answered-yes'); }
+  evaluateLogicV2(); updateAuditProgress();
+}
+
+// Per-question signature
+const _qSigState = {};
+function initQSigCanvas(n) {
+  const canvas = document.getElementById(`sig-canvas-${n}`);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * (window.devicePixelRatio || 1);
+  canvas.height = rect.height * (window.devicePixelRatio || 1);
+  ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+  _qSigState[n] = { drawing: false, ctx, canvas, hasData: false };
+  const getPos = e => {
+    const r = canvas.getBoundingClientRect();
+    const t = e.touches ? e.touches[0] : e;
+    return { x: t.clientX - r.left, y: t.clientY - r.top };
+  };
+  canvas.addEventListener('pointerdown', e => { e.preventDefault(); _qSigState[n].drawing = true; ctx.beginPath(); ctx.moveTo(getPos(e).x, getPos(e).y); canvas.setPointerCapture(e.pointerId); });
+  canvas.addEventListener('pointermove', e => { if (!_qSigState[n].drawing) return; e.preventDefault(); const p = getPos(e); ctx.strokeStyle = 'var(--text)'; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.lineTo(p.x, p.y); ctx.stroke(); _qSigState[n].hasData = true; });
+  canvas.addEventListener('pointerup', e => { _qSigState[n].drawing = false; if (_qSigState[n].hasData) { answers[`q${n}`] = canvas.toDataURL('image/png'); const card = document.getElementById(`qcard-${n}`); if (card) { card.classList.remove('answered-yes','answered-no','answered-na'); card.classList.add('answered-yes'); } updateAuditProgress(); } });
+}
+function clearQSig(n) {
+  const s = _qSigState[n]; if (!s) return;
+  s.ctx.clearRect(0, 0, s.canvas.width, s.canvas.height);
+  s.hasData = false;
+  answers[`q${n}`] = undefined;
+  const card = document.getElementById(`qcard-${n}`);
+  if (card) card.classList.remove('answered-yes','answered-no','answered-na');
+  updateAuditProgress();
+}
+
+async function handleMediaAnswer(e) {
+  const n = e.target.dataset.q;
+  const file = e.target.files[0];
+  if (!file) return;
+  const preview = document.getElementById(`media-preview-${n}`);
+  if (preview) { preview.src = URL.createObjectURL(file); preview.style.display = 'block'; }
+  try {
+    const fd = new FormData(); fd.append('photo', file);
+    const res = await fetch('/api/photo', { method: 'POST', body: fd });
+    const data = await res.json();
+    answers[`q${n}`] = '/photos/' + data.filename;
+    if (preview) preview.src = '/photos/' + data.filename;
+    const card = document.getElementById(`qcard-${n}`);
+    if (card) { card.classList.remove('answered-yes','answered-no','answered-na'); card.classList.add('answered-yes'); }
+    updateAuditProgress();
+    toast('Photo uploaded ✓');
+  } catch { toast('Upload failed'); }
 }
 
 // ── V2 Logic Engine ──────────────────────────────────
