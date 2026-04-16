@@ -3575,7 +3575,7 @@ function setAnswer(n, val) {
   if (panel) panel.style.display = val === 'no' ? 'flex' : 'none';
   document.getElementById('result-banner').style.display = 'none';
   resultComputed = null;
-  evaluateLogicV2(); updateAuditProgress(); saveDraft(); saveDraft();
+  evaluateLogicV2(); updateAuditProgress(); saveDraft();
 }
 
 function onFindingComment(n) {
@@ -3889,7 +3889,9 @@ function saveDraft() {
       todoListId: _activeTodoListId || null,
       todoTaskId: _activeTodoTaskId || null
     };
-    fetch('/api/inspection/draft', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(draft) }).catch(() => {});
+    fetch('/api/inspection/draft', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(draft) })
+      .then(r => { if (!r.ok) console.error('Draft save failed:', r.status); else console.log('Draft saved'); })
+      .catch(e => console.error('Draft save error:', e));
   }, 1000);
 }
 
@@ -3900,8 +3902,9 @@ function clearDraft() {
 async function getDraft() {
   try {
     const r = await fetch('/api/inspection/draft');
+    if (!r.ok) return null;
     const d = await r.json();
-    return d;
+    return (d && d.templateId) ? d : null;
   } catch { return null; }
 }
 
