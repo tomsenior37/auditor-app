@@ -3004,27 +3004,21 @@ async function buildActionPDFBuffer(rect) {
     });
     y += Math.ceil(gridMeta.length / 3) * 28 + 8;
 
-    // (Priority shown inline in metadata grid, no separate pill)
-
-    // WR/WO info
-    if (rect.workRequestNumber || rect.workOrderNumber) {
-      doc.roundedRect(M, y, PAGE_W - M*2, 36, 8).fill('#fff').stroke('#d4d1ca');
-      let wx = M + 14;
-      if (rect.workRequestNumber) {
-        doc.fillColor(GREY).font('Helvetica').fontSize(8).text('WR', wx, y + 8);
-        doc.fillColor('#28251d').font('Helvetica-Bold').fontSize(11).text(rect.workRequestNumber, wx, y + 19);
-        wx += 160;
-      }
-      if (rect.workOrderNumber) {
-        doc.fillColor(GREY).font('Helvetica').fontSize(8).text('WO', wx, y + 8);
-        doc.fillColor('#28251d').font('Helvetica-Bold').fontSize(11).text(rect.workOrderNumber, wx, y + 19);
-        wx += 160;
-      }
-      if (rect.workOrderExecutionDate) {
-        doc.fillColor(GREY).font('Helvetica').fontSize(8).text('EXEC DATE', wx, y + 8);
-        doc.fillColor('#28251d').font('Helvetica-Bold').fontSize(11).text(rect.workOrderExecutionDate, wx, y + 19);
-      }
-      y += 48;
+    // WR/WO as separate labelled rows below the grid
+    if (rect.workRequestNumber) {
+      doc.fillColor(GREY).font('Helvetica').fontSize(8).text('WR NUMBER', M + 4, y, { characterSpacing: 0.5 });
+      doc.fillColor('#28251d').font('Helvetica-Bold').fontSize(11).text(rect.workRequestNumber, M + 4, y + 11, { width: PAGE_W - M*2 - 8 });
+      y = doc.y + 8;
+    }
+    if (rect.workOrderNumber) {
+      doc.fillColor(GREY).font('Helvetica').fontSize(8).text('WO NUMBER', M + 4, y, { characterSpacing: 0.5 });
+      doc.fillColor('#28251d').font('Helvetica-Bold').fontSize(11).text(rect.workOrderNumber, M + 4, y + 11, { width: PAGE_W - M*2 - 8 });
+      y = doc.y + 8;
+    }
+    if (rect.completionDate) {
+      doc.fillColor(GREY).font('Helvetica').fontSize(8).text('COMPLETION DATE', M + 4, y, { characterSpacing: 0.5 });
+      doc.fillColor('#28251d').font('Helvetica-Bold').fontSize(11).text(rect.completionDate, M + 4, y + 11, { width: PAGE_W - M*2 - 8 });
+      y = doc.y + 8;
     }
 
     // Description
