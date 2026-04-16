@@ -4576,6 +4576,7 @@ function renderRectDetail(rect) {
     ${rect.assignedTo ? `<button onclick="emailRectReport('${rect.id}')" class="btn-secondary" style="font-size:14px;">📧 Email Report to ${escHtml(rect.assignedTo.name)}</button>` : ''}
 
     <!-- Delete -->
+    <a href="/api/report/action/${rect.id}" target="_blank" style="display:block;background:#1a1a1a;color:#e8e8e8;border:1px solid #2a2a2a;border-radius:var(--radius);padding:12px;font-size:14px;font-weight:600;cursor:pointer;width:100%;font-family:inherit;text-align:center;text-decoration:none;">📄 PDF Action Report</a>
     <button onclick="deleteRect('${rect.id}')" style="background:none;border:1px solid var(--fail);color:var(--fail);border-radius:var(--radius);padding:12px;font-size:14px;font-weight:600;cursor:pointer;width:100%;font-family:inherit;">Delete Action</button>
   `;
 }

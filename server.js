@@ -2878,6 +2878,202 @@ app.get('/api/reports/bulk', async (req, res) => {
   archive.finalize();
 });
 
+// GET /api/report/action/:id — PDF report for an action
+app.get('/api/report/action/:id', async (req, res) => {
+  const rects = readRects();
+  const rect = rects.find(r => r.id === req.params.id);
+  if (!rect) return res.status(404).json({ error: 'Action not found' });
+  try {
+    const buf = await buildActionPDFBuffer(rect);
+    const safeName = `Action-${rect.id}.pdf`.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${safeName}"`);
+    res.send(buf);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+async function buildActionPDFBuffer(rect) {
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ margin: 0, size: 'A4', bufferPages: true });
+    const chunks = [];
+    doc.on('data', c => chunks.push(c));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
+
+    const PAGE_W = doc.page.width;
+    const PAGE_H = doc.page.height;
+    const M = 40;
+    const ACCENT = '#01696f';
+    const RED = '#e05c3a';
+    const GREEN = '#3aad5c';
+    const AMBER = '#d19900';
+    const GREY = '#666';
+    const BG = '#f7f6f2';
+
+    const statusColors = { open: RED, in_progress: AMBER, resolved: GREEN, closed: GREEN };
+    const priorityColors = { critical: '#a13544', high: '#da7101', medium: '#d19900', low: '#437a22' };
+
+    // ── Header ──
+    doc.rect(0, 0, PAGE_W, 70).fill(ACCENT);
+    doc.fillColor('#fff').font('Helvetica-Bold').fontSize(20)
+       .text('Action Report', M, 22, { width: PAGE_W - M*2 - 160 });
+    doc.font('Helvetica').fontSize(10).text(rect.id, M, 48);
+    // Status pill
+    const sColor = statusColors[rect.status] || GREY;
+    const sLabel = (rect.status || 'open').replace('_', ' ').toUpperCase();
+    doc.roundedRect(PAGE_W - M - 100, 20, 100, 30, 15).fill(sColor);
+    doc.fillColor('#fff').font('Helvetica-Bold').fontSize(13)
+       .text(sLabel, PAGE_W - M - 100, 28, { width: 100, align: 'center' });
+
+    // ── Metadata card ──
+    let y = 90;
+    doc.roundedRect(M, y, PAGE_W - M*2, 110, 8).fill(BG).stroke('#d4d1ca');
+    const meta = [
+      ['Title', rect.title || '—'],
+      ['Priority', (rect.priority || '—').toUpperCase()],
+      ['Template', rect.templateName || '—'],
+      ['Location', rect.location || '—'],
+      ['Machine', rect.machine || '—'],
+      ['Component', rect.component || '—'],
+      ['Raised by', rect.createdBy || '—'],
+      ['Date', rect.createdAt ? new Date(rect.createdAt).toLocaleString('en-AU', { dateStyle: 'medium', timeStyle: 'short' }) : '—'],
+      ['Due', rect.dueDate || '—']
+    ];
+    const colW = (PAGE_W - M*2 - 30) / 3;
+    meta.forEach((m, i) => {
+      const col = i % 3, row = Math.floor(i / 3);
+      const x = M + 15 + col * colW;
+      const yy = y + 12 + row * 30;
+      doc.fillColor(GREY).font('Helvetica').fontSize(8).text(m[0].toUpperCase(), x, yy, { characterSpacing: 0.5 });
+      doc.fillColor('#28251d').font('Helvetica-Bold').fontSize(10).text(m[1], x, yy + 11, { width: colW - 10, ellipsis: true });
+    });
+    y += 124;
+
+    // Priority pill inline
+    if (rect.priority) {
+      const pc = priorityColors[rect.priority] || GREY;
+      doc.roundedRect(PAGE_W - M - 80, 96, 70, 20, 10).fill(pc);
+      doc.fillColor('#fff').font('Helvetica-Bold').fontSize(9)
+         .text(rect.priority.toUpperCase(), PAGE_W - M - 80, 102, { width: 70, align: 'center' });
+    }
+
+    // WR/WO info
+    if (rect.workRequestNumber || rect.workOrderNumber) {
+      doc.roundedRect(M, y, PAGE_W - M*2, 36, 8).fill('#fff').stroke('#d4d1ca');
+      let wx = M + 14;
+      if (rect.workRequestNumber) {
+        doc.fillColor(GREY).font('Helvetica').fontSize(8).text('WR', wx, y + 8);
+        doc.fillColor('#28251d').font('Helvetica-Bold').fontSize(11).text(rect.workRequestNumber, wx, y + 19);
+        wx += 160;
+      }
+      if (rect.workOrderNumber) {
+        doc.fillColor(GREY).font('Helvetica').fontSize(8).text('WO', wx, y + 8);
+        doc.fillColor('#28251d').font('Helvetica-Bold').fontSize(11).text(rect.workOrderNumber, wx, y + 19);
+        wx += 160;
+      }
+      if (rect.workOrderExecutionDate) {
+        doc.fillColor(GREY).font('Helvetica').fontSize(8).text('EXEC DATE', wx, y + 8);
+        doc.fillColor('#28251d').font('Helvetica-Bold').fontSize(11).text(rect.workOrderExecutionDate, wx, y + 19);
+      }
+      y += 48;
+    }
+
+    // Description
+    if (rect.description) {
+      doc.fillColor(ACCENT).font('Helvetica-Bold').fontSize(12).text('Description', M, y);
+      doc.moveTo(M, y + 16).lineTo(PAGE_W - M, y + 16).lineWidth(1).stroke(ACCENT);
+      y += 24;
+      doc.fillColor('#28251d').font('Helvetica').fontSize(10).text(rect.description, M, y, { width: PAGE_W - M*2 });
+      y = doc.y + 12;
+    }
+
+    const ensureSpace = (needed) => {
+      if (y + needed > PAGE_H - 60) {
+        doc.addPage();
+        doc.rect(0, 0, PAGE_W, 36).fill('#0c4e54');
+        doc.fillColor('#fff').font('Helvetica-Bold').fontSize(11).text('Action Report — ' + rect.id, M, 12);
+        doc.fillColor('#000');
+        y = 56;
+      }
+    };
+
+    // ── Action Items ──
+    if (rect.lineItems && rect.lineItems.length) {
+      ensureSpace(30);
+      doc.fillColor(RED).font('Helvetica-Bold').fontSize(12).text('Action Items', M, y);
+      doc.moveTo(M, y + 16).lineTo(PAGE_W - M, y + 16).lineWidth(1).stroke(RED);
+      y += 26;
+
+      rect.lineItems.forEach((li, idx) => {
+        ensureSpace(60);
+        const liColor = li.status === 'done' ? GREEN : li.status === 'in_progress' ? AMBER : RED;
+        doc.rect(M, y, 4, 0); // will draw line
+        // Question
+        doc.circle(M + 12, y + 10, 9).fill('#1c1b19');
+        doc.fillColor('#fff').font('Helvetica-Bold').fontSize(9).text(String(idx + 1), M + 7, y + 6, { width: 14, align: 'center' });
+        doc.fillColor('#28251d').font('Helvetica-Bold').fontSize(10)
+           .text('Q' + li.questionNum + '. ' + (li.questionText || ''), M + 30, y, { width: PAGE_W - M*2 - 100 });
+        // Status chip
+        const chipLabel = (li.status || 'open').replace('_', ' ').toUpperCase();
+        const chipW = doc.widthOfString(chipLabel, { font: 'Helvetica-Bold', size: 8 }) + 12;
+        doc.roundedRect(PAGE_W - M - chipW, y, chipW, 16, 8).fill(liColor);
+        doc.fillColor('#fff').font('Helvetica-Bold').fontSize(8).text(chipLabel, PAGE_W - M - chipW + 6, y + 4);
+        y = doc.y + 4;
+        // Finding
+        if (li.finding) {
+          doc.fillColor(GREY).font('Helvetica-Oblique').fontSize(9).text('Finding: ' + li.finding, M + 30, y, { width: PAGE_W - M*2 - 30 });
+          y = doc.y + 2;
+        }
+        // Photo
+        if (li.photo) {
+          const photoPath = path.join(PHOTOS_DIR, li.photo);
+          if (fs.existsSync(photoPath)) {
+            ensureSpace(126);
+            try { doc.image(photoPath, M + 30, y, { fit: [120, 120] }); y += 124; } catch {}
+          }
+        }
+        // Corrective action
+        if (li.correctiveAction) {
+          ensureSpace(24);
+          doc.fillColor(AMBER).font('Helvetica-Bold').fontSize(9).text('Corrective Action:', M + 30, y);
+          y = doc.y + 2;
+          doc.fillColor('#28251d').font('Helvetica').fontSize(10).text(li.correctiveAction, M + 30, y, { width: PAGE_W - M*2 - 30 });
+          y = doc.y + 4;
+        }
+        doc.moveTo(M, y + 4).lineTo(PAGE_W - M, y + 4).lineWidth(0.3).strokeOpacity(0.3).stroke('#d4d1ca').strokeOpacity(1);
+        y += 12;
+      });
+    }
+
+    // ── Comments ──
+    if (rect.comments && rect.comments.length) {
+      ensureSpace(30);
+      doc.fillColor(ACCENT).font('Helvetica-Bold').fontSize(12).text('Comments', M, y);
+      doc.moveTo(M, y + 16).lineTo(PAGE_W - M, y + 16).lineWidth(1).stroke(ACCENT);
+      y += 24;
+      rect.comments.forEach(c => {
+        ensureSpace(24);
+        doc.fillColor(GREY).font('Helvetica-Bold').fontSize(9).text(c.author + ' — ' + new Date(c.at).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }), M, y);
+        y = doc.y + 2;
+        doc.fillColor('#28251d').font('Helvetica').fontSize(10).text(c.text, M, y, { width: PAGE_W - M*2 });
+        y = doc.y + 8;
+      });
+    }
+
+    // ── Footer ──
+    const range = doc.bufferedPageRange();
+    for (let i = range.start; i < range.start + range.count; i++) {
+      doc.switchToPage(i);
+      const footY = PAGE_H - 30;
+      doc.fillColor(GREY).font('Helvetica').fontSize(8)
+         .text(`Action ${rect.id} · ${rect.location || ''} · ${rect.machine || ''}`, M, footY, { width: PAGE_W - M*2 - 60, ellipsis: true });
+      doc.text(`Page ${i - range.start + 1} of ${range.count}`, PAGE_W - M - 60, footY, { width: 60, align: 'right' });
+    }
+
+    doc.end();
+  });
+}
+
 // POST /api/photo
 app.post('/api/photo', upload.single('photo'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
