@@ -2943,36 +2943,41 @@ async function buildActionPDFBuffer(rect) {
     doc.fillColor('#fff').font('Helvetica-Bold').fontSize(13)
        .text(sLabel, PAGE_W - M - 100, 28, { width: 100, align: 'center' });
 
-    // ── Metadata card ──
-    let y = 90;
-    doc.roundedRect(M, y, PAGE_W - M*2, 110, 8).fill(BG).stroke('#d4d1ca');
-    const meta = [
+    // ── Metadata ──
+    let y = 82;
+    const metaRows = [
       ['Title', rect.title || '—'],
-      ['Priority', (rect.priority || '—').toUpperCase()],
-      ['Template', rect.templateName || '—'],
       ['Location', rect.location || '—'],
       ['Machine', rect.machine || '—'],
       ['Component', rect.component || '—'],
+      ['Template', rect.templateName || '—'],
       ['Raised by', rect.createdBy || '—'],
       ['Date', rect.createdAt ? new Date(rect.createdAt).toLocaleString('en-AU', { dateStyle: 'medium', timeStyle: 'short' }) : '—'],
       ['Due', rect.dueDate || '—']
     ];
-    const colW = (PAGE_W - M*2 - 30) / 3;
-    meta.forEach((m, i) => {
+    // Title row — full width
+    doc.fillColor(GREY).font('Helvetica').fontSize(8).text('TITLE', M + 4, y + 4, { characterSpacing: 0.5 });
+    doc.fillColor('#28251d').font('Helvetica-Bold').fontSize(12).text(rect.title || '—', M + 4, y + 16, { width: PAGE_W - M*2 - 8 });
+    y = doc.y + 10;
+    // Grid for rest
+    const colW = (PAGE_W - M*2) / 3;
+    const gridMeta = metaRows.slice(1);
+    gridMeta.forEach((m, i) => {
       const col = i % 3, row = Math.floor(i / 3);
-      const x = M + 15 + col * colW;
-      const yy = y + 12 + row * 30;
-      doc.fillColor(GREY).font('Helvetica').fontSize(8).text(m[0].toUpperCase(), x, yy, { characterSpacing: 0.5 });
-      doc.fillColor('#28251d').font('Helvetica-Bold').fontSize(10).text(m[1], x, yy + 11, { width: colW - 10, ellipsis: true });
+      if (col === 0 && i > 0) y += 0; // rows auto-flow
+      const x = M + 4 + col * colW;
+      const yy = y + row * 28;
+      doc.fillColor(GREY).font('Helvetica').fontSize(8).text(m[0].toUpperCase(), x, yy, { characterSpacing: 0.5, width: colW - 8 });
+      doc.fillColor('#28251d').font('Helvetica-Bold').fontSize(10).text(m[1], x, yy + 11, { width: colW - 8, ellipsis: true });
     });
-    y += 124;
+    y += Math.ceil(gridMeta.length / 3) * 28 + 8;
 
-    // Priority pill inline
+    // Priority pill
     if (rect.priority) {
       const pc = priorityColors[rect.priority] || GREY;
-      doc.roundedRect(PAGE_W - M - 80, 96, 70, 20, 10).fill(pc);
+      doc.roundedRect(PAGE_W - M - 80, 82, 70, 20, 10).fill(pc);
       doc.fillColor('#fff').font('Helvetica-Bold').fontSize(9)
-         .text(rect.priority.toUpperCase(), PAGE_W - M - 80, 102, { width: 70, align: 'center' });
+         .text(rect.priority.toUpperCase(), PAGE_W - M - 80, 88, { width: 70, align: 'center' });
     }
 
     // WR/WO info
@@ -3023,43 +3028,59 @@ async function buildActionPDFBuffer(rect) {
       y += 26;
 
       rect.lineItems.forEach((li, idx) => {
-        ensureSpace(60);
+        ensureSpace(80);
         const liColor = li.status === 'done' ? GREEN : li.status === 'in_progress' ? AMBER : RED;
-        doc.rect(M, y, 4, 0); // will draw line
-        // Question
+
+        // Question number circle
         doc.circle(M + 12, y + 10, 9).fill('#1c1b19');
-        doc.fillColor('#fff').font('Helvetica-Bold').fontSize(9).text(String(idx + 1), M + 7, y + 6, { width: 14, align: 'center' });
-        doc.fillColor('#28251d').font('Helvetica-Bold').fontSize(10)
-           .text('Q' + li.questionNum + '. ' + (li.questionText || ''), M + 30, y, { width: PAGE_W - M*2 - 100 });
-        // Status chip
+        doc.fillColor('#fff').font('Helvetica-Bold').fontSize(9)
+           .text(String(idx + 1), M + 5, y + 6, { width: 14, align: 'center' });
+
+        // Status chip (positioned to the right, before question text wraps)
         const chipLabel = (li.status || 'open').replace('_', ' ').toUpperCase();
-        const chipW = doc.widthOfString(chipLabel, { font: 'Helvetica-Bold', size: 8 }) + 12;
+        doc.fillColor(liColor).font('Helvetica-Bold').fontSize(8);
+        const chipW = doc.widthOfString(chipLabel) + 14;
         doc.roundedRect(PAGE_W - M - chipW, y, chipW, 16, 8).fill(liColor);
-        doc.fillColor('#fff').font('Helvetica-Bold').fontSize(8).text(chipLabel, PAGE_W - M - chipW + 6, y + 4);
-        y = doc.y + 4;
+        doc.fillColor('#fff').font('Helvetica-Bold').fontSize(8)
+           .text(chipLabel, PAGE_W - M - chipW + 7, y + 4);
+
+        // Question text (leave room for chip)
+        doc.fillColor('#28251d').font('Helvetica-Bold').fontSize(10)
+           .text('Q' + li.questionNum + '. ' + (li.questionText || ''), M + 30, y, { width: PAGE_W - M*2 - chipW - 40 });
+        y = doc.y + 6;
+
         // Finding
         if (li.finding) {
-          doc.fillColor(GREY).font('Helvetica-Oblique').fontSize(9).text('Finding: ' + li.finding, M + 30, y, { width: PAGE_W - M*2 - 30 });
-          y = doc.y + 2;
+          ensureSpace(20);
+          doc.fillColor(GREY).font('Helvetica-Oblique').fontSize(9)
+             .text('Finding: ' + li.finding, M + 30, y, { width: PAGE_W - M*2 - 40 });
+          y = doc.y + 6;
         }
+
         // Photo
         if (li.photo) {
           const photoPath = path.join(PHOTOS_DIR, li.photo);
           if (fs.existsSync(photoPath)) {
-            ensureSpace(126);
-            try { doc.image(photoPath, M + 30, y, { fit: [120, 120] }); y += 124; } catch {}
+            ensureSpace(130);
+            try { doc.image(photoPath, M + 30, y, { fit: [120, 120] }); y += 126; } catch {}
           }
         }
+
         // Corrective action
         if (li.correctiveAction) {
-          ensureSpace(24);
-          doc.fillColor(AMBER).font('Helvetica-Bold').fontSize(9).text('Corrective Action:', M + 30, y);
+          ensureSpace(30);
+          doc.fillColor(AMBER).font('Helvetica-Bold').fontSize(9)
+             .text('Corrective Action:', M + 30, y, { width: PAGE_W - M*2 - 40 });
           y = doc.y + 2;
-          doc.fillColor('#28251d').font('Helvetica').fontSize(10).text(li.correctiveAction, M + 30, y, { width: PAGE_W - M*2 - 30 });
-          y = doc.y + 4;
+          doc.fillColor('#28251d').font('Helvetica').fontSize(10)
+             .text(li.correctiveAction, M + 30, y, { width: PAGE_W - M*2 - 40 });
+          y = doc.y + 6;
         }
-        doc.moveTo(M, y + 4).lineTo(PAGE_W - M, y + 4).lineWidth(0.3).strokeOpacity(0.3).stroke('#d4d1ca').strokeOpacity(1);
-        y += 12;
+
+        // Separator
+        y += 2;
+        doc.moveTo(M, y).lineTo(PAGE_W - M, y).lineWidth(0.3).strokeOpacity(0.3).stroke('#d4d1ca').strokeOpacity(1);
+        y += 10;
       });
     }
 
