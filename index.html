@@ -1476,50 +1476,6 @@
       </div>
     </div>
 
-    <!-- EXPORT: Bulk PDF Reports -->
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;">
-      <div style="font-weight:700;font-size:15px;color:var(--accent);margin-bottom:10px;">📦 Bulk Download PDF Reports</div>
-      <div style="font-size:13px;color:var(--text-dim);margin-bottom:10px;">Filter inspections and download all matching reports as a ZIP file.</div>
-      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;">
-        <select id="bulk-template" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
-          <option value="">All Templates</option>
-        </select>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-          <select id="bulk-location" onchange="updateBulkMachines()" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
-            <option value="">All Locations</option>
-          </select>
-          <select id="bulk-machine" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
-            <option value="">All Equipment</option>
-          </select>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-          <select id="bulk-result" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
-            <option value="">All Results</option>
-            <option value="PASS">PASS</option>
-            <option value="FAIL">FAIL</option>
-          </select>
-          <select id="bulk-status" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
-            <option value="">All Statuses</option>
-            <option value="">Open</option>
-            <option value="WR_RAISED">WR Raised</option>
-            <option value="SERVICEABLE">Resolved</option>
-          </select>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-          <div>
-            <div style="font-size:11px;color:var(--text-dim);margin-bottom:4px;">From</div>
-            <input type="date" id="bulk-from" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:9px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
-          </div>
-          <div>
-            <div style="font-size:11px;color:var(--text-dim);margin-bottom:4px;">To</div>
-            <input type="date" id="bulk-to" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:9px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
-          </div>
-        </div>
-      </div>
-      <button class="btn-primary" style="width:100%;" onclick="downloadBulkPdfs()">⬇ Download ZIP</button>
-      <div id="bulk-pdf-status" style="font-size:13px;color:var(--text-dim);margin-top:8px;"></div>
-    </div>
-
     <!-- EXPORT: Asset Database -->
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;">
       <div style="font-weight:700;font-size:15px;color:var(--accent);margin-bottom:10px;">🏭 Export Asset Database</div>
@@ -1554,6 +1510,22 @@ Building B,CNC Mill,,,,
     </div>
 
     <button class="btn-secondary" onclick="goHome()" style="width:100%;">&#8592; Back</button>
+  </div>
+</div>
+
+<!-- ══════════════ REPORTS SCREEN ══════════════ -->
+<div class="screen" id="reports-screen">
+  <div style="padding:16px;display:flex;flex-direction:column;gap:12px;">
+    <input type="search" id="reports-search" placeholder="Search reports…" oninput="renderReportsList()"
+      style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:10px;font-size:14px;font-family:inherit;outline:none;">
+    <div style="display:flex;gap:8px;align-items:center;">
+      <label style="font-size:13px;display:flex;align-items:center;gap:4px;cursor:pointer;">
+        <input type="checkbox" id="reports-select-all" onchange="toggleAllReports(this.checked)"> Select all
+      </label>
+      <button onclick="downloadSelectedReports()" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;">⬇ Download selected</button>
+      <span id="reports-selected-count" style="font-size:12px;color:var(--text-dim);"></span>
+    </div>
+    <div id="reports-list-body"></div>
   </div>
 </div>
 
@@ -1602,6 +1574,12 @@ Building B,CNC Mill,,,,
     <!-- ─── TEMPLATES SECTION ─── -->
     <div onclick="showTemplates()" style="display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;cursor:pointer;">
       <div style="font-weight:700;font-size:15px;color:var(--accent);">📋 Audit Templates</div>
+      <span style="color:var(--text-dim);font-size:18px;">›</span>
+    </div>
+
+    <!-- ─── REPORTS SECTION ─── -->
+    <div onclick="showReportsScreen()" style="display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;cursor:pointer;">
+      <div style="font-weight:700;font-size:15px;color:var(--accent);">📄 Reports</div>
       <span style="color:var(--text-dim);font-size:18px;">›</span>
     </div>
 
@@ -2268,6 +2246,92 @@ function getCurrentRisk() {
   if (!_riskState.consequence || !_riskState.probability) return null;
   const m = RISK_MATRIX[_riskState.consequence + _riskState.probability];
   return { consequence: _riskState.consequence, probability: _riskState.probability, rating: m ? m[0] : '' };
+}
+
+// ── Reports screen ─────────────────────────────────────────
+let _reportsList = [];
+
+function showReportsScreen() {
+  switchScreen('reports-screen', '📄 Reports');
+  loadReportsList();
+}
+
+async function loadReportsList() {
+  const body = document.getElementById('reports-list-body');
+  body.innerHTML = '<div style="color:var(--text-dim);text-align:center;padding:20px;">Loading…</div>';
+  try {
+    const r = await fetch('/api/reports/list');
+    _reportsList = await r.json();
+    renderReportsList();
+  } catch { body.innerHTML = '<div style="color:var(--fail);">Failed to load</div>'; }
+}
+
+function renderReportsList() {
+  const body = document.getElementById('reports-list-body');
+  const q = (document.getElementById('reports-search')?.value || '').toLowerCase();
+  const filtered = q ? _reportsList.filter(r => r.path.toLowerCase().includes(q) || r.folder.toLowerCase().includes(q)) : _reportsList;
+  if (!filtered.length) {
+    body.innerHTML = '<div style="color:var(--text-dim);text-align:center;padding:20px;">No reports found.' + (!_reportsList.length ? ' Generate reports by viewing inspections or running regenerate.' : '') + '</div>';
+    return;
+  }
+  // Group by folder
+  const groups = {};
+  filtered.forEach(r => { (groups[r.folder] = groups[r.folder] || []).push(r); });
+  let html = '';
+  Object.keys(groups).sort().forEach(folder => {
+    html += `<div style="margin-bottom:12px;">
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--accent);letter-spacing:.5px;margin-bottom:6px;">📁 ${escHtml(folder || 'Root')}</div>`;
+    groups[folder].forEach(r => {
+      const kb = (r.size / 1024).toFixed(0);
+      const when = new Date(r.createdAt).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' });
+      html += `<div style="display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:4px;">
+        <input type="checkbox" class="report-cb" data-path="${escHtml(r.path)}" onchange="updateReportsCount()">
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(r.filename)}</div>
+          <div style="font-size:11px;color:var(--text-dim);">${kb} KB · ${when}</div>
+        </div>
+        <a href="/reports/${encodeURIComponent(r.path.split('/').map(encodeURIComponent).join('/'))}" target="_blank" style="color:var(--accent);font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap;">View</a>
+      </div>`;
+    });
+    html += '</div>';
+  });
+  body.innerHTML = html;
+  updateReportsCount();
+}
+
+function toggleAllReports(checked) {
+  document.querySelectorAll('.report-cb').forEach(cb => cb.checked = checked);
+  updateReportsCount();
+}
+
+function updateReportsCount() {
+  const selected = document.querySelectorAll('.report-cb:checked').length;
+  const el = document.getElementById('reports-selected-count');
+  if (el) el.textContent = selected ? `${selected} selected` : '';
+}
+
+async function downloadSelectedReports() {
+  const paths = [...document.querySelectorAll('.report-cb:checked')].map(cb => cb.dataset.path);
+  if (!paths.length) return toast('Select at least one report');
+  if (paths.length === 1) {
+    const a = document.createElement('a');
+    a.href = '/reports/' + paths[0].split('/').map(encodeURIComponent).join('/');
+    a.download = paths[0].split('/').pop();
+    a.click();
+    return;
+  }
+  toast('Zipping ' + paths.length + ' reports…');
+  try {
+    const r = await fetch('/api/reports/download', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paths }) });
+    if (!r.ok) return toast('Download failed');
+    const blob = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'reports.zip';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    toast('Download started');
+  } catch { toast('Download error'); }
 }
 
 // ── Todo Lists (inspection work orders) ────────────────────

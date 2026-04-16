@@ -406,6 +406,7 @@ app.delete('/api/users/:id', (req, res, next) => requireRole('admin')(req, res, 
 app.use('/photos', express.static(PHOTOS_DIR));
 app.use('/docs', express.static(path.join(__dirname, 'docs')));
 app.use('/template-media', express.static(TEMPLATE_MEDIA_DIR));
+app.use('/reports', express.static(REPORTS_DIR));
 
 const templateMediaStorage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, TEMPLATE_MEDIA_DIR),
@@ -3190,6 +3191,54 @@ async function cacheActionPDF(rect) {
     fs.writeFileSync(rp.fullPath, buf);
   } catch (e) { console.error('Action PDF cache error:', e.message); }
 }
+
+// GET /api/reports/list — list all cached PDFs with metadata
+app.get('/api/reports/list', (req, res) => {
+  const results = [];
+  function walk(dir, rel) {
+    if (!fs.existsSync(dir)) return;
+    fs.readdirSync(dir).forEach(f => {
+      const full = path.join(dir, f);
+      const relPath = rel ? rel + '/' + f : f;
+      if (fs.statSync(full).isDirectory()) walk(full, relPath);
+      else if (f.endsWith('.pdf')) {
+        const parts = relPath.split('/');
+        const stat = fs.statSync(full);
+        results.push({
+          path: relPath,
+          fullPath: full,
+          filename: f,
+          size: stat.size,
+          createdAt: stat.mtime.toISOString(),
+          folder: parts.slice(0, -1).join(' / ')
+        });
+      }
+    });
+  }
+  walk(REPORTS_DIR, '');
+  results.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  res.json(results);
+});
+
+// POST /api/reports/download — download selected PDFs (single or zip)
+app.post('/api/reports/download', async (req, res) => {
+  const { paths } = req.body;
+  if (!Array.isArray(paths) || !paths.length) return res.status(400).json({ error: 'paths required' });
+  // Validate all paths are under REPORTS_DIR
+  const resolved = paths.map(p => path.resolve(REPORTS_DIR, p)).filter(p => p.startsWith(REPORTS_DIR) && fs.existsSync(p));
+  if (!resolved.length) return res.status(404).json({ error: 'no valid files' });
+  if (resolved.length === 1) {
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${path.basename(resolved[0])}"`);
+    return res.sendFile(resolved[0]);
+  }
+  res.setHeader('Content-Type', 'application/zip');
+  res.setHeader('Content-Disposition', 'attachment; filename="reports.zip"');
+  const archive = archiver('zip', { zlib: { level: 5 } });
+  archive.pipe(res);
+  resolved.forEach(fp => archive.file(fp, { name: path.basename(fp) }));
+  archive.finalize();
+});
 
 // POST /api/reports/regenerate — backfill all cached PDFs (admin only)
 app.post('/api/reports/regenerate', requireRole('admin'), async (req, res) => {
