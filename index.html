@@ -3317,14 +3317,15 @@ async function uploadReportLogo(input) {
   if (!file) return;
   try {
     const fd = new FormData(); fd.append('file', file);
-    const r = await fetch('/api/template-media', { method:'POST', body: fd });
+    const r = await fetch('/api/templates/media', { method:'POST', body: fd });
     const d = await r.json();
+    if (!d.success) throw new Error(d.error || 'Upload failed');
     if (!bs.reportConfig) bs.reportConfig = getDefaultReportConfig();
     bs.reportConfig.logo = d.filename;
     bs.dirty = true;
     loadReportTab();
     toast('Logo uploaded');
-  } catch { toast('Upload failed'); }
+  } catch (e) { toast('Upload failed: ' + e.message); }
 }
 
 function clearReportLogo() {
@@ -3339,8 +3340,9 @@ async function uploadReportCover(input) {
   if (!file) return;
   try {
     const fd = new FormData(); fd.append('file', file);
-    const r = await fetch('/api/template-media', { method:'POST', body: fd });
+    const r = await fetch('/api/templates/media', { method:'POST', body: fd });
     const d = await r.json();
+    if (!d.success) throw new Error(d.error || 'Upload failed');
     if (!bs.reportConfig) bs.reportConfig = getDefaultReportConfig();
     bs.reportConfig.coverPage = d.filename;
     bs.dirty = true;
