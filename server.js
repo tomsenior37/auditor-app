@@ -1975,10 +1975,10 @@ app.post('/api/rectifications', async (req, res) => {
 });
 
 function deriveActionStatus(rect) {
-  if (rect.completionDate || rect.workOrderExecutionDate) { rect.status = 'completed'; rect.resolvedAt = rect.resolvedAt || new Date().toISOString(); }
-  else if (rect.workOrderNumber) rect.status = 'wo_raised';
-  else if (rect.workRequestNumber) rect.status = 'wr_raised';
-  else rect.status = 'raise_wr';
+  if (rect.completionDate) { rect.status = 'completed'; rect.resolvedAt = rect.resolvedAt || new Date().toISOString(); }
+  else if (rect.workOrderNumber) { rect.status = 'wo_raised'; rect.resolvedAt = null; }
+  else if (rect.workRequestNumber) { rect.status = 'wr_raised'; rect.resolvedAt = null; }
+  else { rect.status = 'raise_wr'; rect.resolvedAt = null; }
 }
 
 // Public endpoint for planners to submit WR/WO via email link — keyed only by issue id

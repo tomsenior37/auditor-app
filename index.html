@@ -4374,7 +4374,7 @@ function renderRectsList() {
         ${batchCb}<div style="font-weight:700;font-size:14px;flex:1;min-width:0;">${escHtml(rect.title)}</div>
         <div style="display:flex;gap:4px;flex-shrink:0;">
           <span class="rect-priority ${rect.priority}">${rect.priority}</span>
-          <span class="rect-status ${rect.status}">${rect.status.replace('_', ' ')}</span>
+          <span class="rect-status ${rect.status}">${({raise_wr:'Raise WR',wr_raised:'WR Raised',wo_raised:'WO Raised',completed:'Completed',open:'Open',in_progress:'In Progress',resolved:'Resolved',closed:'Closed'})[rect.status]||rect.status}</span>
         </div>
       </div>
       <div style="font-size:12px;color:var(--text-dim);display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
@@ -4472,7 +4472,7 @@ function renderRectDetail(rect) {
     <!-- Header -->
     <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
       <span style="font-family:monospace;font-size:13px;color:var(--text-dim);">${escHtml(rect.id)}</span>
-      <span class="rect-status ${rect.status}">${rect.status.replace('_', ' ')}</span>
+      <span class="rect-status ${rect.status}">${({raise_wr:'Raise WR',wr_raised:'WR Raised',wo_raised:'WO Raised',completed:'Completed',open:'Open',in_progress:'In Progress',resolved:'Resolved',closed:'Closed'})[rect.status]||rect.status}</span>
       <span class="rect-priority ${rect.priority}">${rect.priority}</span>
     </div>
     <div style="font-weight:700;font-size:18px;line-height:1.3;">${escHtml(rect.title)}</div>
@@ -4538,8 +4538,9 @@ function renderRectDetail(rect) {
         </div>
         <div style="display:flex;gap:8px;">
           <input type="text" id="wr-input-${rect.id}" value="${escHtml(rect.workRequestNumber || '')}" placeholder="Enter WR number…"
-            style="flex:1;background:#fff;border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
+            style="flex:1;background:#fff;border:1px solid var(--border);color:#000;padding:10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
           <button onclick="submitActionWR('${rect.id}')" style="background:#ff9800;color:#fff;border:none;border-radius:8px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">Submit WR</button>
+          ${rect.workRequestNumber ? `<button onclick="clearActionField('${rect.id}','workRequestNumber')" title="Clear" style="background:none;border:1px solid var(--border);color:var(--fail);border-radius:8px;padding:8px 10px;font-size:12px;cursor:pointer;">✕</button>` : ''}
         </div>
       </div>
 
@@ -4550,14 +4551,16 @@ function renderRectDetail(rect) {
         </div>
         <div style="display:flex;gap:8px;margin-bottom:8px;">
           <input type="text" id="wo-input-${rect.id}" value="${escHtml(rect.workOrderNumber || '')}" placeholder="Enter WO number…"
-            style="flex:1;background:#fff;border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
+            style="flex:1;background:#fff;border:1px solid var(--border);color:#000;padding:10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
           <button onclick="submitActionWO('${rect.id}')" style="background:#3b82f6;color:#fff;border:none;border-radius:8px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">Submit WO</button>
+          ${rect.workOrderNumber ? `<button onclick="clearActionField('${rect.id}','workOrderNumber')" title="Clear" style="background:none;border:1px solid var(--border);color:var(--fail);border-radius:8px;padding:8px 10px;font-size:12px;cursor:pointer;">✕</button>` : ''}
         </div>
         <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;margin-bottom:4px;">Completion Date</div>
         <div style="display:flex;gap:8px;">
           <input type="date" id="comp-date-${rect.id}" value="${rect.completionDate || ''}"
-            style="flex:1;background:#fff;border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
+            style="flex:1;background:#fff;border:1px solid var(--border);color:#000;padding:10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
           <button onclick="submitActionComplete('${rect.id}')" style="background:var(--pass);color:#fff;border:none;border-radius:8px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">Complete</button>
+          ${rect.completionDate ? `<button onclick="clearActionField('${rect.id}','completionDate')" title="Clear" style="background:none;border:1px solid var(--border);color:var(--fail);border-radius:8px;padding:8px 10px;font-size:12px;cursor:pointer;">✕</button>` : ''}
         </div>
       </div>
 
@@ -4714,6 +4717,19 @@ async function purgeAction(id) {
       else { const d = await r.json(); toast(d.error || 'Failed'); }
     } catch { toast('Failed'); }
   }, 'Delete Forever', 'var(--fail)');
+}
+
+async function clearActionField(id, field) {
+  const labels = { workRequestNumber: 'WR number', workOrderNumber: 'WO number', completionDate: 'completion date' };
+  showConfirmModal(`Clear the ${labels[field] || field}? Status will revert accordingly.`, async () => {
+    try {
+      const payload = { [field]: '', _updatedBy: _me?.displayName || _me?.username || '' };
+      const r = await fetch('/api/rectifications/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const d = await r.json();
+      if (d.success) { renderRectDetail(d.rect); loadRects(); toast('Cleared — status: ' + d.rect.status.replace('_',' ')); }
+      else toast('Failed');
+    } catch { toast('Network error'); }
+  }, 'Clear', 'var(--fail)');
 }
 
 async function submitActionWR(id) {
