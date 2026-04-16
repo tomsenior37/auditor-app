@@ -2993,8 +2993,11 @@ async function buildActionPDFBuffer(rect) {
       ['Template', rect.templateName || '—'],
       ['Raised by', rect.createdBy || '—'],
       ['Date', rect.createdAt ? new Date(rect.createdAt).toLocaleString('en-AU', { dateStyle: 'medium', timeStyle: 'short' }) : '—'],
-      ['Due', rect.dueDate || '—']
+      ['Due', rect.dueDate || '—'],
+      ['WR Number', rect.workRequestNumber || '—'],
+      ['WO Number', rect.workOrderNumber || '—']
     ];
+    if (rect.completionDate) gridMeta.push(['Completion', rect.completionDate]);
     gridMeta.forEach((m, i) => {
       const col = i % 3, row = Math.floor(i / 3);
       const x = M + 4 + col * colW;
@@ -3003,23 +3006,6 @@ async function buildActionPDFBuffer(rect) {
       doc.fillColor('#28251d').font('Helvetica-Bold').fontSize(10).text(m[1], x, yy + 11, { width: colW - 8, ellipsis: true });
     });
     y += Math.ceil(gridMeta.length / 3) * 28 + 8;
-
-    // WR/WO as separate labelled rows below the grid
-    if (rect.workRequestNumber) {
-      doc.fillColor(GREY).font('Helvetica').fontSize(8).text('WR NUMBER', M + 4, y, { characterSpacing: 0.5 });
-      doc.fillColor('#28251d').font('Helvetica-Bold').fontSize(11).text(rect.workRequestNumber, M + 4, y + 11, { width: PAGE_W - M*2 - 8 });
-      y = doc.y + 8;
-    }
-    if (rect.workOrderNumber) {
-      doc.fillColor(GREY).font('Helvetica').fontSize(8).text('WO NUMBER', M + 4, y, { characterSpacing: 0.5 });
-      doc.fillColor('#28251d').font('Helvetica-Bold').fontSize(11).text(rect.workOrderNumber, M + 4, y + 11, { width: PAGE_W - M*2 - 8 });
-      y = doc.y + 8;
-    }
-    if (rect.completionDate) {
-      doc.fillColor(GREY).font('Helvetica').fontSize(8).text('COMPLETION DATE', M + 4, y, { characterSpacing: 0.5 });
-      doc.fillColor('#28251d').font('Helvetica-Bold').fontSize(11).text(rect.completionDate, M + 4, y + 11, { width: PAGE_W - M*2 - 8 });
-      y = doc.y + 8;
-    }
 
     // Description
     if (rect.description) {
