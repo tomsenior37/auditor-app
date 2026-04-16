@@ -4208,9 +4208,10 @@ async function showForm(skipDraftCheck) {
   }
 
   _formInProgress = false;
+  if (skipDraftCheck) clearDraft();
   switchScreen('form-screen', 'New Inspection');
 
-  // Check for a saved draft
+  // Check for a saved draft (only when not explicitly starting fresh)
   if (!skipDraftCheck) {
     const draft = await getDraft();
     console.log('Draft check result:', draft ? ('found — tpl: ' + draft.templateId + ' savedAt: ' + draft.savedAt) : 'none');
