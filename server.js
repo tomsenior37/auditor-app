@@ -1233,7 +1233,7 @@ app.post('/api/inspection', requireRole('inspector', 'admin'), (req, res) => {
       location: body.location || '',
       machine: body.machine || '',
       component: body.guardId || '',
-      status: 'open',
+      status: 'raise_wr',
       priority: 'medium',
       assignedTo: null,
       createdBy: body.inspector || '',
@@ -1881,7 +1881,7 @@ app.post('/api/rectifications', async (req, res) => {
     location: req.body.location || '',
     machine: req.body.machine || '',
     component: req.body.component || '',
-    status: 'open',
+    status: 'raise_wr',
     priority: req.body.priority || 'medium',
     assignedTo: req.body.assignedTo || null,
     createdBy: req.body.createdBy || '',
@@ -1974,6 +1974,13 @@ app.post('/api/rectifications', async (req, res) => {
   res.json({ success: true, rect, emailSent: emailResult.sent, emailError: emailResult.reason });
 });
 
+function deriveActionStatus(rect) {
+  if (rect.completionDate || rect.workOrderExecutionDate) { rect.status = 'completed'; rect.resolvedAt = rect.resolvedAt || new Date().toISOString(); }
+  else if (rect.workOrderNumber) rect.status = 'wo_raised';
+  else if (rect.workRequestNumber) rect.status = 'wr_raised';
+  else rect.status = 'raise_wr';
+}
+
 // Public endpoint for planners to submit WR/WO via email link — keyed only by issue id
 app.post('/api/rectifications/:id/workorder', (req, res) => {
   const rects = readRects();
@@ -1997,7 +2004,8 @@ app.post('/api/rectifications/:id/workorder', (req, res) => {
   if (plannerNote) {
     rect.comments.push({ author: by, text: plannerNote, at: new Date().toISOString() });
   }
-  if (rect.status === 'open') rect.status = 'in_progress';
+  // Auto-derive status from fields
+  deriveActionStatus(rect);
   rect.updatedAt = new Date().toISOString();
   writeRects(rects);
   res.json({ success: true, rect });
@@ -2064,6 +2072,23 @@ app.patch('/api/rectifications/:id', (req, res) => {
   }
 
   Object.assign(rect, changes);
+  // Auto-derive status from WR/WO/completion fields
+  const oldStatus = rect.status;
+  deriveActionStatus(rect);
+  if (rect.status !== oldStatus) {
+    rect.history.push({ action: 'status_changed', from: oldStatus, to: rect.status, by, at: new Date().toISOString() });
+    if (rect.status === 'completed' && rect.inspectionId) {
+      const inspections = readInspections();
+      const iIdx = inspections.findIndex(x => x.id === rect.inspectionId);
+      if (iIdx !== -1) {
+        inspections[iIdx].status = 'SERVICEABLE';
+        inspections[iIdx].serviceableAt = new Date().toISOString();
+        if (rect.workOrderNumber) inspections[iIdx].rectificationWorkOrder = rect.workOrderNumber;
+        if (rect.completionDate || rect.workOrderExecutionDate) inspections[iIdx].completionDate = rect.completionDate || rect.workOrderExecutionDate;
+        writeInspections(inspections);
+      }
+    }
+  }
   rect.updatedAt = new Date().toISOString();
   writeRects(rects);
   res.json({ success: true, rect });
@@ -2928,7 +2953,7 @@ async function buildActionPDFBuffer(rect) {
     const GREY = '#666';
     const BG = '#f7f6f2';
 
-    const statusColors = { open: RED, in_progress: AMBER, resolved: GREEN, closed: GREEN };
+    const statusColors = { raise_wr: RED, open: RED, wr_raised: AMBER, in_progress: AMBER, wo_raised: '#3b82f6', completed: GREEN, resolved: GREEN, closed: GREEN };
     const priorityColors = { critical: '#a13544', high: '#da7101', medium: '#d19900', low: '#437a22' };
 
     // ── Header ──
