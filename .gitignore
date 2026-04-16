@@ -5,3 +5,8 @@ archive.json
 emailConfig.json
 *.log
 .DS_Store
+
+# local data / secrets
+.session-secret
+roles.json
+users.json

@@ -256,15 +256,11 @@ app.get('/api/users', (req, res, next) => requireRole('admin')(req, res, next), 
 
 async function sendWelcomeEmail(user, initialPassword, appUrl) {
   const cfg = readEmailConfig();
-  if (!cfg.host || !cfg.user || !user.email) return { sent: false, reason: 'email not configured or user has no email' };
-  const transporter = nodemailer.createTransport({
-    host: cfg.host, port: cfg.port, secure: cfg.secure,
-    auth: { user: cfg.user, pass: cfg.password }
-  });
+  if (!emailConfigured(cfg) || !user.email) return { sent: false, reason: 'email not configured or user has no email' };
   const loginUrl = (appUrl || cfg.externalUrl || '').replace(/\/$/, '');
   const safeUrl = loginUrl || '(your Auditor app URL)';
-  await transporter.sendMail({
-    from: `"${cfg.fromName || 'Auditor App'}" <${cfg.fromEmail || cfg.user}>`,
+  await sendEmail({
+    cfg,
     to: `"${user.displayName || user.username}" <${user.email}>`,
     subject: `Your Auditor account has been created`,
     html: `
@@ -338,15 +334,11 @@ app.get('/api/users/public', (req, res) => {
 
 async function sendPasswordResetEmail(user, newPassword, appUrl) {
   const cfg = readEmailConfig();
-  if (!cfg.host || !cfg.user || !user.email) return { sent: false, reason: 'email not configured or user has no email' };
-  const transporter = nodemailer.createTransport({
-    host: cfg.host, port: cfg.port, secure: cfg.secure,
-    auth: { user: cfg.user, pass: cfg.password }
-  });
+  if (!emailConfigured(cfg) || !user.email) return { sent: false, reason: 'email not configured or user has no email' };
   const loginUrl = (appUrl || cfg.externalUrl || '').replace(/\/$/, '');
   const safeUrl = loginUrl || '(your Auditor app URL)';
-  await transporter.sendMail({
-    from: `"${cfg.fromName || 'Auditor App'}" <${cfg.fromEmail || cfg.user}>`,
+  await sendEmail({
+    cfg,
     to: `"${user.displayName || user.username}" <${user.email}>`,
     subject: `Your Auditor password has been reset`,
     html: `
@@ -444,6 +436,102 @@ function readEmailConfig() {
 
 function writeEmailConfig(data) {
   fs.writeFileSync(EMAIL_CONFIG_FILE, JSON.stringify(data, null, 2), 'utf8');
+}
+
+// ── Gmail API (OAuth2 refresh-token flow) ─────────────────
+async function getGmailAccessToken(cfg) {
+  if (!cfg.clientId || !cfg.clientSecret || !cfg.refreshToken) {
+    throw new Error('Gmail API not configured — clientId, clientSecret and refreshToken are required');
+  }
+  const body = new URLSearchParams({
+    client_id: cfg.clientId,
+    client_secret: cfg.clientSecret,
+    refresh_token: cfg.refreshToken,
+    grant_type: 'refresh_token'
+  });
+  const r = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body
+  });
+  if (!r.ok) {
+    const t = await r.text();
+    throw new Error('Token fetch failed (' + r.status + '): ' + t.slice(0, 300));
+  }
+  const d = await r.json();
+  if (!d.access_token) throw new Error('No access_token returned');
+  return d.access_token;
+}
+
+function b64url(buf) {
+  return Buffer.from(buf).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function chunkB64(str, n = 76) {
+  return str.replace(new RegExp('(.{' + n + '})', 'g'), '$1\r\n');
+}
+
+function buildRawEmail({ from, to, subject, html, attachments }) {
+  const boundary = '===BND_' + crypto.randomBytes(8).toString('hex') + '===';
+  const headers = [
+    'From: ' + from,
+    'To: ' + to,
+    'Subject: ' + subject.replace(/[\r\n]/g, ' '),
+    'MIME-Version: 1.0'
+  ];
+  const parts = [];
+  const hasAttachments = attachments && attachments.length;
+  if (hasAttachments) {
+    headers.push('Content-Type: multipart/mixed; boundary="' + boundary + '"');
+    parts.push(headers.join('\r\n'));
+    parts.push('');
+    parts.push('--' + boundary);
+    parts.push('Content-Type: text/html; charset="UTF-8"');
+    parts.push('Content-Transfer-Encoding: base64');
+    parts.push('');
+    parts.push(chunkB64(Buffer.from(html, 'utf8').toString('base64')));
+    for (const a of attachments) {
+      parts.push('--' + boundary);
+      parts.push('Content-Type: ' + (a.contentType || 'application/octet-stream') + '; name="' + a.filename + '"');
+      parts.push('Content-Disposition: attachment; filename="' + a.filename + '"');
+      parts.push('Content-Transfer-Encoding: base64');
+      parts.push('');
+      const buf = Buffer.isBuffer(a.content) ? a.content : Buffer.from(a.content);
+      parts.push(chunkB64(buf.toString('base64')));
+    }
+    parts.push('--' + boundary + '--');
+  } else {
+    headers.push('Content-Type: text/html; charset="UTF-8"');
+    headers.push('Content-Transfer-Encoding: base64');
+    parts.push(headers.join('\r\n'));
+    parts.push('');
+    parts.push(chunkB64(Buffer.from(html, 'utf8').toString('base64')));
+  }
+  return parts.join('\r\n');
+}
+
+async function sendEmail({ to, subject, html, attachments, cfg }) {
+  cfg = cfg || readEmailConfig();
+  const accessToken = await getGmailAccessToken(cfg);
+  const fromAddr = cfg.fromEmail || cfg.user;
+  if (!fromAddr) throw new Error('No fromEmail configured');
+  const from = '"' + (cfg.fromName || 'Auditor App').replace(/"/g, '') + '" <' + fromAddr + '>';
+  const raw = buildRawEmail({ from, to, subject, html, attachments });
+  const r = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ raw: b64url(raw) })
+  });
+  if (!r.ok) {
+    const t = await r.text();
+    throw new Error('Gmail API send failed (' + r.status + '): ' + t.slice(0, 300));
+  }
+  return r.json();
+}
+
+function emailConfigured(cfg) {
+  cfg = cfg || readEmailConfig();
+  return !!(cfg.clientId && cfg.clientSecret && cfg.refreshToken && (cfg.fromEmail || cfg.user));
 }
 
 function readLists() {
@@ -1656,11 +1744,7 @@ app.post('/api/rectifications', async (req, res) => {
   if (req.body.notifyPlanner && rect.assignedTo?.email) {
     try {
       const cfg = readEmailConfig();
-      if (cfg.host && cfg.user) {
-        const transporter = nodemailer.createTransport({
-          host: cfg.host, port: cfg.port, secure: cfg.secure,
-          auth: { user: cfg.user, pass: cfg.password }
-        });
+      if (emailConfigured(cfg)) {
         const baseUrl = (cfg.externalUrl || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
         const actionUrl = `${baseUrl}/issue-action.html?id=${encodeURIComponent(rect.id)}`;
         const pdfUrl = rect.inspectionId ? `${baseUrl}/api/report/${rect.inspectionId}` : '';
@@ -1685,8 +1769,8 @@ app.post('/api/rectifications', async (req, res) => {
           `<li style="margin:4px 0;"><strong>Q${li.questionNum}:</strong> ${(li.questionText || '').replace(/</g,'&lt;')}${li.finding ? ' — <em>' + li.finding.replace(/</g,'&lt;') + '</em>' : ''}</li>`
         ).join('');
 
-        await transporter.sendMail({
-          from: `"${cfg.fromName || 'Auditor App'}" <${cfg.fromEmail || cfg.user}>`,
+        await sendEmail({
+          cfg,
           to: `"${rect.assignedTo.name}" <${rect.assignedTo.email}>`,
           subject: `⚠️ Issue ${rect.id} raised — ${rect.title}`,
           html: `
@@ -1882,22 +1966,33 @@ app.delete('/api/planners', (req, res) => {
 // ── Email Config API ─────────────────────────────────
 app.get('/api/email/config', (req, res) => {
   const cfg = readEmailConfig();
-  // Don't expose password in full
-  res.json({ ...cfg, password: cfg.password ? '••••••••' : '' });
+  res.json({
+    provider: 'gmail-api',
+    clientId: cfg.clientId || '',
+    clientSecret: cfg.clientSecret ? '••••••••' : '',
+    connected: !!cfg.refreshToken,
+    connectedEmail: cfg.refreshToken ? (cfg.user || '') : '',
+    user: cfg.user || '',
+    fromName: cfg.fromName || 'Auditor App',
+    fromEmail: cfg.fromEmail || '',
+    externalUrl: cfg.externalUrl || '',
+    redirectUri: 'https://developers.google.com/oauthplayground'
+  });
 });
 
 app.post('/api/email/config', (req, res) => {
   const existing = readEmailConfig();
-  const { host, port, secure, user, password, fromName, fromEmail, externalUrl } = req.body;
+  const { clientId, clientSecret, refreshToken, user, fromName, fromEmail, externalUrl } = req.body;
+  const keep = v => (v && v !== '••••••••') ? v : null;
   const updated = {
-    host: host || existing.host,
-    port: parseInt(port) || existing.port,
-    secure: !!secure,
-    user: user || existing.user,
-    password: (password && password !== '••••••••') ? password : existing.password,
-    fromName: fromName || existing.fromName,
-    fromEmail: fromEmail || existing.fromEmail,
-    externalUrl: externalUrl || existing.externalUrl || 'http://tomsenior9999.ddns.net:3103'
+    ...existing,
+    clientId: clientId || existing.clientId || '',
+    clientSecret: keep(clientSecret) || existing.clientSecret || '',
+    refreshToken: keep(refreshToken) || existing.refreshToken || '',
+    user: user || existing.user || '',
+    fromName: fromName || existing.fromName || 'Auditor App',
+    fromEmail: fromEmail || existing.fromEmail || '',
+    externalUrl: (externalUrl || existing.externalUrl || '').replace(/\/$/, '')
   };
   writeEmailConfig(updated);
   res.json({ success: true });
@@ -1905,17 +2000,75 @@ app.post('/api/email/config', (req, res) => {
 
 app.post('/api/email/test', async (req, res) => {
   const cfg = readEmailConfig();
-  if (!cfg.host || !cfg.user) return res.status(400).json({ error: 'Email not configured' });
+  if (!emailConfigured(cfg)) return res.status(400).json({ error: 'Gmail not connected yet — click Connect Gmail first' });
   try {
-    const transporter = nodemailer.createTransport({
-      host: cfg.host, port: cfg.port, secure: cfg.secure,
-      auth: { user: cfg.user, pass: cfg.password }
-    });
-    await transporter.verify();
-    res.json({ success: true, message: 'Connection successful' });
+    await getGmailAccessToken(cfg);
+    res.json({ success: true, message: '✅ Connected — Gmail API reachable' });
   } catch(e) {
     res.status(500).json({ error: e.message });
   }
+});
+
+// ── Gmail OAuth flow (paste-the-code, no HTTPS required) ──
+const GMAIL_OAUTH_REDIRECT = 'https://developers.google.com/oauthplayground';
+
+app.get('/api/email/gmail/start', (req, res) => {
+  const cfg = readEmailConfig();
+  if (!cfg.clientId || !cfg.clientSecret) return res.status(400).json({ error: 'Save Client ID and Client Secret first' });
+  const params = new URLSearchParams({
+    client_id: cfg.clientId,
+    redirect_uri: GMAIL_OAUTH_REDIRECT,
+    response_type: 'code',
+    scope: 'https://mail.google.com/',
+    access_type: 'offline',
+    prompt: 'consent',
+    include_granted_scopes: 'true'
+  });
+  res.json({ url: 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString(), redirectUri: GMAIL_OAUTH_REDIRECT });
+});
+
+app.post('/api/email/gmail/exchange', async (req, res) => {
+  const code = (req.body.code || '').trim();
+  if (!code) return res.status(400).json({ error: 'Paste the authorization code first' });
+  const cfg = readEmailConfig();
+  if (!cfg.clientId || !cfg.clientSecret) return res.status(400).json({ error: 'Client ID and Secret not saved' });
+  try {
+    const body = new URLSearchParams({
+      code,
+      client_id: cfg.clientId,
+      client_secret: cfg.clientSecret,
+      redirect_uri: GMAIL_OAUTH_REDIRECT,
+      grant_type: 'authorization_code'
+    });
+    const r = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body
+    });
+    const d = await r.json();
+    if (!r.ok || !d.refresh_token) {
+      const msg = d.error_description || d.error || 'No refresh_token returned — revoke at myaccount.google.com/permissions and try again';
+      return res.status(500).json({ error: msg });
+    }
+    let email = '';
+    try {
+      const u = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', { headers: { Authorization: 'Bearer ' + d.access_token } });
+      if (u.ok) email = (await u.json()).email || '';
+    } catch {}
+    cfg.refreshToken = d.refresh_token;
+    if (email) { cfg.user = email; if (!cfg.fromEmail) cfg.fromEmail = email; }
+    writeEmailConfig(cfg);
+    res.json({ success: true, email });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/email/gmail/disconnect', (req, res) => {
+  const cfg = readEmailConfig();
+  cfg.refreshToken = '';
+  writeEmailConfig(cfg);
+  res.json({ success: true });
 });
 
 app.post('/api/email/send-report', async (req, res) => {
@@ -1923,7 +2076,7 @@ app.post('/api/email/send-report', async (req, res) => {
   if (!inspectionId || !plannerEmail) return res.status(400).json({ error: 'inspectionId and plannerEmail required' });
 
   const cfg = readEmailConfig();
-  if (!cfg.host || !cfg.user) return res.status(400).json({ error: 'Email server not configured. Go to Setup > Email.' });
+  if (!emailConfigured(cfg)) return res.status(400).json({ error: 'Email server not configured. Go to Setup > Email.' });
 
   const inspections = readInspections();
   const insp = inspections.find(i => i.id === inspectionId);
@@ -1940,12 +2093,8 @@ app.post('/api/email/send-report', async (req, res) => {
   const filename = `${label}-${dateStr}-${insp.result}.pdf`.replace(/[^a-zA-Z0-9.\-_]/g, '_');
 
   try {
-    const transporter = nodemailer.createTransport({
-      host: cfg.host, port: cfg.port, secure: cfg.secure,
-      auth: { user: cfg.user, pass: cfg.password }
-    });
-    await transporter.sendMail({
-      from: `"${cfg.fromName}" <${cfg.fromEmail || cfg.user}>`,
+    await sendEmail({
+      cfg,
       to: `"${plannerName}" <${plannerEmail}>`,
       subject: `FAILED Inspection Report — ${label} (${insp.location} / ${insp.machine})`,
       html: `

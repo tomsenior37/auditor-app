@@ -3,26 +3,171 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Issue — Submit Work Request / Work Order</title>
+<title>Issue — Field Ledger, Planner Edition</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  * { box-sizing: border-box; }
-  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background:#f7f6f2; margin:0; padding:24px; color:#28251d; }
-  .card { max-width:640px; margin:0 auto; background:#fff; border:1px solid #d4d1ca; border-radius:14px; padding:24px; box-shadow:0 4px 16px rgba(0,0,0,0.06); }
-  h1 { color:#01696f; font-size:22px; margin:0 0 6px; }
-  .sub { color:#666; font-size:14px; margin-bottom:20px; }
-  .row { display:flex; padding:8px 0; border-bottom:1px solid #eee; gap:12px; }
-  .row .k { color:#666; min-width:120px; font-size:14px; }
-  .row .v { font-weight:600; font-size:14px; flex:1; }
-  .pill { display:inline-block; padding:3px 10px; border-radius:12px; color:#fff; font-size:12px; font-weight:700; text-transform:uppercase; }
-  .sect { font-size:12px; font-weight:700; text-transform:uppercase; color:#01696f; letter-spacing:.5px; margin:20px 0 10px; }
-  label { display:block; margin-top:12px; font-size:13px; color:#555; }
-  input, textarea { width:100%; padding:12px; border:1px solid #d4d1ca; border-radius:8px; font-size:15px; font-family:inherit; margin-top:6px; background:#fbfbf9; }
-  textarea { min-height:80px; resize:vertical; }
-  button { width:100%; background:#01696f; color:#fff; border:none; border-radius:10px; padding:14px; font-size:16px; font-weight:700; cursor:pointer; margin-top:18px; }
-  button:hover { background:#0c4e54; }
-  .success { background:#e8f5ea; border:1px solid #437a22; color:#2d5315; padding:14px; border-radius:8px; margin-top:18px; display:none; }
-  .error { background:#fdeaec; border:1px solid #a13544; color:#6a1e27; padding:14px; border-radius:8px; margin-top:18px; display:none; }
-  a.pdf-link { display:inline-block; margin:12px 0; color:#01696f; text-decoration:none; font-weight:600; }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --paper: #f4efe3;
+    --paper-deep: #ebe4d3;
+    --ink: #1d1a14;
+    --ink-dim: #6b6453;
+    --ink-faint: #a59a82;
+    --rule: #d8cfba;
+    --rule-strong: #b8ad93;
+    --accent: #a33c24;
+    --accent-dim: #7a2c1a;
+    --accent-tint: rgba(163,60,36,0.08);
+    --pass: #556a3f;
+    --fail: #a33c24;
+    --amber: #a67425;
+    --sans: 'Plus Jakarta Sans', system-ui, sans-serif;
+    --serif: 'Plus Jakarta Sans', system-ui, sans-serif;
+    --mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+  }
+  body {
+    font-family: var(--sans);
+    background: var(--paper);
+    margin: 0; padding: 32px 20px 40px;
+    color: var(--ink);
+    font-size: 15.5px; line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    position: relative;
+  }
+  body::before {
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 9998;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.92' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.18 0 0 0 0 0.15 0 0 0 0 0.08 0 0 0 0.05 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    mix-blend-mode: multiply; opacity: 0.55;
+  }
+  ::selection { background: var(--accent); color: var(--paper); }
+
+  .card {
+    max-width: 680px; margin: 0 auto;
+    background: transparent;
+    border: none; border-radius: 0;
+    padding: 0; box-shadow: none;
+    position: relative; z-index: 1;
+  }
+  .card::before {
+    content: 'ISSUE DOSSIER'; display: block;
+    font-family: var(--mono); font-size: 10px; font-weight: 500;
+    letter-spacing: 0.3em; color: var(--ink-dim); margin-bottom: 10px;
+  }
+  h1 {
+    color: var(--ink);
+    font-family: var(--sans);
+    font-weight: 800; font-size: 34px;
+    letter-spacing: -0.035em; line-height: 1.05;
+    margin: 0 0 10px;
+  }
+  h1::after {
+    content: ''; display: block; width: 48px; height: 2px;
+    background: var(--accent); margin-top: 18px;
+  }
+  .sub {
+    font-family: var(--sans); font-size: 15px;
+    color: var(--ink-dim); margin-bottom: 26px; line-height: 1.5;
+  }
+  .row {
+    display: flex; padding: 11px 0;
+    border-bottom: 1px solid var(--rule);
+    gap: 14px; align-items: baseline;
+  }
+  .row:first-child { border-top: 1px solid var(--rule); }
+  .row .k {
+    font-family: var(--mono); font-size: 10px; font-weight: 500;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--ink-dim); min-width: 130px; flex-shrink: 0;
+  }
+  .row .v {
+    font-weight: 500; font-size: 14.5px;
+    color: var(--ink); flex: 1;
+  }
+  .pill {
+    display: inline-block; padding: 3px 9px;
+    border-radius: 2px; color: var(--paper);
+    font-family: var(--mono); font-size: 9px; font-weight: 600;
+    letter-spacing: 0.18em; text-transform: uppercase;
+  }
+  .sect {
+    font-family: var(--mono); font-size: 10px; font-weight: 600;
+    text-transform: uppercase; color: var(--ink);
+    letter-spacing: 0.22em;
+    margin: 32px 0 14px;
+    padding-top: 24px;
+    border-top: 1px solid var(--rule);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .sect::before {
+    content: ''; display: block; width: 18px; height: 2px;
+    background: var(--accent); border-radius: 1px; flex-shrink: 0;
+  }
+  label {
+    display: block; margin-top: 18px;
+    font-family: var(--mono); font-size: 10px; font-weight: 500;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+  input, textarea {
+    width: 100%; padding: 12px 2px;
+    border: none; border-bottom: 1px solid var(--rule-strong);
+    border-radius: 0;
+    font-family: var(--sans); font-size: 16px;
+    margin-top: 8px; background: transparent;
+    color: var(--ink); outline: none;
+    transition: border-color .2s;
+  }
+  input:focus, textarea:focus { border-bottom-color: var(--accent); }
+  textarea {
+    min-height: 90px; resize: vertical;
+    border: 1px solid var(--rule-strong); border-radius: 4px;
+    padding: 12px 14px; line-height: 1.55;
+    background: rgba(255,255,255,0.4);
+  }
+  button {
+    width: 100%; background: var(--ink); color: var(--paper);
+    border: none; border-radius: 4px;
+    padding: 16px;
+    font-family: var(--sans); font-size: 12px; font-weight: 700;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    cursor: pointer; margin-top: 26px;
+    transition: background .2s, transform .15s;
+  }
+  button:hover { background: var(--accent); }
+  button:active { transform: scale(0.98); }
+  .success {
+    background: rgba(85,106,63,0.08);
+    border: 1px solid var(--pass);
+    color: var(--pass);
+    padding: 14px 16px; border-radius: 4px;
+    margin-top: 20px;
+    font-family: var(--mono); font-size: 11px; font-weight: 500;
+    letter-spacing: 0.1em; line-height: 1.5;
+    display: none;
+  }
+  .error {
+    background: rgba(163,60,36,0.08);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    padding: 14px 16px; border-radius: 4px;
+    margin-top: 20px;
+    font-family: var(--mono); font-size: 11px; font-weight: 500;
+    letter-spacing: 0.1em; line-height: 1.5;
+    display: none;
+  }
+  a.pdf-link {
+    display: inline-flex; align-items: center; gap: 8px;
+    margin: 18px 0 4px; color: var(--accent);
+    text-decoration: none;
+    font-family: var(--mono); font-size: 11px; font-weight: 500;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    border-bottom: 1px solid var(--accent);
+    padding-bottom: 2px;
+  }
+  a.pdf-link:hover { color: var(--accent-dim); border-bottom-color: var(--accent-dim); }
 </style>
 </head>
 <body>

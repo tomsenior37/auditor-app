@@ -3,31 +3,117 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Rectification Details</title>
+  <title>Rectification Details — Field Ledger</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    :root { --bg: #0d0d0d; --surface: #1a1a1a; --border: #2a2a2a; --accent: #e05c3a; --text: #e8e8e8; --text-dim: #888; --pass: #3aad5c; --fail: #e05c3a; }
-    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; padding: 0; }
-    header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 16px; text-align: center; }
-    header h1 { font-size: 17px; font-weight: 700; }
-    .container { max-width: 600px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
-    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
-    .label { font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-dim); letter-spacing: .5px; margin-bottom: 6px; }
-    input, select, textarea { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 12px; border-radius: 8px; font-size: 15px; font-family: inherit; outline: none; width: 100%; }
-    .btn { background: var(--accent); color: #fff; border: none; border-radius: 10px; padding: 14px; font-size: 16px; font-weight: 700; cursor: pointer; width: 100%; font-family: inherit; }
-    .btn:active { opacity: .8; }
+    :root {
+      --bg: #0f0e0c; --surface: #17140f; --rule: #2b261d; --rule-strong: #3a3327;
+      --accent: #c8553d; --accent-dim: #8a3626; --accent-tint: rgba(200,85,61,0.10);
+      --text: #eae3d2; --text-dim: #8a7f6b; --text-faint: #5a5142;
+      --pass: #7a9969; --fail: #c8553d; --amber: #d4a24c; --na: #6b6152;
+      --sans: 'Plus Jakarta Sans', system-ui, sans-serif;
+      --serif: 'Plus Jakarta Sans', system-ui, sans-serif;
+      --mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+    }
+    body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 15.5px; line-height: 1.5; min-height: 100vh; padding: 0; -webkit-font-smoothing: antialiased; }
+    body::before {
+      content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 9998;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.92' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.92 0 0 0 0 0.89 0 0 0 0 0.82 0 0 0 0.05 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+      mix-blend-mode: overlay; opacity: 0.5;
+    }
+    ::selection { background: var(--accent); color: var(--bg); }
+
+    header {
+      background: var(--bg); border-bottom: 1px solid var(--rule);
+      padding: 26px 20px 20px; text-align: left;
+      position: relative;
+    }
+    header::before {
+      content: 'CASE FILE'; display: block;
+      font-family: var(--mono); font-size: 9.5px; font-weight: 500;
+      letter-spacing: 0.28em; color: var(--text-dim); margin-bottom: 6px;
+    }
+    header h1 {
+      font-family: var(--sans);
+      font-weight: 700; font-size: 26px; letter-spacing: -0.03em; line-height: 1.05;
+    }
+    header::after {
+      content: ''; display: block; width: 42px; height: 2px;
+      background: var(--accent); margin-top: 14px;
+    }
+
+    .container { max-width: 620px; margin: 0 auto; padding: 22px 20px 40px; display: flex; flex-direction: column; gap: 4px; position: relative; z-index: 1; }
+    .card {
+      background: transparent; border: none; border-top: 1px solid var(--rule);
+      border-radius: 0; padding: 20px 2px;
+    }
+    .card:last-of-type { border-bottom: 1px solid var(--rule); }
+    .label {
+      font-family: var(--mono); font-size: 10px; font-weight: 500;
+      text-transform: uppercase; color: var(--text-dim);
+      letter-spacing: 0.18em; margin-bottom: 10px;
+    }
+    input, select, textarea {
+      background: transparent; border: none;
+      border-bottom: 1px solid var(--rule-strong);
+      color: var(--text); padding: 11px 2px;
+      font-family: var(--sans); font-size: 16px;
+      border-radius: 0; outline: none; width: 100%;
+      transition: border-color .2s;
+    }
+    input:focus, select:focus, textarea:focus { border-bottom-color: var(--accent); }
+    textarea { border: 1px solid var(--rule-strong); border-radius: 4px; padding: 12px 14px; line-height: 1.55; }
+    select {
+      appearance: none; -webkit-appearance: none;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path fill='%238a7f6b' d='M2 4l4 4 4-4z'/></svg>");
+      background-repeat: no-repeat; background-position: right 6px center;
+      padding-right: 26px;
+    }
+    .btn {
+      background: var(--accent); color: var(--bg); border: none;
+      border-radius: 4px; padding: 16px;
+      font-family: var(--sans); font-size: 12px; font-weight: 700;
+      letter-spacing: 0.18em; text-transform: uppercase;
+      cursor: pointer; width: 100%; transition: background .2s, transform .15s;
+    }
+    .btn:active { background: var(--accent-dim); transform: scale(0.98); }
     .btn-pass { background: var(--pass); }
-    .status-badge { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 4px; text-transform: uppercase; }
-    .status-badge.open { background: var(--fail); color: #fff; }
-    .status-badge.in_progress { background: #ff9800; color: #fff; }
-    .status-badge.resolved { background: var(--pass); color: #fff; }
-    .status-badge.closed { background: var(--text-dim); color: #fff; }
-    .line-item { border: 1px solid var(--border); border-radius: 8px; padding: 10px; margin-bottom: 8px; }
-    .line-item.done { border-left: 3px solid var(--pass); }
-    .line-item.open { border-left: 3px solid var(--fail); }
-    .line-item.in_progress { border-left: 3px solid #ff9800; }
-    #toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 20px; padding: 10px 20px; font-size: 14px; opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 999; }
-    #toast.show { opacity: 1; }
+    .btn-pass:active { background: #5f7a52; }
+    .status-badge {
+      font-family: var(--mono); font-size: 9px; font-weight: 600;
+      padding: 3px 8px; border-radius: 2px;
+      text-transform: uppercase; letter-spacing: 0.18em;
+    }
+    .status-badge.open { background: transparent; color: var(--fail); border: 1px solid var(--fail); }
+    .status-badge.in_progress { background: transparent; color: var(--amber); border: 1px solid var(--amber); }
+    .status-badge.resolved { background: transparent; color: var(--pass); border: 1px solid var(--pass); }
+    .status-badge.closed { background: transparent; color: var(--text-dim); border: 1px solid var(--text-dim); }
+    .line-item {
+      border: none; border-left: 2px solid var(--rule-strong);
+      border-bottom: 1px solid var(--rule);
+      border-radius: 0; padding: 12px 12px 12px 14px; margin-bottom: 0;
+      background: transparent;
+    }
+    .line-item:last-child { border-bottom: none; }
+    .line-item.done { border-left-color: var(--pass); background: rgba(122,153,105,0.03); }
+    .line-item.open { border-left-color: var(--fail); background: rgba(200,85,61,0.03); }
+    .line-item.in_progress { border-left-color: var(--amber); background: rgba(212,162,76,0.03); }
+    #toast {
+      position: fixed; bottom: 32px; left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--text); color: var(--bg);
+      border: none; border-radius: 4px;
+      padding: 12px 20px;
+      font-family: var(--mono); font-size: 11px; font-weight: 600;
+      letter-spacing: 0.14em; text-transform: uppercase;
+      opacity: 0; transition: opacity .3s, transform .35s cubic-bezier(.2,.8,.2,1);
+      pointer-events: none; z-index: 9999;
+      box-shadow: 0 12px 32px rgba(0,0,0,0.5);
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   </style>
 </head>
 <body>
