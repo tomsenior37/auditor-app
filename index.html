@@ -1741,15 +1741,17 @@
         <button class="btn-secondary" style="width:100%;" onclick="exportAssetDatabase()">⬇ Download Asset CSV</button>
       </div>
 
-      <!-- Step 2: Upload (full overwrite) -->
-      <div style="border-left:2px solid var(--accent);padding-left:14px;">
-        <div style="font-weight:700;font-size:13px;margin-bottom:4px;"><span style="color:var(--accent);">Step 2</span> · Upload updated database</div>
-        <div style="font-size:12px;color:var(--text-dim);margin-bottom:6px;">This <strong>replaces the entire asset database</strong> with the contents of your CSV. Download a backup first.</div>
-        <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;font-family:monospace;font-size:11px;color:var(--text-dim);margin-bottom:8px;overflow-x:auto;white-space:pre;">location,machine,component,componentType,status,description,frequencyDays</div>
-        <input type="file" id="import-asset-file" accept=".csv" style="width:100%;padding:8px;margin-bottom:8px;">
-        <button class="btn-primary" style="width:100%;background:var(--fail);" onclick="importAssetDatabaseOverwrite()">⬆ Upload & Replace Database</button>
-        <div id="import-asset-status" style="font-size:13px;color:var(--text-dim);margin-top:8px;"></div>
-      </div>
+    <!-- IMPORT: Asset Database -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;">
+      <div style="font-weight:700;font-size:15px;color:var(--accent);margin-bottom:10px;">📤 Import Asset Database</div>
+      <div style="font-size:13px;color:var(--text-dim);margin-bottom:6px;">Upload a CSV file to import locations, machines and components.</div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;font-family:monospace;font-size:11px;color:var(--text-dim);margin-bottom:8px;overflow-x:auto;white-space:pre;">location,machine,component,componentType,status,description,frequencyDays</div>
+      <input type="file" id="import-asset-file" accept=".csv" style="width:100%;padding:8px;margin-bottom:8px;">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:8px;cursor:pointer;">
+        <input type="checkbox" id="import-asset-replace"> <strong>Replace entire database</strong> — wipes all existing data before importing. <a href="/api/assets/export.csv" download style="color:var(--accent);font-weight:600;">Download backup first</a>.
+      </label>
+      <button class="btn-primary" style="width:100%;" onclick="importAssetDatabase()">Upload &amp; Import</button>
+      <div id="import-asset-status" style="font-size:13px;color:var(--text-dim);margin-top:8px;"></div>
     </div>
     <!-- hidden legacy elements -->
     <div style="display:none;"><input type="file" id="import-html-file"><div id="html-import-stage"></div></div>
@@ -5560,28 +5562,37 @@ async function importAssetDatabaseOverwrite() {
 async function importAssetDatabase() {
   const fileInput = document.getElementById('import-asset-file');
   const statusEl = document.getElementById('import-asset-status');
+  const replaceCheckbox = document.getElementById('import-asset-replace');
   const file = fileInput.files[0];
   if (!file) return toast('Select a CSV file first');
-  statusEl.textContent = 'Reading file...';
-  statusEl.style.color = 'var(--text-dim)';
-  try {
-    const csv = await file.text();
-    statusEl.textContent = 'Importing…';
-    const r = await fetch('/api/assets/import-csv', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ csv }) });
-    const d = await r.json();
-    if (d.success) {
-      statusEl.style.color = 'var(--pass)';
-      statusEl.textContent = `Imported ${d.stats.rows} row(s) — ${d.stats.newLocations} new loc, ${d.stats.newMachines} new mac, ${d.stats.newComponents} new comp, ${d.stats.updated} asset record(s) updated`;
-      fileInput.value = '';
-      await loadLists();
-      toast('Asset database imported');
-    } else {
+  const replace = replaceCheckbox?.checked;
+  const doImport = async () => {
+    statusEl.style.color = 'var(--text-dim)';
+    statusEl.textContent = replace ? 'Replacing database…' : 'Importing…';
+    try {
+      const csv = await file.text();
+      const r = await fetch('/api/assets/import-csv', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ csv, replace }) });
+      const d = await r.json();
+      if (d.success) {
+        statusEl.style.color = 'var(--pass)';
+        statusEl.textContent = `${replace ? 'Replaced' : 'Imported'} ${d.stats.rows} row(s) — ${d.stats.newLocations} loc, ${d.stats.newMachines} mac, ${d.stats.newComponents} comp, ${d.stats.updated} asset record(s)`;
+        fileInput.value = '';
+        if (replaceCheckbox) replaceCheckbox.checked = false;
+        await loadLists();
+        toast('Asset database ' + (replace ? 'replaced' : 'imported'));
+      } else {
+        statusEl.style.color = 'var(--fail)';
+        statusEl.textContent = d.error || 'Import failed';
+      }
+    } catch (err) {
       statusEl.style.color = 'var(--fail)';
-      statusEl.textContent = d.error || 'Import failed';
+      statusEl.textContent = 'Error: ' + err.message;
     }
-  } catch (err) {
-    statusEl.style.color = 'var(--fail)';
-    statusEl.textContent = 'Error: ' + err.message;
+  };
+  if (replace) {
+    showConfirmModal('This will DELETE the entire existing asset database and replace it with the uploaded file. Continue?', doImport, 'Replace All', 'var(--fail)');
+  } else {
+    doImport();
   }
 }
 

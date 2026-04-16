@@ -1629,9 +1629,10 @@ app.get('/api/assets/export.csv', (req, res) => {
   res.send(csvStringify(rows));
 });
 
-// POST /api/assets/import-csv — accept CSV text in body { csv: "..." }
+// POST /api/assets/import-csv — accept CSV text in body { csv: "...", replace: true/false }
+// replace:true wipes the existing lists and assets before importing
 app.post('/api/assets/import-csv', (req, res) => {
-  const { csv, overwrite } = req.body;
+  const { csv, replace } = req.body;
   if (!csv) return res.status(400).json({ error: 'csv body required' });
   const rows = csvParse(csv).filter(r => r.some(c => (c || '').trim()));
   if (rows.length < 2) return res.status(400).json({ error: 'need header + at least one row' });
@@ -1639,8 +1640,9 @@ app.post('/api/assets/import-csv', (req, res) => {
   const col = (name) => header.indexOf(name);
   const iLoc = col('location'), iMac = col('machine'), iComp = col('component');
   if (iLoc < 0 || iMac < 0 || iComp < 0) return res.status(400).json({ error: 'header must include location, machine, component' });
-  const lists = overwrite ? { ...readLists(), locations: [] } : readLists();
-  const assets = overwrite ? {} : readAssets();
+  const lists = readLists();
+  const assets = replace ? {} : readAssets();
+  if (replace) { lists.locations = []; }
   let newLoc = 0, newMac = 0, newComp = 0, updated = 0;
   for (let i = 1; i < rows.length; i++) {
     const r = rows[i];
