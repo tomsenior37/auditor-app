@@ -307,7 +307,7 @@ app.post('/api/users', (req, res, next) => requireRole('admin')(req, res, next),
   }
   const initial = password || Math.random().toString(36).slice(-10);
   const user = {
-    id: uuidv4(),
+    id: 'user_' + uuidv4().slice(0, 12),
     username: cleanEmail,
     email: cleanEmail,
     displayName: (displayName || cleanEmail.split('@')[0]).trim(),
@@ -666,7 +666,7 @@ app.post('/api/templates', requirePermission('edit_templates'), (req, res) => {
   if (!name || (!questions && !items)) return res.status(400).json({ error: 'name and questions required' });
   const data = readTemplates();
   const tpl = {
-    id: 'tpl-' + uuidv4().slice(0, 8),
+    id: 'tpl_' + uuidv4().slice(0, 8),
     name, standard: standard || '', description: description || '',
     requiresComponent: !!requiresComponent,
     componentType: componentType || '',
@@ -722,7 +722,7 @@ app.post('/api/templates/upload', requirePermission('edit_templates'), upload.si
 
     const data = readTemplates();
     const tpl = {
-      id: 'tpl-' + uuidv4().slice(0, 8),
+      id: 'tpl_' + uuidv4().slice(0, 8),
       name: templateData.name,
       standard: templateData.standard || '',
       description: templateData.description || '',
@@ -973,7 +973,7 @@ app.post('/api/answer-sets', (req, res) => {
   if (!name || !Array.isArray(options)) return res.status(400).json({ error: 'name and options required' });
   const data = readAnswerSets();
   const set = {
-    id: uuidv4(),
+    id: 'set_' + uuidv4().slice(0, 8),
     name,
     options: options.map(o => ({ id: o.id || uuidv4(), label: o.label || '', flagFail: !!o.flagFail, ...(o.score !== undefined ? { score: o.score } : {}) })),
     createdAt: new Date().toISOString()
@@ -1121,7 +1121,7 @@ app.post('/api/inspection', requireRole('inspector', 'admin'), (req, res) => {
   }
   const inspections = readInspections();
   const record = {
-    id: uuidv4(),
+    id: 'insp_' + uuidv4().slice(0, 12),
     templateId: body.templateId || null,
     templateName: body.templateName || null,
     guardId: body.guardId || body.componentId || null,
