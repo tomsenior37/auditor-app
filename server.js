@@ -2993,7 +2993,9 @@ async function buildActionPDFBuffer(rect) {
       ['Template', rect.templateName || '—'],
       ['Raised by', rect.createdBy || '—'],
       ['Date', rect.createdAt ? new Date(rect.createdAt).toLocaleString('en-AU', { dateStyle: 'medium', timeStyle: 'short' }) : '—'],
-      ['Due', rect.dueDate || '—']
+      ['Due', rect.dueDate || '—'],
+      ...(rect.workRequestNumber ? [['WR Number', rect.workRequestNumber]] : []),
+      ...(rect.workOrderNumber ? [['WO Number', rect.workOrderNumber]] : [])
     ];
     gridMeta.forEach((m, i) => {
       const col = i % 3, row = Math.floor(i / 3);
