@@ -1516,17 +1516,40 @@ Building B,CNC Mill,,,,
 <!-- ══════════════ REPORTS SCREEN ══════════════ -->
 <div class="screen" id="reports-screen">
   <div style="padding:16px;display:flex;flex-direction:column;gap:10px;">
+    <!-- Breadcrumb -->
     <div id="reports-breadcrumb" style="display:flex;align-items:center;gap:6px;font-size:13px;flex-wrap:wrap;"></div>
-    <input type="search" id="reports-search" placeholder="Filter files in this folder…" oninput="renderReportsView()"
-      style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:10px;font-size:14px;font-family:inherit;outline:none;">
-    <div style="display:flex;gap:8px;align-items:center;">
-      <label style="font-size:13px;display:flex;align-items:center;gap:4px;cursor:pointer;">
-        <input type="checkbox" id="reports-select-all" onchange="toggleAllReports(this.checked)"> Select all
-      </label>
-      <button onclick="downloadSelectedReports()" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;">⬇ Download</button>
-      <span id="reports-selected-count" style="font-size:12px;color:var(--text-dim);"></span>
+
+    <!-- Filters -->
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      <input type="search" id="reports-search" placeholder="Search by name…" oninput="renderReportsView()"
+        style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:10px;font-size:14px;font-family:inherit;outline:none;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+        <select id="rpt-filter-type" onchange="renderReportsView()" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:9px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
+          <option value="">All types</option>
+          <option value="pass">PASS only</option>
+          <option value="fail">FAIL only</option>
+          <option value="action">Actions only</option>
+        </select>
+        <select id="rpt-filter-date" onchange="renderReportsView()" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:9px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
+          <option value="">Any date</option>
+          <option value="7">Last 7 days</option>
+          <option value="30">Last 30 days</option>
+          <option value="90">Last 90 days</option>
+        </select>
+      </div>
     </div>
-    <div id="reports-list-body"></div>
+
+    <!-- Selection bar -->
+    <div style="display:flex;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 12px;">
+      <label style="font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;flex:1;">
+        <input type="checkbox" id="reports-select-all" onchange="toggleAllReports(this.checked)" style="accent-color:var(--accent);width:18px;height:18px;">
+        <span id="reports-selected-count" style="font-size:13px;color:var(--text-dim);">Select all</span>
+      </label>
+      <button onclick="downloadSelectedReports()" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;">⬇ Download</button>
+    </div>
+
+    <!-- File list -->
+    <div id="reports-list-body" style="display:flex;flex-direction:column;gap:4px;"></div>
   </div>
 </div>
 
@@ -1575,12 +1598,6 @@ Building B,CNC Mill,,,,
     <!-- ─── TEMPLATES SECTION ─── -->
     <div onclick="showTemplates()" style="display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;cursor:pointer;">
       <div style="font-weight:700;font-size:15px;color:var(--accent);">📋 Audit Templates</div>
-      <span style="color:var(--text-dim);font-size:18px;">›</span>
-    </div>
-
-    <!-- ─── REPORTS SECTION ─── -->
-    <div onclick="showReportsScreen()" style="display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;cursor:pointer;">
-      <div style="font-weight:700;font-size:15px;color:var(--accent);">📄 Reports</div>
       <span style="color:var(--text-dim);font-size:18px;">›</span>
     </div>
 
@@ -2249,9 +2266,9 @@ function getCurrentRisk() {
   return { consequence: _riskState.consequence, probability: _riskState.probability, rating: m ? m[0] : '' };
 }
 
-// ── Reports screen (file explorer) ─────────────────────────
+// ── Reports screen (file explorer + filters) ──────────────
 let _reportsList = [];
-let _reportsPath = []; // breadcrumb segments
+let _reportsPath = [];
 
 function showReportsScreen() {
   _reportsPath = [];
@@ -2281,79 +2298,94 @@ function reportsEnterFolder(name) {
   renderReportsView();
 }
 
+function _filterReportsList() {
+  const typeF = document.getElementById('rpt-filter-type')?.value || '';
+  const dateF = parseInt(document.getElementById('rpt-filter-date')?.value || '0', 10);
+  const now = Date.now();
+  return _reportsList.filter(r => {
+    if (typeF === 'pass' && !r.filename.includes('-PASS')) return false;
+    if (typeF === 'fail' && !r.filename.includes('-FAIL')) return false;
+    if (typeF === 'action' && !r.filename.startsWith('Action-')) return false;
+    if (dateF && (now - new Date(r.createdAt).getTime()) > dateF * 86400000) return false;
+    return true;
+  });
+}
+
 function renderReportsView() {
   const body = document.getElementById('reports-list-body');
   const bc = document.getElementById('reports-breadcrumb');
   const q = (document.getElementById('reports-search')?.value || '').toLowerCase();
   const currentPrefix = _reportsPath.length ? _reportsPath.join('/') + '/' : '';
+  const filtered = _filterReportsList();
 
   // Breadcrumb
   let crumbs = `<span onclick="reportsNavTo(0)" style="cursor:pointer;color:var(--accent);font-weight:600;">📁 All Reports</span>`;
   _reportsPath.forEach((seg, i) => {
     crumbs += ` <span style="color:var(--text-dim);">›</span> <span onclick="reportsNavTo(${i + 1})" style="cursor:pointer;color:var(--accent);font-weight:600;">${escHtml(seg)}</span>`;
   });
+  if (filtered.length) crumbs += `<span style="color:var(--text-dim);font-size:12px;margin-left:8px;">(${filtered.length} total)</span>`;
   bc.innerHTML = crumbs;
 
   // Items at current level
   const subfolders = new Set();
   const files = [];
-  _reportsList.forEach(r => {
+  filtered.forEach(r => {
     if (!r.path.startsWith(currentPrefix)) return;
     const rest = r.path.slice(currentPrefix.length);
     const slashIdx = rest.indexOf('/');
-    if (slashIdx >= 0) {
-      subfolders.add(rest.slice(0, slashIdx));
-    } else {
-      files.push(r);
-    }
+    if (slashIdx >= 0) subfolders.add(rest.slice(0, slashIdx));
+    else files.push(r);
   });
 
-  const filteredFolders = q ? [...subfolders].filter(f => f.toLowerCase().includes(q)) : [...subfolders];
-  const filteredFiles = q ? files.filter(f => f.filename.toLowerCase().includes(q)) : files;
-  filteredFolders.sort((a, b) => a.localeCompare(b));
+  const qFolders = q ? [...subfolders].filter(f => f.toLowerCase().includes(q)) : [...subfolders];
+  const qFiles = q ? files.filter(f => f.filename.toLowerCase().includes(q)) : files;
+  qFolders.sort((a, b) => a.localeCompare(b));
 
-  if (!filteredFolders.length && !filteredFiles.length) {
-    body.innerHTML = '<div style="color:var(--text-dim);text-align:center;padding:30px;">No reports here.' + (!_reportsList.length ? ' Complete inspections to generate reports.' : '') + '</div>';
+  if (!qFolders.length && !qFiles.length) {
+    body.innerHTML = `<div style="text-align:center;padding:40px 20px;color:var(--text-dim);">
+      <div style="font-size:36px;margin-bottom:12px;">📄</div>
+      <div style="font-size:15px;font-weight:600;margin-bottom:6px;">No reports found</div>
+      <div style="font-size:13px;">${!_reportsList.length ? 'Complete inspections to generate reports automatically.' : 'Try adjusting filters or navigating to a different folder.'}</div>
+    </div>`;
     document.getElementById('reports-select-all').checked = false;
     updateReportsCount();
     return;
   }
 
-  // Count files recursively per subfolder
-  function countInFolder(prefix) {
-    return _reportsList.filter(r => r.path.startsWith(prefix)).length;
-  }
+  function countInFolder(prefix) { return filtered.filter(r => r.path.startsWith(prefix)).length; }
 
   let html = '';
-  // Subfolders
-  filteredFolders.forEach(name => {
+  qFolders.forEach(name => {
     const fullPrefix = currentPrefix + name + '/';
     const count = countInFolder(fullPrefix);
-    html += `<div onclick="reportsEnterFolder('${escHtml(name)}')" style="display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px;cursor:pointer;margin-bottom:6px;">
-      <span style="font-size:24px;">📁</span>
+    html += `<div onclick="reportsEnterFolder('${escHtml(name)}')" style="display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;">
+      <div style="width:40px;height:40px;background:var(--bg);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">📁</div>
       <div style="flex:1;min-width:0;">
-        <div style="font-weight:600;font-size:14px;">${escHtml(name)}</div>
+        <div style="font-weight:600;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(name)}</div>
         <div style="font-size:12px;color:var(--text-dim);">${count} report${count !== 1 ? 's' : ''}</div>
       </div>
-      <span style="color:var(--text-dim);font-size:18px;">›</span>
+      <span style="color:var(--text-dim);font-size:20px;">›</span>
     </div>`;
   });
 
-  // Files
-  filteredFiles.forEach(r => {
+  qFiles.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  qFiles.forEach(r => {
     const kb = (r.size / 1024).toFixed(0);
     const when = new Date(r.createdAt).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' });
     const isFail = r.filename.includes('-FAIL');
     const isAction = r.filename.startsWith('Action-');
     const icon = isAction ? '⚠️' : (isFail ? '📕' : '📗');
-    html += `<div style="display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:4px;">
-      <input type="checkbox" class="report-cb" data-path="${escHtml(r.path)}" onchange="updateReportsCount()" style="flex-shrink:0;">
-      <span style="font-size:20px;flex-shrink:0;">${icon}</span>
+    const accent = isAction ? '#d19900' : (isFail ? 'var(--fail)' : 'var(--pass)');
+    html += `<div style="display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;border-left:3px solid ${accent};">
+      <label style="display:flex;align-items:center;flex-shrink:0;cursor:pointer;">
+        <input type="checkbox" class="report-cb" data-path="${escHtml(r.path)}" onchange="updateReportsCount()" style="accent-color:var(--accent);width:18px;height:18px;">
+      </label>
+      <div style="width:36px;height:36px;background:var(--bg);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">${icon}</div>
       <div style="flex:1;min-width:0;">
-        <div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(r.filename)}</div>
+        <div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(r.filename.replace('.pdf',''))}</div>
         <div style="font-size:11px;color:var(--text-dim);">${kb} KB · ${when}</div>
       </div>
-      <a href="/reports/${r.path.split('/').map(encodeURIComponent).join('/')}" target="_blank" onclick="event.stopPropagation()" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap;">View</a>
+      <a href="/reports/${r.path.split('/').map(encodeURIComponent).join('/')}" target="_blank" onclick="event.stopPropagation()" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap;">View</a>
     </div>`;
   });
 
@@ -8841,12 +8873,12 @@ async function doRestoreGuard(guardId, location, machine) {
   <button onclick="goHome()" data-nav="home-screen">
     <span class="nav-icon">🏠</span>Home
   </button>
-  <button onclick="showAssets()" data-nav="assets-screen">
-    <span class="nav-icon">🏭</span>Assets
-  </button>
   <button onclick="resumeForm()" data-nav="form-screen" style="position:relative;">
     <span class="nav-icon" style="background:var(--accent);color:#fff;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;margin-top:-12px;">＋</span>
     <span style="margin-top:-2px;">Audit</span>
+  </button>
+  <button onclick="showReportsScreen()" data-nav="reports-screen">
+    <span class="nav-icon">📄</span>Reports
   </button>
   <button onclick="showRects()" data-nav="rects-screen">
     <span class="nav-icon" style="position:relative;">⚠️<span id="rects-badge" style="display:none;position:absolute;top:-4px;right:-8px;background:var(--fail);color:#fff;font-size:9px;font-weight:800;min-width:16px;height:16px;border-radius:8px;display:none;align-items:center;justify-content:center;padding:0 4px;">0</span></span>Actions
