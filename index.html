@@ -4517,38 +4517,51 @@ function renderRectDetail(rect) {
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;gap:10px;">
       <div style="display:flex;gap:8px;">
         <div style="flex:1;">
-          <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;margin-bottom:4px;">Status</div>
-          <select onchange="updateRectField('${rect.id}','status',this.value)" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">${statusOpts}</select>
-        </div>
-        <div style="flex:1;">
           <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;margin-bottom:4px;">Priority</div>
           <select onchange="updateRectField('${rect.id}','priority',this.value)" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">${priorityOpts}</select>
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;margin-bottom:4px;">Due Date</div>
+          <input type="date" value="${rect.dueDate || ''}" onchange="updateRectField('${rect.id}','dueDate',this.value)"
+            style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
         </div>
       </div>
       <div>
         <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;margin-bottom:4px;">Assigned To</div>
         <select onchange="updateRectAssignee('${rect.id}',this)" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">${plannerOpts}</select>
       </div>
-      <div style="display:flex;gap:8px;">
-        <div style="flex:1;">
-          <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;margin-bottom:4px;">Due Date</div>
-          <input type="date" value="${rect.dueDate || ''}" onchange="updateRectField('${rect.id}','dueDate',this.value)"
-            style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
+
+      <!-- Work Request -->
+      <div style="background:${rect.workRequestNumber ? '#fff3d6' : 'var(--bg)'};border:1px solid ${rect.workRequestNumber ? '#d19900' : 'var(--border)'};border-radius:8px;padding:12px;">
+        <div style="font-size:11px;font-weight:700;color:${rect.workRequestNumber ? '#d19900' : 'var(--fail)'};text-transform:uppercase;margin-bottom:6px;">
+          ${rect.workRequestNumber ? '✅ WR Raised — ' + escHtml(rect.workRequestNumber) : '⚠️ Work Request Required'}
         </div>
-        <div style="flex:1;">
-          <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;margin-bottom:4px;">Work Order #</div>
-          <input type="text" value="${escHtml(rect.workOrderNumber || '')}" placeholder="WO-..." onchange="updateRectField('${rect.id}','workOrderNumber',this.value)"
-            style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="wr-input-${rect.id}" value="${escHtml(rect.workRequestNumber || '')}" placeholder="Enter WR number…"
+            style="flex:1;background:#fff;border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
+          <button onclick="submitActionWR('${rect.id}')" style="background:#ff9800;color:#fff;border:none;border-radius:8px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">Submit WR</button>
         </div>
       </div>
-      <div>
+
+      <!-- Work Order -->
+      <div style="background:${rect.workOrderNumber ? '#e8f4ff' : 'var(--bg)'};border:1px solid ${rect.workOrderNumber ? '#3b82f6' : 'var(--border)'};border-radius:8px;padding:12px;">
+        <div style="font-size:11px;font-weight:700;color:${rect.workOrderNumber ? '#3b82f6' : 'var(--text-dim)'};text-transform:uppercase;margin-bottom:6px;">
+          ${rect.workOrderNumber ? '✅ WO Raised — ' + escHtml(rect.workOrderNumber) : 'Work Order'}
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+          <input type="text" id="wo-input-${rect.id}" value="${escHtml(rect.workOrderNumber || '')}" placeholder="Enter WO number…"
+            style="flex:1;background:#fff;border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
+          <button onclick="submitActionWO('${rect.id}')" style="background:#3b82f6;color:#fff;border:none;border-radius:8px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">Submit WO</button>
+        </div>
         <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;margin-bottom:4px;">Completion Date</div>
-        <input type="date" value="${rect.completionDate || ''}" onchange="updateRectField('${rect.id}','completionDate',this.value)"
-          style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
+        <div style="display:flex;gap:8px;">
+          <input type="date" id="comp-date-${rect.id}" value="${rect.completionDate || ''}"
+            style="flex:1;background:#fff;border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;">
+          <button onclick="submitActionComplete('${rect.id}')" style="background:var(--pass);color:#fff;border:none;border-radius:8px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">Complete</button>
+        </div>
       </div>
-      ${(rect.status === 'open' || rect.status === 'in_progress') && rect.workOrderNumber && rect.completionDate ? `
-      <div style="font-size:12px;color:var(--text-dim);text-align:center;padding:8px;">Status updates automatically: Raise WR → WR Raised → WO Raised → Completed</div>
-      ` : ''}
+
+      <div style="font-size:11px;color:var(--text-dim);text-align:center;">Status updates automatically: Raise WR → WR Raised → WO Raised → Completed</div>
     </div>
 
     <!-- Photos -->
@@ -4701,6 +4714,42 @@ async function purgeAction(id) {
       else { const d = await r.json(); toast(d.error || 'Failed'); }
     } catch { toast('Failed'); }
   }, 'Delete Forever', 'var(--fail)');
+}
+
+async function submitActionWR(id) {
+  const wr = document.getElementById('wr-input-' + id)?.value.trim();
+  if (!wr) return toast('Enter a WR number');
+  try {
+    const r = await fetch('/api/rectifications/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workRequestNumber: wr, _updatedBy: _me?.displayName || _me?.username || '' }) });
+    const d = await r.json();
+    if (d.success) { renderRectDetail(d.rect); loadRects(); toast('WR submitted — status: ' + d.rect.status.replace('_',' ')); }
+    else toast('Failed');
+  } catch { toast('Network error'); }
+}
+
+async function submitActionWO(id) {
+  const wo = document.getElementById('wo-input-' + id)?.value.trim();
+  if (!wo) return toast('Enter a WO number');
+  try {
+    const r = await fetch('/api/rectifications/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workOrderNumber: wo, _updatedBy: _me?.displayName || _me?.username || '' }) });
+    const d = await r.json();
+    if (d.success) { renderRectDetail(d.rect); loadRects(); toast('WO submitted — status: ' + d.rect.status.replace('_',' ')); }
+    else toast('Failed');
+  } catch { toast('Network error'); }
+}
+
+async function submitActionComplete(id) {
+  const date = document.getElementById('comp-date-' + id)?.value;
+  if (!date) return toast('Select a completion date');
+  try {
+    const r = await fetch('/api/rectifications/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ completionDate: date, _updatedBy: _me?.displayName || _me?.username || '' }) });
+    const d = await r.json();
+    if (d.success) { renderRectDetail(d.rect); loadRects(); toast('Completed ✅'); }
+    else toast('Failed');
+  } catch { toast('Network error'); }
 }
 
 async function emailRectReport(id) {
