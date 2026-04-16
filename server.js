@@ -708,10 +708,18 @@ app.post('/api/templates/upload', requirePermission('edit_templates'), upload.si
     }
     
     // Validate and normalize the template
-    if (!templateData.name || !templateData.questions) {
-      return res.status(400).json({ error: 'Invalid template format: name and questions required' });
+    if (!templateData.name || (!templateData.questions && !templateData.items)) {
+      return res.status(400).json({ error: 'Invalid template format: needs name and either questions or items array' });
     }
-    
+
+    // Build questions from items if not present (V2 → flat questions for backward compat)
+    let questions = templateData.questions;
+    if (!questions && templateData.items) {
+      questions = templateData.items
+        .filter(i => i.itemType === 'question' && i.type !== 'instruction')
+        .map(i => i.text || '');
+    }
+
     const data = readTemplates();
     const tpl = {
       id: 'tpl-' + uuidv4().slice(0, 8),
@@ -720,7 +728,7 @@ app.post('/api/templates/upload', requirePermission('edit_templates'), upload.si
       description: templateData.description || '',
       requiresComponent: !!templateData.requiresComponent,
       componentType: templateData.componentType || '',
-      questions: Array.isArray(templateData.questions) ? templateData.questions : [templateData.questions],
+      questions: Array.isArray(questions) ? questions : [],
       ...(templateData.items ? {
         items: templateData.items,
         version: templateData.version || 2,
