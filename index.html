@@ -4100,6 +4100,8 @@ async function submitInspection() {
       const req = selectedTemplate.riskRatingRequired || 'fail';
       const needed = req === 'always' || (req === 'fail' && result === 'FAIL');
       if (needed) {
+        btn.disabled = false;
+        btn.textContent = 'Check & Submit';
         document.getElementById('f-risk-block')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         return toast(result === 'FAIL' ? '⚠ Failed inspection — complete the Risk Rating before submitting' : '⚠ Risk Rating is required for this template');
       }
