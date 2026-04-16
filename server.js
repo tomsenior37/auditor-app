@@ -8,6 +8,7 @@ const PDFDocument = require('pdfkit');
 const bcrypt = require('bcryptjs');
 const session = require('express-session');
 const crypto = require('crypto');
+const archiver = require('archiver');
 
 const app = express();
 const PORT = 3105;
@@ -2730,6 +2731,37 @@ app.get('/api/report/:id', async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
+});
+
+// GET /api/reports/bulk — filtered bulk PDF download as ZIP
+app.get('/api/reports/bulk', async (req, res) => {
+  const { templateId, location, machine, status, result, dateFrom, dateTo } = req.query;
+  let inspections = readInspections().filter(i => !i.archived && i.kind !== 'html');
+  if (templateId) inspections = inspections.filter(i => i.templateId === templateId);
+  if (location) inspections = inspections.filter(i => i.location === location);
+  if (machine) inspections = inspections.filter(i => i.machine === machine);
+  if (result) inspections = inspections.filter(i => i.result === result);
+  if (status) inspections = inspections.filter(i => (i.status || '') === status);
+  if (dateFrom) inspections = inspections.filter(i => i.timestamp >= dateFrom);
+  if (dateTo) inspections = inspections.filter(i => i.timestamp <= dateTo + 'T23:59:59');
+  if (!inspections.length) return res.status(404).json({ error: 'No inspections match the filters' });
+
+  const tplData = readTemplates();
+  res.setHeader('Content-Type', 'application/zip');
+  res.setHeader('Content-Disposition', 'attachment; filename="inspection-reports.zip"');
+  const archive = archiver('zip', { zlib: { level: 5 } });
+  archive.pipe(res);
+  for (const insp of inspections) {
+    const tpl = tplData.templates.find(t => t.id === insp.templateId) || null;
+    try {
+      const buf = await buildPDFBuffer(insp, tpl);
+      const d = new Date(insp.timestamp);
+      const ds = `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getFullYear()).slice(2)}`;
+      const name = `${(insp.guardId || insp.machine || 'inspection')}-${ds}-${insp.result}.pdf`.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+      archive.append(buf, { name });
+    } catch {}
+  }
+  archive.finalize();
 });
 
 // POST /api/photo

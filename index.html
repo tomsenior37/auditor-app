@@ -1471,6 +1471,50 @@
       </div>
     </div>
 
+    <!-- EXPORT: Bulk PDF Reports -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;">
+      <div style="font-weight:700;font-size:15px;color:var(--accent);margin-bottom:10px;">📦 Bulk Download PDF Reports</div>
+      <div style="font-size:13px;color:var(--text-dim);margin-bottom:10px;">Filter inspections and download all matching reports as a ZIP file.</div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;">
+        <select id="bulk-template" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
+          <option value="">All Templates</option>
+        </select>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <select id="bulk-location" onchange="updateBulkMachines()" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
+            <option value="">All Locations</option>
+          </select>
+          <select id="bulk-machine" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
+            <option value="">All Equipment</option>
+          </select>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <select id="bulk-result" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
+            <option value="">All Results</option>
+            <option value="PASS">PASS</option>
+            <option value="FAIL">FAIL</option>
+          </select>
+          <select id="bulk-status" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
+            <option value="">All Statuses</option>
+            <option value="">Open</option>
+            <option value="WR_RAISED">WR Raised</option>
+            <option value="SERVICEABLE">Resolved</option>
+          </select>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div>
+            <div style="font-size:11px;color:var(--text-dim);margin-bottom:4px;">From</div>
+            <input type="date" id="bulk-from" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:9px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--text-dim);margin-bottom:4px;">To</div>
+            <input type="date" id="bulk-to" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:9px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
+          </div>
+        </div>
+      </div>
+      <button class="btn-primary" style="width:100%;" onclick="downloadBulkPdfs()">⬇ Download ZIP</button>
+      <div id="bulk-pdf-status" style="font-size:13px;color:var(--text-dim);margin-top:8px;"></div>
+    </div>
+
     <!-- EXPORT: Asset Database -->
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;">
       <div style="font-weight:700;font-size:15px;color:var(--accent);margin-bottom:10px;">🏭 Export Asset Database</div>
@@ -5293,6 +5337,60 @@ function showImportExport() {
   const sel = document.getElementById('export-insp-template');
   sel.innerHTML = '<option value="__all__">All Templates</option>' +
     templates.map(t => `<option value="${escHtml(t.id)}">${escHtml(t.name)}</option>`).join('');
+  // Populate bulk PDF filters
+  const bulkTpl = document.getElementById('bulk-template');
+  if (bulkTpl) bulkTpl.innerHTML = '<option value="">All Templates</option>' + templates.filter(t => !t.archived).map(t => `<option value="${escHtml(t.id)}">${escHtml(t.name)}</option>`).join('');
+  const bulkLoc = document.getElementById('bulk-location');
+  if (bulkLoc) bulkLoc.innerHTML = '<option value="">All Locations</option>' + (lists.locations || []).map(l => `<option value="${escHtml(l.name)}">${escHtml(l.name)}</option>`).join('');
+  updateBulkMachines();
+}
+
+function updateBulkMachines() {
+  const loc = document.getElementById('bulk-location')?.value;
+  const sel = document.getElementById('bulk-machine');
+  if (!sel) return;
+  if (!loc) {
+    const allMachines = [];
+    (lists.locations || []).forEach(l => l.machines.forEach(m => { if (!allMachines.includes(m.name)) allMachines.push(m.name); }));
+    sel.innerHTML = '<option value="">All Equipment</option>' + allMachines.sort().map(m => `<option value="${escHtml(m)}">${escHtml(m)}</option>`).join('');
+  } else {
+    const locObj = (lists.locations || []).find(l => l.name === loc);
+    sel.innerHTML = '<option value="">All Equipment</option>' + (locObj?.machines || []).map(m => `<option value="${escHtml(m.name)}">${escHtml(m.name)}</option>`).join('');
+  }
+}
+
+async function downloadBulkPdfs() {
+  const statusEl = document.getElementById('bulk-pdf-status');
+  const params = new URLSearchParams();
+  const tpl = document.getElementById('bulk-template')?.value; if (tpl) params.set('templateId', tpl);
+  const loc = document.getElementById('bulk-location')?.value; if (loc) params.set('location', loc);
+  const mac = document.getElementById('bulk-machine')?.value; if (mac) params.set('machine', mac);
+  const res = document.getElementById('bulk-result')?.value; if (res) params.set('result', res);
+  const st = document.getElementById('bulk-status')?.value; if (st) params.set('status', st);
+  const from = document.getElementById('bulk-from')?.value; if (from) params.set('dateFrom', from);
+  const to = document.getElementById('bulk-to')?.value; if (to) params.set('dateTo', to);
+  statusEl.style.color = 'var(--text-dim)';
+  statusEl.textContent = 'Generating PDFs and zipping…';
+  try {
+    const r = await fetch('/api/reports/bulk?' + params);
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({ error: 'Download failed' }));
+      statusEl.style.color = 'var(--fail)';
+      statusEl.textContent = err.error || 'No matching inspections';
+      return;
+    }
+    const blob = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'inspection-reports.zip';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    statusEl.style.color = 'var(--pass)';
+    statusEl.textContent = 'Download started';
+  } catch (e) {
+    statusEl.style.color = 'var(--fail)';
+    statusEl.textContent = 'Error: ' + e.message;
+  }
 }
 
 function exportTemplates() {
