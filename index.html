@@ -3569,6 +3569,12 @@ function buildChecklist() {
   updateAuditProgress();
 }
 
+function _getQuestionByNum(n) {
+  if (!selectedTemplate || selectedTemplate.version !== 2 || !selectedTemplate.items) return null;
+  const qs = selectedTemplate.items.filter(i => i.itemType === 'question' && i.type !== 'instruction');
+  return qs[n - 1] || null;
+}
+
 function setAnswer(n, val) {
   answers[`q${n}`] = val === 'yes' ? true : (val === 'no' ? false : 'na');
   const card = document.getElementById(`qcard-${n}`);
