@@ -2137,6 +2137,115 @@ app.post('/api/email/gmail/disconnect', (req, res) => {
   res.json({ success: true });
 });
 
+// ── SafetyCulture Import ──────────────────────────────────
+app.post('/api/sc/import-templates', async (req, res) => {
+  const token = (req.body.token || '').trim();
+  if (!token) return res.status(400).json({ error: 'API token required' });
+  try {
+    const r = await fetch('https://api.safetyculture.io/feed/templates?limit=100', {
+      headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' }
+    });
+    if (!r.ok) return res.status(r.status).json({ error: 'SC API error ' + r.status });
+    const feed = await r.json();
+    const scTemplates = (feed.data || []).filter(t => !t.archived);
+    const data = readTemplates();
+    let imported = 0;
+    for (const st of scTemplates) {
+      if (data.templates.find(t => t.scId === st.id)) continue;
+      let detail;
+      try {
+        const dr = await fetch('https://api.safetyculture.io/templates/v1/templates/' + st.id, {
+          headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' }
+        });
+        if (dr.ok) detail = (await dr.json()).template;
+      } catch {}
+      const items = []; const questions = [];
+      if (detail && detail.items) {
+        const walk = (nodes, sectionId) => {
+          for (const node of nodes) {
+            if (node.section) {
+              const secId = 'sec-' + items.length;
+              items.push({ id: secId, itemType: 'section', title: node.label || 'Section' });
+              walk(node.children || [], secId);
+            } else if (node.category) {
+              const secId = 'sec-' + items.length;
+              items.push({ id: secId, itemType: 'section', title: node.label || 'Category' });
+              walk(node.children || [], secId);
+            } else if (node.question) {
+              const qId = 'q-' + items.length;
+              items.push({ id: qId, itemType: 'question', sectionId, text: node.label || '', type: 'yesno', required: !!node.question?.options?.is_mandatory });
+              questions.push(node.label || '');
+            } else if (node.text || node.textsingle) {
+              const qId = 'q-' + items.length;
+              items.push({ id: qId, itemType: 'question', sectionId, text: node.label || '', type: 'text', required: false });
+              questions.push(node.label || '');
+            } else if (node.datetime) {
+              const qId = 'q-' + items.length;
+              items.push({ id: qId, itemType: 'question', sectionId, text: node.label || '', type: 'datetime', datetimeMode: 'datetime', required: false });
+              questions.push(node.label || '');
+            } else if (node.address) {
+              const qId = 'q-' + items.length;
+              items.push({ id: qId, itemType: 'question', sectionId, text: node.label || '', type: 'text', required: false });
+              questions.push(node.label || '');
+            } else if (node.media || node.signature) {
+              const qId = 'q-' + items.length;
+              const type = node.signature ? 'signature' : 'media';
+              items.push({ id: qId, itemType: 'question', sectionId, text: node.label || '', type, required: false });
+              questions.push(node.label || '');
+            }
+            if (node.children && !node.section && !node.category) walk(node.children, sectionId);
+          }
+        };
+        walk(detail.items, null);
+      }
+      if (!items.length && !questions.length) {
+        items.push({ id: 'sec-0', itemType: 'section', title: 'Imported' });
+        items.push({ id: 'q-0', itemType: 'question', sectionId: 'sec-0', text: st.name, type: 'yesno', required: true });
+        questions.push(st.name);
+      }
+      data.templates.push({
+        id: 'tpl_' + uuidv4().slice(0, 8),
+        scId: st.id,
+        name: st.name,
+        description: st.description || '',
+        standard: '', requiresComponent: false, componentType: '',
+        questions, items, version: 2,
+        scoringEnabled: false, riskRatingEnabled: false,
+        createdAt: new Date().toISOString()
+      });
+      imported++;
+    }
+    writeTemplates(data);
+    res.json({ success: true, imported, total: scTemplates.length });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sc/import-sites', async (req, res) => {
+  const token = (req.body.token || '').trim();
+  if (!token) return res.status(400).json({ error: 'API token required' });
+  try {
+    let url = 'https://api.safetyculture.io/feed/sites?limit=100&show_only_leaf_nodes=true';
+    const sites = [];
+    while (url) {
+      const r = await fetch(url, { headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' } });
+      if (!r.ok) return res.status(r.status).json({ error: 'SC API error ' + r.status });
+      const d = await r.json();
+      sites.push(...(d.data || []));
+      url = d.metadata?.next_page ? 'https://api.safetyculture.io' + d.metadata.next_page : null;
+    }
+    const lists = readLists();
+    let added = 0;
+    for (const site of sites.filter(s => !s.deleted)) {
+      if (!lists.locations.find(l => l.name === site.name)) {
+        lists.locations.push({ name: site.name, machines: [], scId: site.id });
+        added++;
+      }
+    }
+    writeLists(lists);
+    res.json({ success: true, added, total: sites.length });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── App Settings API ──────────────────────────────────────
 app.get('/api/settings', (req, res) => res.json(readAppSettings()));
 app.post('/api/settings', (req, res) => {

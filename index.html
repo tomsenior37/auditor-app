@@ -1806,6 +1806,21 @@ Building B,CNC Mill,,,,
       <span style="color:var(--text-dim);font-size:18px;">›</span>
     </div>
 
+    <!-- ─── SAFETYCULTURE IMPORT ─── -->
+    <div onclick="showSettingsSub('sc-import-panel','SafetyCulture Import')" style="display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;cursor:pointer;">
+      <div style="font-weight:700;font-size:15px;color:var(--accent);">🔄 SafetyCulture Import</div>
+      <span style="color:var(--text-dim);font-size:18px;">›</span>
+    </div>
+    <div id="sc-import-panel" style="display:none;flex-direction:column;gap:14px;">
+      <div style="font-size:13px;color:var(--text-dim);line-height:1.55;">Pull templates and site locations from your SafetyCulture account. Get an API token from SafetyCulture → Integrations → API.</div>
+      <input type="password" id="sc-api-token" placeholder="Paste your SafetyCulture API token" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:13px;font-size:14px;outline:none;font-family:inherit;width:100%;">
+      <div style="display:flex;gap:8px;">
+        <button onclick="scImportTemplates()" style="flex:1;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);padding:12px;font-size:13px;font-weight:700;cursor:pointer;">Import Templates</button>
+        <button onclick="scImportSites()" style="flex:1;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:var(--radius);padding:12px;font-size:13px;font-weight:600;cursor:pointer;">Import Sites</button>
+      </div>
+      <div id="sc-import-status" style="font-size:13px;color:var(--text-dim);min-height:18px;"></div>
+    </div>
+
     <!-- ─── ARCHIVE SECTION ─── -->
     <div onclick="showArchive()" style="display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;cursor:pointer;">
       <div style="font-weight:700;font-size:15px;color:var(--accent);">🗄️ Archive</div>
@@ -3128,6 +3143,36 @@ async function saveAppSetting(key, val) {
     toast('Setting saved');
     if (key === 'scoringEnabled') refreshDashboard();
   } catch { toast('Failed to save'); }
+}
+
+async function scImportTemplates() {
+  const token = document.getElementById('sc-api-token')?.value?.trim();
+  if (!token) return toast('Paste your SC API token first');
+  const el = document.getElementById('sc-import-status');
+  if (el) { el.textContent = 'Importing templates…'; el.style.color = 'var(--text-dim)'; }
+  try {
+    const r = await fetch('/api/sc/import-templates', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({token}) });
+    const d = await r.json();
+    if (d.success) {
+      if (el) { el.style.color = 'var(--pass)'; el.textContent = `✅ Imported ${d.imported} of ${d.total} templates`; }
+      toast(`${d.imported} templates imported`);
+    } else { if (el) { el.style.color = 'var(--fail)'; el.textContent = '❌ ' + (d.error||'Failed'); } }
+  } catch (e) { if (el) { el.style.color = 'var(--fail)'; el.textContent = '❌ ' + e.message; } }
+}
+
+async function scImportSites() {
+  const token = document.getElementById('sc-api-token')?.value?.trim();
+  if (!token) return toast('Paste your SC API token first');
+  const el = document.getElementById('sc-import-status');
+  if (el) { el.textContent = 'Importing sites…'; el.style.color = 'var(--text-dim)'; }
+  try {
+    const r = await fetch('/api/sc/import-sites', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({token}) });
+    const d = await r.json();
+    if (d.success) {
+      if (el) { el.style.color = 'var(--pass)'; el.textContent = `✅ Added ${d.added} new locations from ${d.total} sites`; }
+      toast(`${d.added} locations imported`);
+    } else { if (el) { el.style.color = 'var(--fail)'; el.textContent = '❌ ' + (d.error||'Failed'); } }
+  } catch (e) { if (el) { el.style.color = 'var(--fail)'; el.textContent = '❌ ' + e.message; } }
 }
 
 async function checkAuth() {
