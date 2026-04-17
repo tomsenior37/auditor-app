@@ -70,8 +70,11 @@
     }
 
     /* ── Screen containers ── */
-    .screen { display: none; flex-direction: column; min-height: calc(100vh - 57px); padding-bottom: 68px; }
+    .screen { display: none; flex-direction: column; min-height: calc(100vh - 57px); padding-bottom: 68px; overflow-y: auto; }
     .screen.active { display: flex; }
+    /* Full-screen mode: no header/nav padding */
+    #form-screen, #builder-screen, #htmlaudit-screen { padding-bottom: 16px; }
+    #form-screen.active, #builder-screen.active, #htmlaudit-screen.active { min-height: 100vh; }
 
     /* ── Bottom nav bar ── */
     .bottom-nav {
@@ -1193,6 +1196,10 @@
 
 <!-- ══════════════ FORM SCREEN ══════════════ -->
 <div class="screen" id="form-screen">
+  <div style="position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;gap:10px;">
+    <button onclick="goHome()" style="background:none;border:none;color:var(--accent);font-size:22px;cursor:pointer;padding:0;">←</button>
+    <span style="font-weight:700;font-size:16px;">New Inspection</span>
+  </div>
   <div class="form-body">
 
     <div class="field-group">
@@ -1780,7 +1787,8 @@ Building B,CNC Mill,,,,
 <!-- ══════════════ BUILDER SCREEN ══════════════ -->
 <div class="screen" id="builder-screen">
   <div class="bld-toolbar">
-    <div style="display:flex;gap:6px;">
+    <button onclick="goHome()" style="background:none;border:none;color:var(--accent);font-size:22px;cursor:pointer;padding:0 8px 0 0;">←</button>
+    <div style="display:flex;gap:6px;flex:1;">
       <button id="btab-build" class="btab active" onclick="builderSetTab('build')">Build</button>
       <button id="btab-preview" class="btab" onclick="builderSetTab('preview')">Preview</button>
     </div>
@@ -6120,9 +6128,13 @@ function switchScreen(id, title) {
   document.querySelectorAll('.bottom-nav button').forEach(b => {
     b.classList.toggle('active', b.dataset.nav === id);
   });
-  // Hide bottom nav on builder screen
+  // Hide bottom nav on full-screen working screens
+  const fullScreenIds = ['builder-screen', 'form-screen', 'htmlaudit-screen', 'rect-detail-screen', 'todo-detail-screen'];
   const nav = document.getElementById('bottom-nav');
-  if (nav) nav.style.display = (id === 'builder-screen') ? 'none' : 'flex';
+  if (nav) nav.style.display = fullScreenIds.includes(id) ? 'none' : 'flex';
+  // Also hide the header on these screens for max space
+  const header = document.querySelector('header');
+  if (header) header.style.display = fullScreenIds.includes(id) ? 'none' : '';
   window.scrollTo(0, 0);
 }
 
