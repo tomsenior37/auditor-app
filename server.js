@@ -51,7 +51,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage, limits: { fileSize: 20 * 1024 * 1024 } });
 
-app.use(express.json({ limit: '5mb' }));
+app.use(express.json({ limit: '20mb' }));
 
 // ── Auth: users & sessions ──────────────────────────────
 function readUsers() {
@@ -151,7 +151,7 @@ app.use(session({
 }));
 
 // Routes that bypass auth: login + static assets + root HTML
-const PUBLIC_PATHS = new Set(['/', '/api/auth/login', '/api/auth/me', '/api/auth/set-password', '/api/auth/logout']);
+const PUBLIC_PATHS = new Set(['/', '/design-system', '/api/auth/login', '/api/auth/me', '/api/auth/set-password', '/api/auth/logout']);
 function isPublicPath(url) {
   if (PUBLIC_PATHS.has(url)) return true;
   // allow static asset prefixes
@@ -697,7 +697,7 @@ function writeTemplates(data) {
 app.get('/api/templates', (req, res) => res.json(readTemplates()));
 
 app.post('/api/templates', requirePermission('edit_templates'), (req, res) => {
-  const { name, standard, description, requiresComponent, componentType, questions, items, version, scoringEnabled, riskRatingEnabled, reportConfig } = req.body;
+  const { name, standard, description, requiresComponent, componentType, questions, items, version, scoringEnabled, riskRatingEnabled, riskActionConfig, reportConfig } = req.body;
   if (!name || (!questions && !items)) return res.status(400).json({ error: 'name and questions required' });
   const data = readTemplates();
   const tpl = {
@@ -706,7 +706,7 @@ app.post('/api/templates', requirePermission('edit_templates'), (req, res) => {
     requiresComponent: !!requiresComponent,
     componentType: componentType || '',
     questions: questions || [],
-    ...(items ? { items, version: version || 2, scoringEnabled: !!scoringEnabled, riskRatingEnabled: !!riskRatingEnabled } : {}),
+    ...(items ? { items, version: version || 2, scoringEnabled: !!scoringEnabled, riskRatingEnabled: !!riskRatingEnabled, riskActionConfig: riskActionConfig || undefined } : {}),
     ...(reportConfig ? { reportConfig } : {}),
     createdAt: new Date().toISOString()
   };
@@ -1187,6 +1187,10 @@ app.delete('/api/answer-sets/:id', (req, res) => {
 // Serve frontend
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+app.get('/design-system', (req, res) => {
+  res.sendFile(path.join(__dirname, 'design-system.html'));
 });
 
 // POST /api/inspection
@@ -1942,7 +1946,7 @@ app.post('/api/rectifications', async (req, res) => {
     location: req.body.location || '',
     machine: req.body.machine || '',
     component: req.body.component || '',
-    status: 'open',
+    status: req.body.status || 'action',
     priority: req.body.priority || 'medium',
     assignedTo: req.body.assignedTo || null,
     createdBy: req.body.createdBy || '',
@@ -2076,6 +2080,7 @@ app.get('/api/rectifications/:id/public', (req, res) => {
 });
 
 app.patch('/api/rectifications/:id', (req, res) => {
+  invalidatePdfCache('car-' + req.params.id);
   const rects = readRects();
   const idx = rects.findIndex(i => i.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'Not found' });
@@ -2471,268 +2476,290 @@ app.post('/api/email/send-report', async (req, res) => {
   }
 });
 
+// Very High risk alert email
+app.post('/api/email/send-risk-alert', async (req, res) => {
+  const { inspectionId, rectId, email, riskRating, location, machine, component, inspector } = req.body;
+  if (!inspectionId || !email) return res.status(400).json({ error: 'inspectionId and email required' });
+
+  const cfg = readEmailConfig();
+  if (!emailConfigured(cfg)) return res.status(400).json({ error: 'Email not configured' });
+
+  const inspections = readInspections();
+  const insp = inspections.find(i => i.id === inspectionId);
+  if (!insp) return res.status(404).json({ error: 'Inspection not found' });
+
+  const templates = readTemplates();
+  const template = templates.templates.find(t => t.id === insp.templateId);
+
+  const baseUrl = (cfg.externalUrl || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+
+  let attachments = [];
+  try {
+    const pdfBuffer = await buildPDFBuffer(insp, template);
+    const d = new Date(insp.timestamp);
+    const dateStr = `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getFullYear()).slice(2)}`;
+    const label = insp.guardId || insp.machine;
+    attachments.push({ filename: `${label}-${dateStr}-RISK-ALERT.pdf`.replace(/[^a-zA-Z0-9.\-_]/g, '_'), content: pdfBuffer, contentType: 'application/pdf' });
+  } catch (e) { console.error('PDF gen failed for risk alert:', e.message); }
+
+  try {
+    await sendEmail({
+      cfg,
+      to: email,
+      subject: `URGENT: ${riskRating} Risk — ${machine} (${location}) — Immediate Work Order Required`,
+      html: `
+        <div style="background:#a13544;color:#fff;padding:20px 24px;border-radius:8px 8px 0 0;">
+          <h2 style="margin:0 0 4px 0;">⚠ ${riskRating} Risk Identified</h2>
+          <p style="margin:0;opacity:0.9;">Immediate action required — raise a Work Order</p>
+        </div>
+        <div style="padding:20px 24px;background:#fff;border:1px solid #ddd;border-top:none;border-radius:0 0 8px 8px;">
+          <table style="border-collapse:collapse;margin-bottom:16px;width:100%;">
+            <tr><td style="padding:6px 16px 6px 0;color:#666;white-space:nowrap;">Template</td><td style="padding:6px 0;"><strong>${insp.templateName || 'N/A'}</strong></td></tr>
+            <tr><td style="padding:6px 16px 6px 0;color:#666;white-space:nowrap;">Location</td><td style="padding:6px 0;"><strong>${location || 'N/A'}</strong></td></tr>
+            <tr><td style="padding:6px 16px 6px 0;color:#666;white-space:nowrap;">Equipment</td><td style="padding:6px 0;"><strong>${machine || 'N/A'}</strong></td></tr>
+            <tr><td style="padding:6px 16px 6px 0;color:#666;white-space:nowrap;">Component</td><td style="padding:6px 0;"><strong>${component || 'N/A'}</strong></td></tr>
+            <tr><td style="padding:6px 16px 6px 0;color:#666;white-space:nowrap;">Inspector</td><td style="padding:6px 0;"><strong>${inspector || 'N/A'}</strong></td></tr>
+            <tr><td style="padding:6px 16px 6px 0;color:#666;white-space:nowrap;">Date</td><td style="padding:6px 0;"><strong>${new Date(insp.timestamp).toLocaleDateString('en-AU')}</strong></td></tr>
+            <tr><td style="padding:6px 16px 6px 0;color:#666;white-space:nowrap;">Risk</td><td style="padding:6px 0;"><span style="background:#a13544;color:#fff;padding:3px 12px;border-radius:12px;font-weight:700;">${riskRating}</span></td></tr>
+          </table>
+          <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:6px;padding:14px;margin-bottom:16px;">
+            <p style="margin:0;color:#991b1b;font-weight:600;">This inspection has identified a ${riskRating} risk condition. An unplanned Work Order must be raised immediately to have the work completed.</p>
+          </div>
+          ${rectId ? `<p style="margin-bottom:16px;"><a href="${baseUrl}/issue-action.html?id=${rectId}" style="display:inline-block;background:#a13544;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:700;">View Action ${rectId}</a></p>` : ''}
+          <p><a href="${baseUrl}/wr?id=${inspectionId}" style="display:inline-block;background:#d97706;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:700;">Enter Work Request Number</a></p>
+          <p style="font-size:12px;color:#888;margin-top:24px;">The inspection PDF report is attached. This email was sent automatically from Auditor.</p>
+        </div>
+      `,
+      attachments
+    });
+    res.json({ sent: true });
+  } catch (err) {
+    console.error('Risk alert email failed:', err.message);
+    res.json({ sent: false, error: err.message });
+  }
+});
+
 // Build PDF as buffer (for email attachment)
 async function buildPDFBuffer(insp, template) {
   const rc = template?.reportConfig || {};
   const pageSize = rc.pageSize === 'LETTER' ? 'LETTER' : 'A4';
-  const thumbSizes = { small: { w: 80, h: 60 }, medium: { w: 140, h: 105 }, large: { w: 220, h: 165 } };
-  const thumbDim = thumbSizes[rc.thumbnailSize || 'medium'] || thumbSizes.medium;
-  const highRes = rc.photoResolution === 'high';
 
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ margin: 0, size: pageSize, bufferPages: true });
+    const doc = new PDFDocument({ margin: 50, size: pageSize });
     const chunks = [];
     doc.on('data', c => chunks.push(c));
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
 
-    const PAGE_W = doc.page.width;
-    const PAGE_H = doc.page.height;
-    const M = 40;
-    const ACCENT = '#01696f';
-    const ACCENT2 = '#0c4e54';
-    const GREEN = '#3aad5c';
-    const RED   = '#e05c3a';
-    const AMBER = '#ff9800';
-    const GREY  = '#666';
-    const BG    = '#f7f6f2';
-
+    const accent = '#165788';
+    const pass = '#3A7D44';
+    const danger = '#C4432B';
+    const amber = '#D4940C';
+    const gray = '#5A6872';
+    const bg = '#F4F6F7';
+    const W = doc.page.width - 100;
     const isFail = insp.result === 'FAIL';
 
-    // ── Logo on header ─────────────────────────────────────────
-    let logoLeftOffset = 0;
-    if (rc.logo) {
-      const logoPath = path.join(TEMPLATE_MEDIA_DIR, rc.logo);
-      if (fs.existsSync(logoPath)) {
-        try { doc.image(logoPath, M, 12, { fit: [48, 48] }); logoLeftOffset = 56; } catch {}
+    function checkPage(needed) {
+      if (doc.y > doc.page.height - 50 - needed) {
+        doc.addPage();
+        doc.x = 50;
+        doc.y = 50;
       }
     }
-    // ── Header bar ──────────────────────────────────────────────
-    doc.rect(0, 0, PAGE_W, 70).fill(ACCENT);
-    if (logoLeftOffset && rc.logo) {
-      const lp = path.join(TEMPLATE_MEDIA_DIR, rc.logo);
-      if (fs.existsSync(lp)) try { doc.image(lp, M, 12, { fit: [48, 48] }); } catch {}
-    }
-    doc.fillColor('#fff').font('Helvetica-Bold').fontSize(20)
-       .text(insp.templateName || 'Inspection Report', M + logoLeftOffset, 22, { width: PAGE_W - M*2 - 120 - logoLeftOffset });
-    doc.font('Helvetica').fontSize(10)
-       .text((insp.templateName ? 'Inspection Report' : 'Generated by Auditor'), M, 48);
-    // Result pill top-right
-    const pillW = 100, pillH = 30, pillX = PAGE_W - M - pillW, pillY = 20;
-    doc.roundedRect(pillX, pillY, pillW, pillH, 15).fill(isFail ? RED : GREEN);
-    doc.fillColor('#fff').font('Helvetica-Bold').fontSize(14)
-       .text(insp.result || 'PENDING', pillX, pillY + 8, { width: pillW, align: 'center' });
-    // Risk pill (next to result pill)
-    if (insp.risk && insp.risk.rating) {
-      const riskColor = { 'Low': '#437a22', 'Medium': '#d19900', 'High': '#da7101', 'Very High': '#a13544' }[insp.risk.rating] || '#666';
-      const rW = 100, rX = pillX - rW - 8;
-      doc.roundedRect(rX, pillY, rW, pillH, 15).fill(riskColor);
-      doc.fillColor('#fff').font('Helvetica-Bold').fontSize(11)
-         .text(insp.risk.rating, rX, pillY + 6, { width: rW, align: 'center' });
-      doc.font('Helvetica').fontSize(8)
-         .text(`${insp.risk.consequence}${insp.risk.probability}`, rX, pillY + 19, { width: rW, align: 'center' });
-    }
 
-    // ── Asset metadata card ────────────────────────────────────
-    let y = 90;
-    doc.roundedRect(M, y, PAGE_W - M*2, 96, 8).fill(BG).stroke('#d4d1ca');
-    const colW = (PAGE_W - M*2 - 30) / 3;
-    const meta = [
+    // ── Header banner ─────────────────────────────────
+    const bannerColor = isFail ? danger : pass;
+    doc.rect(0, 0, doc.page.width, 70).fill(bannerColor);
+    // Logo
+    if (rc.logo) {
+      const lp = path.join(TEMPLATE_MEDIA_DIR, rc.logo);
+      if (fs.existsSync(lp)) try { doc.image(lp, 50, 12, { fit: [44, 44] }); } catch {}
+    }
+    const logoOff = rc.logo ? 52 : 0;
+    doc.fontSize(18).fillColor('#fff').font('Helvetica-Bold')
+       .text(insp.templateName || 'Inspection Report', 50 + logoOff, 18, { width: W - logoOff });
+    doc.fontSize(9).fillColor('#fff').font('Helvetica')
+       .text(`${insp.result || 'PENDING'}  ·  Inspection Report  ·  ${insp.id ? insp.id.slice(0, 12) : ''}`, 50 + logoOff, 44);
+
+    doc.y = 86;
+    doc.x = 50;
+
+    // ── Details table ─────────────────────────────────
+    const details = [
       ['Location', insp.location || '—'],
       ['Equipment', insp.machine || '—'],
       ['Component', insp.guardId || '—'],
       ['Inspector', insp.inspector || '—'],
       ['Date', new Date(insp.timestamp).toLocaleString('en-AU', { dateStyle: 'medium', timeStyle: 'short' })],
-      ['Inspection ID', insp.id ? insp.id.slice(0, 8) : '—']
+      ['Inspection ID', insp.id || '—']
     ];
-    meta.forEach((m, i) => {
-      const col = i % 3, row = Math.floor(i / 3);
-      const x = M + 15 + col * colW;
-      const yy = y + 14 + row * 36;
-      doc.fillColor(GREY).font('Helvetica').fontSize(8).text(m[0].toUpperCase(), x, yy, { characterSpacing: 0.5 });
-      doc.fillColor('#28251d').font('Helvetica-Bold').fontSize(11).text(m[1], x, yy + 12, { width: colW - 10, ellipsis: true });
+    details.forEach(([k, v]) => {
+      doc.fontSize(8).fillColor(gray).font('Helvetica-Bold').text(`${k.toUpperCase()}: `, { continued: true });
+      doc.fontSize(9).fillColor('#000').font('Helvetica').text(v);
     });
-    y += 110;
 
-    // ── Score block (if scored) ────────────────────────────────
-    if (rc.includeScores !== false && insp.score && insp.score.max > 0) {
-      const sx = M, sw = PAGE_W - M*2;
-      doc.roundedRect(sx, y, sw, 36, 8).fill('#fff').stroke('#d4d1ca');
-      doc.fillColor(GREY).font('Helvetica').fontSize(9).text('SCORE', sx + 14, y + 8);
-      doc.fillColor(ACCENT).font('Helvetica-Bold').fontSize(16)
-         .text(`${insp.score.score} / ${insp.score.max}`, sx + 14, y + 18);
-      doc.fillColor(insp.score.pct >= 80 ? GREEN : insp.score.pct >= 50 ? AMBER : RED)
-         .text(`${insp.score.pct}%`, sx + sw - 80, y + 12, { width: 60, align: 'right', fontSize: 18 });
-      y += 50;
+    // ── Risk rating ──────────────────────────────────
+    if (insp.risk?.rating) {
+      doc.moveDown(0.3);
+      const rColors = { Low: amber, Medium: amber, High: danger, 'Very High': '#a13544' };
+      const rY = doc.y;
+      doc.rect(50, rY, W, 20).fill(rColors[insp.risk.rating] || gray);
+      doc.fontSize(10).fillColor('#fff').font('Helvetica-Bold')
+         .text(`Highest Risk: ${insp.risk.rating}`, 56, rY + 4, { width: W - 12 });
+      doc.x = 50; doc.y = rY + 24;
     }
 
-    // ── Body: iterate v2 items (sections + questions) or fall back to flat questions ──
-    const drawNewPageHeader = () => {
-      doc.rect(0, 0, PAGE_W, 36).fill(ACCENT2);
-      doc.fillColor('#fff').font('Helvetica-Bold').fontSize(11)
-         .text(insp.templateName || 'Inspection Report', M, 12);
-      doc.font('Helvetica').fontSize(9)
-         .text(`${insp.location || ''} · ${insp.machine || ''}${insp.guardId ? ' · ' + insp.guardId : ''}`, M, 26);
-      doc.fillColor('#000');
-      y = 56;
-    };
-    const ensureSpace = (needed) => {
-      if (y + needed > PAGE_H - 60) { doc.addPage(); drawNewPageHeader(); }
-    };
+    // ── Score ────────────────────────────────────────
+    if (rc.includeScores !== false && insp.score?.max > 0) {
+      doc.moveDown(0.2);
+      doc.fontSize(8).fillColor(gray).font('Helvetica-Bold').text('SCORE: ', { continued: true });
+      doc.fontSize(10).fillColor(accent).font('Helvetica-Bold')
+         .text(`${insp.score.score} / ${insp.score.max}  (${insp.score.pct}%)`);
+    }
 
-    const drawSection = (title) => {
-      ensureSpace(36);
-      doc.fillColor(ACCENT).font('Helvetica-Bold').fontSize(12).text(title, M, y);
-      doc.moveTo(M, y + 18).lineTo(PAGE_W - M, y + 18).lineWidth(1).stroke(ACCENT);
-      y += 28;
-    };
+    doc.moveDown(0.5);
 
-    const drawAnswerChip = (label, color, x, yy) => {
-      const w = doc.widthOfString(label, { font: 'Helvetica-Bold', size: 9 }) + 14;
-      doc.roundedRect(x, yy, w, 16, 8).fill(color);
-      doc.fillColor('#fff').font('Helvetica-Bold').fontSize(9).text(label, x + 7, yy + 4);
-      return w;
-    };
+    // ── Questions ────────────────────────────────────
+    const flaggedOnly = !!rc.includeFlaggedOnly;
 
-    const drawQuestion = (q, num, qIndex) => {
-      ensureSpace(60);
-      const startY = y;
-      // Question number circle
-      doc.circle(M + 10, y + 10, 9).fill('#1c1b19');
-      doc.fillColor('#fff').font('Helvetica-Bold').fontSize(9).text(String(num), M + 5, y + 6, { width: 14, align: 'center' });
-      // Question text
-      doc.fillColor('#28251d').font('Helvetica-Bold').fontSize(10);
-      doc.text(q.text || '(no question text)', M + 28, y, { width: PAGE_W - M*2 - 28 });
-      y = doc.y + 4;
+    function resetX() { doc.x = 50; }
 
-      // Answer rendering
+    function drawSection(title) {
+      checkPage(30);
+      doc.fontSize(12).fillColor(accent).font('Helvetica-Bold').text(title, { width: W });
+      doc.moveDown(0.2);
+      doc.moveTo(50, doc.y).lineTo(50 + W, doc.y).strokeColor('#D8DDE1').lineWidth(0.5).stroke();
+      doc.moveDown(0.4);
+    }
+
+    function drawChip(lbl, color) {
+      const chipY = doc.y;
+      const cw = Math.max(doc.widthOfString(lbl, { font: 'Helvetica-Bold', size: 8 }) + 12, 30);
+      doc.roundedRect(50, chipY, cw, 15, 7).fill(color);
+      doc.fontSize(8).fillColor('#fff').font('Helvetica-Bold').text(lbl, 50 + 6, chipY + 3, { width: cw - 12 });
+      doc.x = 50; doc.y = chipY + 18;
+    }
+
+    function drawQuestion(q, num) {
+      checkPage(50);
+      doc.fontSize(10).fillColor('#000').font('Helvetica-Bold')
+         .text(`${num}. ${q.text || '(no question text)'}`, { width: W });
+      doc.moveDown(0.15);
+
       const key = q.id || ('q' + num);
       const ans = insp.answers ? (insp.answers[key] !== undefined ? insp.answers[key] : insp.answers['q' + num]) : undefined;
+
       if (q.type === 'yesno' || !q.type) {
-        let label = '—', color = '#999';
-        if (ans === true) { label = 'YES'; color = GREEN; }
-        else if (ans === false) { label = 'NO'; color = RED; }
-        else if (ans === 'na' || ans === null) { label = 'N/A'; color = '#888'; }
-        drawAnswerChip(label, color, M + 28, y);
-        y += 22;
+        if (ans === true) drawChip('YES', pass);
+        else if (ans === false) drawChip('NO', danger);
+        else drawChip('N/A', '#888');
+      } else if (q.type === 'risk') {
+        if (ans?.status === 'compliant') drawChip('COMPLIANT', pass);
+        else if (ans?.status === 'na') drawChip('N/A', '#888');
+        else if (ans?.rating) {
+          const rColors = { Low: amber, Medium: amber, High: danger, 'Very High': '#a13544' };
+          drawChip(ans.rating, rColors[ans.rating] || '#888');
+          const cObj = [{id:1,t:'Insignificant'},{id:2,t:'Minor'},{id:3,t:'Moderate'},{id:4,t:'Major'},{id:5,t:'Catastrophic'}].find(c=>c.id===ans.consequenceId);
+          const pObj = [{id:'E',t:'Rare'},{id:'D',t:'Unlikely'},{id:'C',t:'Possible'},{id:'B',t:'Likely'},{id:'A',t:'Almost certain'}].find(p=>p.id===ans.probabilityId);
+          if (cObj || pObj) {
+            doc.fontSize(8).fillColor(gray).font('Helvetica').text(`${cObj?cObj.t:''} × ${pObj?pObj.t:''}`, { width: W });
+            doc.moveDown(0.1);
+          }
+        } else drawChip('—', '#888');
       } else if (q.type === 'multichoice') {
         const vals = Array.isArray(ans) ? ans : (ans !== undefined ? [ans] : []);
         (q.options || []).forEach(opt => {
-          const id = opt.id || opt.label;
-          const selected = vals.includes(id);
-          const failed = selected && opt.flagFail;
-          ensureSpace(16);
-          doc.rect(M + 28, y + 2, 9, 9).lineWidth(0.6).stroke(selected ? (failed ? RED : GREEN) : '#bbb');
-          if (selected) doc.rect(M + 30, y + 4, 5, 5).fill(failed ? RED : GREEN);
-          doc.fillColor(selected ? (failed ? RED : '#28251d') : GREY)
-             .font(selected ? 'Helvetica-Bold' : 'Helvetica').fontSize(10)
-             .text(opt.label + (opt.flagFail ? '  (fail)' : ''), M + 44, y, { width: PAGE_W - M*2 - 44 });
-          y = Math.max(y + 14, doc.y + 2);
+          const sel = vals.includes(opt.id || opt.label);
+          const fail = sel && opt.flagFail;
+          doc.fontSize(9).fillColor(sel ? (fail ? danger : '#000') : gray)
+             .font(sel ? 'Helvetica-Bold' : 'Helvetica')
+             .text(`${sel ? '■' : '□'} ${opt.label}`, { width: W });
         });
+        doc.moveDown(0.1);
       } else if (q.type === 'text') {
-        const txt = (ans !== undefined && ans !== null && ans !== '') ? String(ans) : '—';
-        doc.fillColor('#28251d').font('Helvetica').fontSize(10).text(txt, M + 28, y, { width: PAGE_W - M*2 - 28 });
-        y = doc.y + 4;
+        doc.fontSize(9).fillColor('#000').font('Helvetica').text(String(ans ?? '—'), { width: W });
+        doc.moveDown(0.1);
       } else if (q.type === 'number' || q.type === 'slider') {
-        doc.fillColor('#28251d').font('Helvetica-Bold').fontSize(11)
-           .text((ans !== undefined && ans !== null) ? String(ans) + (q.unit ? ' ' + q.unit : '') : '—', M + 28, y);
-        y = doc.y + 4;
+        doc.fontSize(10).fillColor('#000').font('Helvetica-Bold')
+           .text((ans !== undefined && ans !== null) ? String(ans) + (q.unit ? ' ' + q.unit : '') : '—', { width: W });
+        doc.moveDown(0.1);
       } else {
-        doc.fillColor(GREY).font('Helvetica').fontSize(10).text(String(ans ?? '—'), M + 28, y);
-        y = doc.y + 4;
+        doc.fontSize(9).fillColor(gray).font('Helvetica').text(String(ans ?? '—'), { width: W });
+        doc.moveDown(0.1);
       }
 
-      // Findings (comment + photo) — sit directly under the question
-      const finding = insp.findings && insp.findings[key];
-      const altKey = 'q' + num;
-      const altFinding = insp.findings && insp.findings[altKey];
-      const f = finding || altFinding;
+      // Finding
+      const f = (insp.findings && insp.findings[key]) || (insp.findings && insp.findings['q' + num]);
       if (f && (f.comment || f.photo)) {
+        const commentH = f.comment ? 30 + doc.heightOfString(f.comment, { width: W, fontSize: 9 }) : 0;
+        const photoH = f.photo ? 120 : 0;
+        checkPage(commentH + photoH + 10);
         if (f.comment) {
-          ensureSpace(20);
-          doc.fillColor(GREY).font('Helvetica-Oblique').fontSize(9)
-             .text('Finding: ' + f.comment, M + 28, y, { width: PAGE_W - M*2 - 28 });
-          y = doc.y + 4;
+          doc.fontSize(8).fillColor(danger).font('Helvetica-Bold').text('FINDING:');
+          doc.fontSize(9).fillColor(gray).font('Helvetica').text(f.comment, { width: W });
+          doc.moveDown(0.15);
         }
         if (f.photo) {
-          const photoPath = path.join(PHOTOS_DIR, f.photo);
-          if (fs.existsSync(photoPath)) {
-            ensureSpace(126);
-            try {
-              doc.image(photoPath, M + 28, y, { fit: [thumbDim.w, thumbDim.h] });
-              y += 124;
-            } catch {}
-          }
+          try {
+            const pp = path.join(PHOTOS_DIR, f.photo);
+            if (fs.existsSync(pp)) { doc.image(pp, { width: 150 }); doc.moveDown(0.3); }
+          } catch {}
         }
       }
 
-      doc.fillColor('#000');
-      // Light separator
-      doc.moveTo(M, y + 4).lineTo(PAGE_W - M, y + 4).lineWidth(0.3).strokeOpacity(0.3).stroke('#d4d1ca').strokeOpacity(1);
-      y += 12;
-    };
+      doc.moveDown(0.15);
+      doc.moveTo(50, doc.y).lineTo(50 + W, doc.y).strokeColor('#E8ECEF').lineWidth(0.3).stroke();
+      doc.moveDown(0.3);
+    }
 
-    const flaggedOnly = !!rc.includeFlaggedOnly;
     if (rc.includeResults !== false) {
-    if (template && template.version === 2 && Array.isArray(template.items)) {
-      let qNum = 0;
-      template.items.forEach(it => {
-        if (it.itemType === 'section') { if (!flaggedOnly) drawSection(it.title || 'Section'); }
-        else if (it.itemType === 'question' && it.type !== 'instruction') {
-          qNum++;
-          if (flaggedOnly) {
-            const val = (insp.answers || {})[`q${qNum}`];
-            if (val !== false) return;
+      if (template?.version === 2 && Array.isArray(template.items)) {
+        let qNum = 0;
+        template.items.forEach(it => {
+          if (it.itemType === 'section') { if (!flaggedOnly) drawSection(it.title || 'Section'); }
+          else if (it.itemType === 'question' && it.type !== 'instruction') {
+            qNum++;
+            if (flaggedOnly) {
+              const val = (insp.answers || {})[`q${qNum}`];
+              if (val !== false && !(val && typeof val === 'object' && val.rating)) return;
+            }
+            drawQuestion(it, qNum);
           }
-          drawQuestion(it, qNum);
-        }
-      });
-    } else if (template && Array.isArray(template.questions)) {
-      if (!flaggedOnly) drawSection('Inspection Checklist');
-      template.questions.forEach((q, i) => {
-        if (flaggedOnly && (insp.answers || {})[`q${i+1}`] !== false) return;
-        drawQuestion(q, i + 1);
-      });
-    } else {
-      doc.fillColor(GREY).fontSize(10).text('No template attached.', M, y);
+        });
+      } else if (template?.questions) {
+        if (!flaggedOnly) drawSection('Inspection Checklist');
+        template.questions.forEach((q, i) => {
+          if (flaggedOnly && (insp.answers || {})[`q${i+1}`] !== false) return;
+          drawQuestion(q, i + 1);
+        });
+      }
     }
-    } // end includeResults
 
-    // ── Notes ─────────────────────────────────────
+    // ── Notes ─────────────────────────────────────────
     if (insp.notes) {
-      ensureSpace(60);
-      drawSection('Inspector notes');
-      doc.fillColor('#28251d').font('Helvetica').fontSize(10)
-         .text(insp.notes, M, y, { width: PAGE_W - M*2 });
-      y = doc.y + 8;
+      checkPage(40);
+      doc.fontSize(11).fillColor(accent).font('Helvetica-Bold').text('Notes');
+      doc.moveDown(0.2);
+      doc.fontSize(9).fillColor('#000').font('Helvetica').text(insp.notes, { width: W });
+      doc.moveDown(0.5);
     }
 
-    // ── Signature ─────────────────────────────────
+    // ── Signature ────────────────────────────��────────
     if (insp.signature && /^data:image\//.test(insp.signature)) {
-      ensureSpace(140);
-      drawSection('Inspector sign-off');
+      checkPage(110);
+      doc.fontSize(11).fillColor(accent).font('Helvetica-Bold').text('Inspector Sign-Off');
+      doc.moveDown(0.3);
       try {
-        const b64 = insp.signature.split(',')[1];
-        const buf = Buffer.from(b64, 'base64');
-        doc.image(buf, M, y, { fit: [thumbDim.w, thumbDim.h] });
+        const sigY = doc.y;
+        const buf = Buffer.from(insp.signature.replace(/^data:image\/\w+;base64,/, ''), 'base64');
+        doc.image(buf, 50, sigY, { fit: [140, 105] });
+        doc.fontSize(10).fillColor('#000').font('Helvetica').text(insp.inspector || '', 200, sigY + 48);
+        doc.fontSize(9).fillColor(gray).text(
+          new Date(insp.timestamp).toLocaleString('en-AU', { dateStyle: 'medium', timeStyle: 'short' }),
+          200, sigY + 64);
+        doc.y = sigY + 110;
       } catch {}
-      doc.fillColor(GREY).font('Helvetica').fontSize(10)
-         .text(insp.inspector || '', M + 132, y + 48);
-      doc.fontSize(9)
-         .text(new Date(insp.timestamp).toLocaleString('en-AU', { dateStyle: 'medium', timeStyle: 'short' }), M + 132, y + 64);
-      y += 130;
-    }
-
-    // ── Footer & page numbers ─────────────────────
-    const range = doc.bufferedPageRange();
-    for (let i = range.start; i < range.start + range.count; i++) {
-      doc.switchToPage(i);
-      const footY = PAGE_H - 30;
-      doc.fillColor(GREY).font('Helvetica').fontSize(8)
-         .text(`${insp.templateName || 'Inspection Report'} · ${insp.location || ''} · ${insp.machine || ''}`,
-               M, footY, { width: PAGE_W - M*2 - 60, ellipsis: true });
-      doc.text(`Page ${i - range.start + 1} of ${range.count}`,
-               PAGE_W - M - 60, footY, { width: 60, align: 'right' });
     }
 
     doc.end();
@@ -2757,7 +2784,17 @@ function answerLabel(val) {
   if (val === true)   return 'YES';
   if (val === false)  return 'NO';
   if (val === 'na')   return 'N/A';
+  if (val && typeof val === 'object') {
+    if (val.status === 'compliant') return 'COMP';
+    if (val.status === 'na') return 'N/A';
+    if (val.rating) return val.rating;
+  }
   return '—';
+}
+function isFailAnswer(val) {
+  if (val === false) return true;
+  if (val && typeof val === 'object' && val.rating) return true;
+  return false;
 }
 
 function formatDate(iso) {
@@ -2844,7 +2881,7 @@ function buildSinglePDF(doc, rec, pageNum) {
     const key = `q${i + 1}`;
     const val = rec.answers ? rec.answers[key] : undefined;
     const label = answerLabel(val);
-    const isNo = val === false;
+    const isFail = isFailAnswer(val);
     const finding = rec.findings && rec.findings[key];
 
     // Ensure enough space
@@ -2854,24 +2891,26 @@ function buildSinglePDF(doc, rec, pageNum) {
       y = doc.page.margins.top;
     }
 
-    // Row background for NO answers
-    if (isNo) {
+    // Row background for failed answers
+    if (isFail) {
       doc.rect(margin - 4, y - 2, pageW + 8, 20).fill('rgba(224,92,58,0.08)');
     }
 
     // Answer chip
-    const chipColor = label === 'YES' ? '#3aad5c' : label === 'NO' ? '#e05c3a' : '#6b7280';
-    doc.rect(margin, y, 32, 16).fill(chipColor);
-    doc.fontSize(9).fillColor('#ffffff').font('Helvetica-Bold')
-      .text(label, margin, y + 3, { width: 32, align: 'center' });
+    const riskColors = { Low: '#D4940C', Medium: '#D4940C', High: '#e05c3a', 'Very High': '#a13544' };
+    const chipColor = label === 'YES' || label === 'COMP' ? '#3aad5c' : label === 'NO' ? '#e05c3a' : riskColors[label] || '#6b7280';
+    const chipW = label.length > 4 ? 52 : 32;
+    doc.rect(margin, y, chipW, 16).fill(chipColor);
+    doc.fontSize(8).fillColor('#ffffff').font('Helvetica-Bold')
+      .text(label, margin, y + 3, { width: chipW, align: 'center' });
 
     // Question text
-    doc.fontSize(10).fillColor(isNo ? '#c0392b' : '#222222').font('Helvetica')
-      .text(`${i + 1}. ${q}`, margin + 40, y, { width: pageW - 40 });
+    doc.fontSize(10).fillColor(isFail ? '#c0392b' : '#222222').font('Helvetica')
+      .text(`${i + 1}. ${q}`, margin + chipW + 8, y, { width: pageW - chipW - 8 });
     y = doc.y + 4;
 
     // Finding comment
-    if (isNo && finding && finding.comment) {
+    if (isFail && finding && finding.comment) {
       if (y > doc.page.height - doc.page.margins.bottom - 60) {
         addFooter(doc, pageNum++);
         doc.addPage();
@@ -2883,7 +2922,7 @@ function buildSinglePDF(doc, rec, pageNum) {
     }
 
     // Finding photo
-    if (isNo && finding && finding.photo) {
+    if (isFail && finding && finding.photo) {
       const photoPath = path.join(PHOTOS_DIR, finding.photo);
       if (fs.existsSync(photoPath)) {
         if (y > doc.page.height - doc.page.margins.bottom - 180) {
@@ -2944,6 +2983,166 @@ function buildSinglePDF(doc, rec, pageNum) {
   addFooter(doc, pageNum);
   return pageNum;
 }
+
+// GET /api/car/:id — Corrective Action Report PDF
+app.get('/api/car/:id', (req, res) => {
+  const rects = readRects();
+  const rect = rects.find(r => r.id === req.params.id);
+  if (!rect) return res.status(404).json({ error: 'Action not found' });
+
+  const inspections = readInspections();
+  const insp = rect.inspectionId ? inspections.find(i => i.id === rect.inspectionId) : null;
+
+  const filename = `CAR-${rect.id}.pdf`.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+  const cacheKey = 'car-' + rect.id + '-' + (rect.status || '') + '-' + (rect.lineItems?.length || 0);
+  const cached = getCachedPdf(cacheKey);
+  if (cached) {
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    res.setHeader('Cache-Control', 'private, max-age=300');
+    return res.send(cached);
+  }
+
+  const doc = new PDFDocument({ margin: 50, size: 'A4' });
+  const chunks = [];
+  doc.on('data', c => chunks.push(c));
+  doc.on('end', () => {
+    const buf = Buffer.concat(chunks);
+    setCachedPdf(cacheKey, buf);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    res.setHeader('Cache-Control', 'private, max-age=300');
+    res.send(buf);
+  });
+
+  const accent = '#165788';
+  const danger = '#C4432B';
+  const pass = '#3A7D44';
+  const gray = '#5A6872';
+  const bg = '#F4F6F7';
+  const W = doc.page.width - 100;
+
+  function checkPage(needed) { if (doc.y > doc.page.height - 50 - needed) doc.addPage(); }
+  function label(text) { doc.fontSize(8).fillColor(gray).font('Helvetica-Bold').text(text); }
+
+  // Header
+  doc.rect(0, 0, doc.page.width, 70).fill(accent);
+  doc.fontSize(20).fillColor('#fff').font('Helvetica-Bold').text('Corrective Action Report', 50, 22);
+  doc.fontSize(9).fillColor('#fff').font('Helvetica').text(`${rect.id}  ·  Generated ${new Date().toLocaleDateString('en-AU')}`, 50, 46);
+
+  doc.moveDown(2);
+
+  // Details
+  const statusLabels = { open: 'Action', action: 'Action', raise_wr: 'Raise WR', create_wo: 'Create WO', planned: 'Planned', complete: 'Complete', resolved: 'Complete', closed: 'Complete' };
+  const rows = [
+    ['Title', rect.title || 'Untitled'],
+    ['Status', statusLabels[rect.status] || rect.status || 'Action'],
+    ['Priority', (rect.priority || 'medium').toUpperCase()],
+    ['Location', [rect.location, rect.machine, rect.component].filter(Boolean).join(' > ') || 'N/A'],
+    ['Template', rect.templateName || 'N/A'],
+    ['Created', new Date(rect.createdAt).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' }) + '  by ' + (rect.createdBy || 'System')],
+    ['Due Date', rect.dueDate || 'Not set'],
+    ['Assigned To', rect.assignedTo ? rect.assignedTo.name : 'Unassigned'],
+    ['Work Request', rect.workRequestNumber || '—'],
+    ['Work Order', rect.workOrderNumber || '—']
+  ];
+  rows.forEach(([k, v]) => {
+    checkPage(18);
+    const yy = doc.y;
+    doc.rect(50, yy, 120, 17).fill(bg);
+    doc.fontSize(8).fillColor(gray).font('Helvetica-Bold').text(k.toUpperCase(), 54, yy + 4, { width: 115 });
+    doc.fontSize(9).fillColor('#000').font('Helvetica').text(v, 176, yy + 3, { width: W - 126 });
+    doc.y = yy + 19;
+  });
+
+  // Risk
+  if (insp?.risk?.rating) {
+    doc.moveDown(0.5);
+    checkPage(24);
+    const riskColors = { Low: pass, Medium: '#D4940C', High: '#DA7101', 'Very High': danger };
+    doc.rect(50, doc.y, W, 22).fill(riskColors[insp.risk.rating] || gray);
+    doc.fontSize(10).fillColor('#fff').font('Helvetica-Bold').text(`Overall Risk: ${insp.risk.rating}`, 58, doc.y + 5, { width: W - 16 });
+    doc.y += 28;
+  }
+
+  // Findings & Corrective Actions
+  if (rect.lineItems && rect.lineItems.length) {
+    doc.moveDown(0.8);
+    doc.fontSize(12).fillColor(accent).font('Helvetica-Bold').text('Findings & Corrective Actions');
+    doc.moveDown(0.3);
+    doc.moveTo(50, doc.y).lineTo(50 + W, doc.y).strokeColor('#D8DDE1').lineWidth(0.5).stroke();
+    doc.moveDown(0.4);
+
+    rect.lineItems.forEach((li) => {
+      checkPage(60);
+      doc.fontSize(10).fillColor('#000').font('Helvetica-Bold').text(`Q${li.questionNum}. ${li.questionText || 'Question'}`, { width: W });
+      doc.moveDown(0.2);
+      if (li.finding) {
+        doc.fontSize(8).fillColor(danger).font('Helvetica-Bold').text('FINDING:');
+        doc.fontSize(9).fillColor(gray).font('Helvetica').text(li.finding, { width: W });
+        doc.moveDown(0.2);
+      }
+      doc.fontSize(8).fillColor(accent).font('Helvetica-Bold').text('CORRECTIVE ACTION:');
+      const ca = li.correctiveAction || 'Not yet documented';
+      doc.fontSize(9).fillColor(li.correctiveAction ? '#000' : gray).font(li.correctiveAction ? 'Helvetica' : 'Helvetica-Oblique').text(ca, { width: W });
+
+      if (li.photo) {
+        try {
+          const p = path.join(PHOTOS_DIR, li.photo);
+          if (fs.existsSync(p)) { doc.moveDown(0.3); checkPage(100); doc.image(p, { width: 150 }); }
+        } catch {}
+      }
+      doc.moveDown(0.4);
+      doc.moveTo(50, doc.y).lineTo(50 + W, doc.y).strokeColor('#E8ECEF').lineWidth(0.3).stroke();
+      doc.moveDown(0.4);
+    });
+  }
+
+  // Completion Sign-Off
+  if (rect.status === 'complete' || rect.status === 'resolved' || rect.status === 'closed') {
+    checkPage(80);
+    doc.fontSize(12).fillColor(pass).font('Helvetica-Bold').text('Completion Sign-Off');
+    doc.moveDown(0.2);
+    doc.moveTo(50, doc.y).lineTo(50 + W, doc.y).strokeColor(pass).lineWidth(0.5).stroke();
+    doc.moveDown(0.4);
+
+    [['Completed', rect.completionDate || 'N/A'], ['Work Request', rect.workRequestNumber || '—'], ['Work Order', rect.workOrderNumber || '—']].forEach(([k, v]) => {
+      const yy = doc.y;
+      doc.rect(50, yy, 120, 17).fill(bg);
+      doc.fontSize(8).fillColor(gray).font('Helvetica-Bold').text(k.toUpperCase(), 54, yy + 4, { width: 115 });
+      doc.fontSize(9).fillColor('#000').font('Helvetica').text(v, 176, yy + 3, { width: W - 126 });
+      doc.y = yy + 19;
+    });
+
+    if (rect.completionPhoto) {
+      doc.moveDown(0.3);
+      checkPage(130);
+      doc.fontSize(8).fillColor(gray).font('Helvetica-Bold').text('COMPLETION PHOTO:');
+      doc.moveDown(0.2);
+      try {
+        const p = path.join(PHOTOS_DIR, rect.completionPhoto);
+        if (fs.existsSync(p)) doc.image(p, { width: 180 });
+      } catch {}
+      doc.moveDown(0.3);
+    }
+
+    if (rect.completionSignature) {
+      doc.moveDown(0.3);
+      checkPage(90);
+      doc.fontSize(8).fillColor(gray).font('Helvetica-Bold').text('SIGNED OFF BY:');
+      doc.moveDown(0.2);
+      try {
+        const buf = Buffer.from(rect.completionSignature.replace(/^data:image\/\w+;base64,/, ''), 'base64');
+        doc.image(buf, { width: 160, height: 60 });
+      } catch {}
+      doc.moveDown(0.2);
+      doc.fontSize(10).fillColor('#000').font('Helvetica').text(rect.createdBy || 'Inspector', { continued: true });
+      doc.fontSize(9).fillColor(gray).text('  ·  ' + (rect.completionDate || new Date().toISOString().split('T')[0]));
+    }
+  }
+
+  doc.end();
+});
 
 // GET /api/report/all — summary PDF
 app.get('/api/report/all', (req, res) => {
@@ -3076,6 +3275,26 @@ app.get('/api/report/all', (req, res) => {
 });
 
 // GET /api/report/:id — single inspection PDF
+// PDF cache directory
+const PDF_CACHE_DIR = path.join(__dirname, '.pdf-cache');
+if (!fs.existsSync(PDF_CACHE_DIR)) fs.mkdirSync(PDF_CACHE_DIR, { recursive: true });
+
+function getCachedPdf(key) {
+  const p = path.join(PDF_CACHE_DIR, key + '.pdf');
+  if (fs.existsSync(p)) return fs.readFileSync(p);
+  return null;
+}
+function setCachedPdf(key, buf) {
+  try { fs.writeFileSync(path.join(PDF_CACHE_DIR, key + '.pdf'), buf); } catch {}
+}
+function invalidatePdfCache(idPrefix) {
+  try {
+    fs.readdirSync(PDF_CACHE_DIR).filter(f => f.startsWith(idPrefix)).forEach(f => {
+      try { fs.unlinkSync(path.join(PDF_CACHE_DIR, f)); } catch {}
+    });
+  } catch {}
+}
+
 app.get('/api/report/:id', async (req, res) => {
   const { id } = req.params;
   const inspections = readInspections();
@@ -3084,7 +3303,12 @@ app.get('/api/report/:id', async (req, res) => {
   const tplData = readTemplates();
   const tpl = tplData.templates.find(t => t.id === rec.templateId) || null;
   try {
-    const buf = await buildPDFBuffer(rec, tpl);
+    const cacheKey = 'insp-' + id;
+    let buf = getCachedPdf(cacheKey);
+    if (!buf) {
+      buf = await buildPDFBuffer(rec, tpl);
+      setCachedPdf(cacheKey, buf);
+    }
     const d = new Date(rec.timestamp);
     const dateStr = `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getFullYear()).slice(2)}`;
     const namingPattern = (tpl?.reportConfig?.fileNaming || '{templateName}-{equipment}-{date}-{result}');
@@ -3099,6 +3323,7 @@ app.get('/api/report/:id', async (req, res) => {
       .replace(/[^a-zA-Z0-9.\-_]/g, '_') + '.pdf');
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${safeName}"`);
+    res.setHeader('Cache-Control', 'private, max-age=3600');
     res.send(buf);
   } catch (e) {
     res.status(500).json({ error: e.message });

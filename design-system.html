@@ -1,0 +1,2058 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Auditor — Design System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400;1,9..40,500&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ═══════════════════════════════════════════════
+       AUDITOR DESIGN SYSTEM — Tokens & Primitives
+       Palette: Alcoa — Blue #165788 / Gold #FBBA00
+       Aluminum Gray #818A8F
+       ═══════════════════════════════════════════════ */
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Light Theme (default) ── */
+    :root,
+    [data-theme="light"] {
+      --bg-app: #F4F6F7;
+      --bg-sidebar: #FFFFFF;
+      --bg-surface: #FFFFFF;
+      --bg-surface-hover: #F8F9FA;
+      --bg-surface-active: #EEF1F3;
+      --bg-surface-raised: #FFFFFF;
+      --bg-input: #FFFFFF;
+      --bg-overlay: rgba(14, 36, 56, 0.45);
+      --bg-skeleton: #E2E6E9;
+      --bg-skeleton-shine: #EEF1F3;
+
+      --border-default: #D8DDE1;
+      --border-strong: #C4CCD2;
+      --border-focus: var(--accent);
+      --border-subtle: #E8ECEF;
+
+      --text-primary: #0E2438;
+      --text-secondary: #5A6872;
+      --text-tertiary: #818A8F;
+      --text-inverse: #FFFFFF;
+      --text-on-accent: #FFFFFF;
+
+      --accent: #165788;
+      --accent-hover: #124A74;
+      --accent-active: #0E3D61;
+      --accent-subtle: rgba(22, 87, 136, 0.07);
+      --accent-muted: rgba(22, 87, 136, 0.14);
+
+      --accent-gold: #FBBA00;
+      --accent-gold-hover: #E5AA00;
+      --accent-gold-subtle: rgba(251, 186, 0, 0.10);
+
+      --success: #3A7D44;
+      --success-subtle: rgba(58, 125, 68, 0.08);
+      --success-border: rgba(58, 125, 68, 0.25);
+      --warning: #D4940C;
+      --warning-subtle: rgba(212, 148, 12, 0.08);
+      --warning-border: rgba(212, 148, 12, 0.25);
+      --danger: #C4432B;
+      --danger-subtle: rgba(196, 67, 43, 0.08);
+      --danger-border: rgba(196, 67, 43, 0.25);
+      --info: #0078BF;
+      --info-subtle: rgba(0, 120, 191, 0.08);
+
+      --shadow-sm: 0 1px 2px rgba(14,36,56,0.06);
+      --shadow-md: 0 2px 8px rgba(14,36,56,0.08), 0 1px 2px rgba(14,36,56,0.04);
+      --shadow-lg: 0 8px 24px rgba(14,36,56,0.10), 0 2px 8px rgba(14,36,56,0.05);
+      --shadow-dropdown: 0 4px 16px rgba(14,36,56,0.12), 0 1px 4px rgba(14,36,56,0.05);
+
+      --radius-xs: 4px;
+      --radius-sm: 6px;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      --radius-xl: 16px;
+      --radius-full: 9999px;
+
+      color-scheme: light;
+    }
+
+    /* ── Dark Theme ── */
+    [data-theme="dark"] {
+      --bg-app: #0C1620;
+      --bg-sidebar: #111D2A;
+      --bg-surface: #152233;
+      --bg-surface-hover: #1A2940;
+      --bg-surface-active: #20314A;
+      --bg-surface-raised: #1A2940;
+      --bg-input: #111D2A;
+      --bg-overlay: rgba(0, 0, 0, 0.6);
+      --bg-skeleton: #1A2940;
+      --bg-skeleton-shine: #20314A;
+
+      --border-default: #1E3148;
+      --border-strong: #2A4160;
+      --border-focus: var(--accent);
+      --border-subtle: #182740;
+
+      --text-primary: #E4E9ED;
+      --text-secondary: #8B9BAA;
+      --text-tertiary: #5E7184;
+      --text-inverse: #0E2438;
+      --text-on-accent: #FFFFFF;
+
+      --accent: #3D8AC9;
+      --accent-hover: #509DD8;
+      --accent-active: #2E78B5;
+      --accent-subtle: rgba(61, 138, 201, 0.12);
+      --accent-muted: rgba(61, 138, 201, 0.20);
+
+      --accent-gold: #FBBA00;
+      --accent-gold-hover: #FFCA33;
+      --accent-gold-subtle: rgba(251, 186, 0, 0.12);
+
+      --success: #5BA867;
+      --success-subtle: rgba(91, 168, 103, 0.12);
+      --success-border: rgba(91, 168, 103, 0.30);
+      --warning: #E5A820;
+      --warning-subtle: rgba(229, 168, 32, 0.12);
+      --warning-border: rgba(229, 168, 32, 0.30);
+      --danger: #D4573E;
+      --danger-subtle: rgba(212, 87, 62, 0.12);
+      --danger-border: rgba(212, 87, 62, 0.30);
+      --info: #4A9ED6;
+      --info-subtle: rgba(74, 158, 214, 0.12);
+
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.25);
+      --shadow-md: 0 2px 8px rgba(0,0,0,0.30), 0 1px 2px rgba(0,0,0,0.20);
+      --shadow-lg: 0 8px 24px rgba(0,0,0,0.40), 0 2px 8px rgba(0,0,0,0.25);
+      --shadow-dropdown: 0 4px 16px rgba(0,0,0,0.45), 0 1px 4px rgba(0,0,0,0.25);
+
+      color-scheme: dark;
+    }
+
+    /* ── Typography ── */
+    :root {
+      --font-sans: 'DM Sans', system-ui, -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+      --text-xs: 11px;
+      --text-sm: 13px;
+      --text-base: 14.5px;
+      --text-md: 16px;
+      --text-lg: 18px;
+      --text-xl: 22px;
+      --text-2xl: 28px;
+      --text-3xl: 36px;
+
+      --leading-tight: 1.2;
+      --leading-normal: 1.5;
+      --leading-relaxed: 1.65;
+
+      --tracking-tight: -0.02em;
+      --tracking-normal: 0;
+      --tracking-wide: 0.04em;
+      --tracking-wider: 0.08em;
+      --tracking-caps: 0.1em;
+
+      /* Spacing scale (4px base) */
+      --sp-0: 0;
+      --sp-1: 4px;
+      --sp-2: 8px;
+      --sp-3: 12px;
+      --sp-4: 16px;
+      --sp-5: 20px;
+      --sp-6: 24px;
+      --sp-7: 28px;
+      --sp-8: 32px;
+      --sp-10: 40px;
+      --sp-12: 48px;
+      --sp-16: 64px;
+
+      /* Layout */
+      --sidebar-width: 248px;
+      --sidebar-collapsed: 64px;
+      --topbar-height: 56px;
+      --transition-fast: 150ms cubic-bezier(0.2, 0, 0, 1);
+      --transition-normal: 250ms cubic-bezier(0.2, 0, 0, 1);
+      --transition-slow: 400ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    html, body {
+      font-family: var(--font-sans);
+      font-size: var(--text-base);
+      line-height: var(--leading-normal);
+      color: var(--text-primary);
+      background: var(--bg-app);
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+      min-height: 100vh;
+    }
+
+    /* ── Focus ring ── */
+    :focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+      border-radius: var(--radius-xs);
+    }
+
+    ::selection { background: var(--accent-muted); color: var(--text-primary); }
+
+    /* ══════════════════════════════
+       REFERENCE PAGE LAYOUT
+       ══════════════════════════════ */
+
+    .ds-page {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: var(--sp-8) var(--sp-6);
+    }
+
+    .ds-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--sp-12);
+      padding-bottom: var(--sp-6);
+      border-bottom: 1px solid var(--border-default);
+    }
+
+    .ds-header h1 {
+      font-size: var(--text-2xl);
+      font-weight: 800;
+      letter-spacing: var(--tracking-tight);
+      color: var(--text-primary);
+    }
+
+    .ds-header h1 span {
+      color: var(--accent);
+    }
+
+    .ds-section {
+      margin-bottom: var(--sp-12);
+    }
+
+    .ds-section-title {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: var(--tracking-caps);
+      color: var(--text-tertiary);
+      margin-bottom: var(--sp-5);
+      padding-bottom: var(--sp-2);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .ds-grid {
+      display: grid;
+      gap: var(--sp-4);
+    }
+
+    .ds-grid-2 { grid-template-columns: repeat(2, 1fr); }
+    .ds-grid-3 { grid-template-columns: repeat(3, 1fr); }
+    .ds-grid-4 { grid-template-columns: repeat(4, 1fr); }
+    .ds-grid-5 { grid-template-columns: repeat(5, 1fr); }
+    .ds-grid-6 { grid-template-columns: repeat(6, 1fr); }
+
+    @media (max-width: 768px) {
+      .ds-grid-4, .ds-grid-5, .ds-grid-6 { grid-template-columns: repeat(2, 1fr); }
+      .ds-grid-3 { grid-template-columns: 1fr; }
+    }
+
+    /* ── Color Swatches ── */
+    .ds-swatch {
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      border: 1px solid var(--border-default);
+    }
+
+    .ds-swatch-color {
+      height: 72px;
+      position: relative;
+    }
+
+    .ds-swatch-label {
+      padding: var(--sp-2) var(--sp-3);
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      background: var(--bg-surface);
+    }
+
+    .ds-swatch-label strong {
+      display: block;
+      color: var(--text-primary);
+      font-weight: 600;
+      font-size: var(--text-sm);
+      margin-bottom: 2px;
+    }
+
+    /* ── Typography Showcase ── */
+    .ds-type-row {
+      display: flex;
+      align-items: baseline;
+      gap: var(--sp-6);
+      padding: var(--sp-4) 0;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .ds-type-meta {
+      min-width: 140px;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--text-tertiary);
+      flex-shrink: 0;
+    }
+
+    /* ══════════════════════════════
+       COMPONENT PRIMITIVES
+       ══════════════════════════════ */
+
+    /* ── Buttons ── */
+    .au-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--sp-2);
+      font-family: var(--font-sans);
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      white-space: nowrap;
+      position: relative;
+      text-decoration: none;
+    }
+
+    .au-btn:active { transform: scale(0.97); }
+
+    .au-btn-primary {
+      background: var(--accent);
+      color: var(--text-on-accent);
+      padding: var(--sp-2) var(--sp-5);
+      border-radius: var(--radius-sm);
+      font-size: var(--text-sm);
+      height: 36px;
+    }
+    .au-btn-primary:hover { background: var(--accent-hover); }
+    .au-btn-primary:active { background: var(--accent-active); }
+
+    .au-btn-primary.au-btn-lg {
+      height: 44px;
+      padding: var(--sp-3) var(--sp-6);
+      font-size: var(--text-base);
+      border-radius: var(--radius-md);
+    }
+
+    .au-btn-secondary {
+      background: var(--bg-surface);
+      color: var(--text-primary);
+      padding: var(--sp-2) var(--sp-5);
+      border-radius: var(--radius-sm);
+      font-size: var(--text-sm);
+      height: 36px;
+      border: 1px solid var(--border-default);
+    }
+    .au-btn-secondary:hover { background: var(--bg-surface-hover); border-color: var(--border-strong); }
+
+    .au-btn-ghost {
+      background: transparent;
+      color: var(--text-secondary);
+      padding: var(--sp-2) var(--sp-3);
+      border-radius: var(--radius-sm);
+      font-size: var(--text-sm);
+      height: 36px;
+    }
+    .au-btn-ghost:hover { background: var(--bg-surface-hover); color: var(--text-primary); }
+
+    .au-btn-gold {
+      background: var(--accent-gold);
+      color: #0E2438;
+      padding: var(--sp-2) var(--sp-5);
+      border-radius: var(--radius-sm);
+      font-size: var(--text-sm);
+      height: 36px;
+      font-weight: 700;
+    }
+    .au-btn-gold:hover { background: var(--accent-gold-hover); }
+    .au-btn-gold.au-btn-lg {
+      height: 44px;
+      padding: var(--sp-3) var(--sp-6);
+      font-size: var(--text-base);
+      border-radius: var(--radius-md);
+    }
+
+    .au-btn-danger {
+      background: var(--danger);
+      color: #fff;
+      padding: var(--sp-2) var(--sp-5);
+      border-radius: var(--radius-sm);
+      font-size: var(--text-sm);
+      height: 36px;
+    }
+    .au-btn-danger:hover { background: #b33b25; }
+
+    .au-btn-icon {
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      background: transparent;
+      color: var(--text-secondary);
+      border-radius: var(--radius-sm);
+      font-size: 18px;
+    }
+    .au-btn-icon:hover { background: var(--bg-surface-hover); color: var(--text-primary); }
+
+    /* ── Inputs ── */
+    .au-input {
+      width: 100%;
+      height: 36px;
+      padding: 0 var(--sp-3);
+      background: var(--bg-input);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+      outline: none;
+    }
+    .au-input:hover { border-color: var(--border-strong); }
+    .au-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-subtle);
+    }
+    .au-input::placeholder { color: var(--text-tertiary); }
+
+    .au-input-lg {
+      height: 44px;
+      padding: 0 var(--sp-4);
+      font-size: var(--text-base);
+      border-radius: var(--radius-md);
+    }
+
+    .au-textarea {
+      width: 100%;
+      min-height: 88px;
+      padding: var(--sp-3);
+      background: var(--bg-input);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      line-height: var(--leading-relaxed);
+      resize: vertical;
+      outline: none;
+      transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+    }
+    .au-textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-subtle);
+    }
+
+    .au-select {
+      width: 100%;
+      height: 36px;
+      padding: 0 var(--sp-8) 0 var(--sp-3);
+      background: var(--bg-input);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      outline: none;
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%236B6560' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      transition: border-color var(--transition-fast);
+    }
+    .au-select:hover { border-color: var(--border-strong); }
+    .au-select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-subtle); }
+
+    /* ── Field Group ── */
+    .au-field {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-1);
+    }
+
+    .au-label {
+      font-size: var(--text-sm);
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .au-hint {
+      font-size: var(--text-xs);
+      color: var(--text-tertiary);
+    }
+
+    /* ── Cards ── */
+    .au-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-lg);
+      padding: var(--sp-5);
+      transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+    }
+    .au-card:hover {
+      border-color: var(--border-strong);
+    }
+
+    .au-card-interactive {
+      cursor: pointer;
+    }
+    .au-card-interactive:hover {
+      box-shadow: var(--shadow-md);
+    }
+
+    /* ── Stat Card ── */
+    .au-stat {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-lg);
+      padding: var(--sp-5);
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-1);
+    }
+
+    .au-stat-value {
+      font-size: var(--text-2xl);
+      font-weight: 800;
+      letter-spacing: var(--tracking-tight);
+      line-height: 1;
+    }
+
+    .au-stat-label {
+      font-size: var(--text-xs);
+      font-weight: 500;
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: var(--tracking-caps);
+    }
+
+    .au-stat-trend {
+      font-size: var(--text-xs);
+      font-weight: 600;
+      margin-top: var(--sp-1);
+    }
+
+    /* ── Chip / Tag ── */
+    .au-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--sp-1);
+      height: 28px;
+      padding: 0 var(--sp-3);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-full);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      user-select: none;
+    }
+    .au-chip:hover {
+      border-color: var(--border-strong);
+      background: var(--bg-surface-hover);
+    }
+    .au-chip.active {
+      background: var(--accent-subtle);
+      border-color: var(--accent);
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .au-chip-close {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      border-radius: var(--radius-full);
+      background: transparent;
+      border: none;
+      color: inherit;
+      font-size: 14px;
+      cursor: pointer;
+      margin-left: 2px;
+      margin-right: -4px;
+      transition: background var(--transition-fast);
+      line-height: 1;
+    }
+    .au-chip-close:hover {
+      background: var(--danger-subtle);
+      color: var(--danger);
+    }
+
+    /* ── Filter Chip (dropdown trigger) ── */
+    .au-filter-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 32px;
+      padding: 0 var(--sp-3);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-sm);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      position: relative;
+      user-select: none;
+    }
+    .au-filter-chip:hover {
+      border-color: var(--border-strong);
+      background: var(--bg-surface-hover);
+    }
+    .au-filter-chip.has-value {
+      background: var(--accent-subtle);
+      border-color: var(--accent);
+      color: var(--accent);
+      font-weight: 600;
+    }
+    .au-filter-chip .chevron {
+      font-size: 10px;
+      transition: transform var(--transition-fast);
+      opacity: 0.6;
+    }
+    .au-filter-chip.open .chevron {
+      transform: rotate(180deg);
+    }
+
+    /* ── Filter Dropdown ── */
+    .au-filter-dropdown {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      min-width: 240px;
+      background: var(--bg-surface-raised);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-dropdown);
+      z-index: 1000;
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+      animation: au-dropdown-in 150ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .au-filter-dropdown.open { display: flex; }
+
+    @keyframes au-dropdown-in {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .au-filter-search {
+      padding: var(--sp-2) var(--sp-3);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .au-filter-search input {
+      width: 100%;
+      height: 32px;
+      padding: 0 var(--sp-3);
+      background: var(--bg-app);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-xs);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      outline: none;
+    }
+    .au-filter-search input:focus { border-color: var(--accent); }
+
+    .au-filter-options {
+      max-height: 200px;
+      overflow-y: auto;
+      padding: var(--sp-1) 0;
+    }
+
+    .au-filter-option {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+      padding: var(--sp-2) var(--sp-3);
+      cursor: pointer;
+      font-size: var(--text-sm);
+      color: var(--text-primary);
+      transition: background var(--transition-fast);
+    }
+    .au-filter-option:hover { background: var(--bg-surface-hover); }
+
+    .au-filter-option input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      border-radius: var(--radius-xs);
+      accent-color: var(--accent);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .au-filter-actions {
+      padding: var(--sp-2) var(--sp-3);
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      justify-content: flex-end;
+      gap: var(--sp-2);
+    }
+
+    /* ── Badge ── */
+    .au-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: 20px;
+      min-width: 20px;
+      padding: 0 6px;
+      border-radius: var(--radius-full);
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .au-badge-success { background: var(--success-subtle); color: var(--success); }
+    .au-badge-warning { background: var(--warning-subtle); color: var(--warning); }
+    .au-badge-danger { background: var(--danger-subtle); color: var(--danger); }
+    .au-badge-info { background: var(--info-subtle); color: var(--info); }
+    .au-badge-neutral { background: var(--bg-surface-active); color: var(--text-secondary); }
+
+    /* ── Status Pill ── */
+    .au-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: var(--text-xs);
+      font-weight: 600;
+    }
+
+    .au-status::before {
+      content: '';
+      width: 7px;
+      height: 7px;
+      border-radius: var(--radius-full);
+      flex-shrink: 0;
+    }
+
+    .au-status-pass { color: var(--success); }
+    .au-status-pass::before { background: var(--success); }
+    .au-status-fail { color: var(--danger); }
+    .au-status-fail::before { background: var(--danger); }
+    .au-status-pending { color: var(--warning); }
+    .au-status-pending::before { background: var(--warning); }
+    .au-status-info { color: var(--info); }
+    .au-status-info::before { background: var(--info); }
+
+    /* ── Table ── */
+    .au-table-wrap {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+
+    .au-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: var(--text-sm);
+    }
+
+    .au-table th {
+      text-align: left;
+      padding: var(--sp-3) var(--sp-4);
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      font-weight: 600;
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: var(--tracking-wide);
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-default);
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    .au-table td {
+      padding: var(--sp-3) var(--sp-4);
+      color: var(--text-primary);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .au-table tbody tr {
+      transition: background var(--transition-fast);
+    }
+    .au-table tbody tr:hover { background: var(--bg-surface-hover); }
+    .au-table tbody tr:last-child td { border-bottom: none; }
+
+    .au-table td.mono {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+    }
+
+    .au-table th:first-child,
+    .au-table td:first-child {
+      padding-left: var(--sp-4);
+    }
+
+    /* Checkbox column */
+    .au-table .col-check {
+      width: 44px;
+      text-align: center;
+    }
+
+    .au-table .col-check input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    /* ── Bulk Action Bar ── */
+    .au-bulk-bar {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-4);
+      padding: var(--sp-3) var(--sp-4);
+      background: var(--accent-subtle);
+      border: 1px solid var(--accent);
+      border-radius: var(--radius-md);
+      font-size: var(--text-sm);
+      animation: au-slide-in 200ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes au-slide-in {
+      from { opacity: 0; transform: translateY(-8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .au-bulk-bar-count {
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    /* ── Empty State ── */
+    .au-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: var(--sp-12) var(--sp-6);
+      text-align: center;
+      gap: var(--sp-4);
+    }
+
+    .au-empty-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: var(--radius-xl);
+      background: var(--bg-surface-active);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      color: var(--text-tertiary);
+    }
+
+    .au-empty-title {
+      font-size: var(--text-md);
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .au-empty-desc {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      max-width: 320px;
+      line-height: var(--leading-relaxed);
+    }
+
+    /* ── Skeleton Loader ── */
+    .au-skeleton {
+      background: var(--bg-skeleton);
+      border-radius: var(--radius-sm);
+      position: relative;
+      overflow: hidden;
+    }
+    .au-skeleton::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent, var(--bg-skeleton-shine), transparent);
+      animation: au-skeleton-shine 1.5s ease-in-out infinite;
+    }
+
+    @keyframes au-skeleton-shine {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+
+    .au-skeleton-text { height: 14px; width: 80%; }
+    .au-skeleton-text-sm { height: 11px; width: 60%; }
+    .au-skeleton-heading { height: 22px; width: 45%; }
+    .au-skeleton-avatar { width: 36px; height: 36px; border-radius: var(--radius-full); }
+
+    /* ── Sidebar Preview ── */
+    .au-sidebar-preview {
+      width: var(--sidebar-width);
+      background: var(--bg-sidebar);
+      border-right: 1px solid var(--border-default);
+      display: flex;
+      flex-direction: column;
+      height: 480px;
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+
+    .au-sidebar-logo {
+      padding: var(--sp-4) var(--sp-5);
+      display: flex;
+      align-items: center;
+      gap: var(--sp-3);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .au-sidebar-logo-mark {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-sm);
+      background: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-on-accent);
+      font-weight: 800;
+      font-size: var(--text-md);
+    }
+
+    .au-sidebar-logo-text {
+      font-weight: 700;
+      font-size: var(--text-md);
+      color: var(--text-primary);
+      letter-spacing: var(--tracking-tight);
+    }
+
+    .au-sidebar-nav {
+      flex: 1;
+      padding: var(--sp-3) var(--sp-2);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      overflow-y: auto;
+    }
+
+    .au-sidebar-section-label {
+      padding: var(--sp-3) var(--sp-3) var(--sp-1);
+      font-size: var(--text-xs);
+      font-weight: 600;
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: var(--tracking-caps);
+    }
+
+    .au-sidebar-item {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-3);
+      padding: var(--sp-2) var(--sp-3);
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      text-decoration: none;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+    }
+    .au-sidebar-item:hover {
+      background: var(--bg-surface-hover);
+      color: var(--text-primary);
+    }
+    .au-sidebar-item.active {
+      background: var(--accent-subtle);
+      color: var(--accent);
+      font-weight: 600;
+      border-left: 3px solid var(--accent-gold);
+      padding-left: calc(var(--sp-3) - 3px);
+    }
+
+    .au-sidebar-item .icon {
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 16px;
+    }
+
+    .au-sidebar-item .badge-count {
+      margin-left: auto;
+      min-width: 20px;
+      height: 20px;
+      padding: 0 6px;
+      border-radius: var(--radius-full);
+      background: var(--danger-subtle);
+      color: var(--danger);
+      font-size: 10px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .au-sidebar-footer {
+      padding: var(--sp-3) var(--sp-4);
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      gap: var(--sp-3);
+    }
+
+    .au-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-full);
+      background: var(--accent-subtle);
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: var(--text-xs);
+      flex-shrink: 0;
+    }
+
+    /* ── Topbar Preview ── */
+    .au-topbar-preview {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-lg);
+      height: var(--topbar-height);
+      display: flex;
+      align-items: center;
+      padding: 0 var(--sp-5);
+      gap: var(--sp-4);
+    }
+
+    .au-topbar-title {
+      font-size: var(--text-lg);
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: var(--tracking-tight);
+    }
+
+    .au-topbar-search {
+      flex: 1;
+      max-width: 400px;
+      margin: 0 auto;
+      position: relative;
+    }
+
+    .au-topbar-search input {
+      width: 100%;
+      height: 36px;
+      padding: 0 var(--sp-3) 0 36px;
+      background: var(--bg-app);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      outline: none;
+      transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+    }
+    .au-topbar-search input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-subtle);
+    }
+
+    .au-topbar-search .search-icon {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-tertiary);
+      font-size: 15px;
+      pointer-events: none;
+    }
+
+    .au-topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+    }
+
+    /* ── Toggle ── */
+    .au-toggle {
+      position: relative;
+      width: 40px;
+      height: 22px;
+      display: inline-block;
+    }
+
+    .au-toggle input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+      position: absolute;
+    }
+
+    .au-toggle-track {
+      position: absolute;
+      inset: 0;
+      background: var(--border-strong);
+      border-radius: var(--radius-full);
+      cursor: pointer;
+      transition: background var(--transition-fast);
+    }
+
+    .au-toggle-track::after {
+      content: '';
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      border-radius: var(--radius-full);
+      background: white;
+      top: 2px;
+      left: 2px;
+      transition: transform var(--transition-fast);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    }
+
+    .au-toggle input:checked + .au-toggle-track {
+      background: var(--accent);
+    }
+
+    .au-toggle input:checked + .au-toggle-track::after {
+      transform: translateX(18px);
+    }
+
+    .au-toggle input:focus-visible + .au-toggle-track {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    /* ── Theme Toggle ── */
+    .ds-theme-toggle {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+      padding: var(--sp-1) var(--sp-2);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-full);
+    }
+    .ds-theme-toggle button {
+      padding: var(--sp-1) var(--sp-3);
+      border-radius: var(--radius-full);
+      border: none;
+      background: transparent;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      font-weight: 600;
+      color: var(--text-tertiary);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+    .ds-theme-toggle button.active {
+      background: var(--accent);
+      color: var(--text-on-accent);
+    }
+
+    /* ── Page Header ── */
+    .au-page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--sp-5) var(--sp-6);
+      gap: var(--sp-4);
+    }
+
+    .au-page-header-left {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .au-page-title {
+      font-size: var(--text-xl);
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: var(--tracking-tight);
+    }
+
+    .au-page-subtitle {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+    }
+
+    /* ── Filter Strip ── */
+    .au-filter-strip {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+      padding: 0 var(--sp-6) var(--sp-4);
+      flex-wrap: wrap;
+    }
+
+    .au-filter-clear {
+      font-size: var(--text-xs);
+      color: var(--accent);
+      font-weight: 600;
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: var(--sp-1) var(--sp-2);
+      transition: opacity var(--transition-fast);
+    }
+    .au-filter-clear:hover { opacity: 0.7; }
+
+    /* ── Saved Views ── */
+    .au-saved-view {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 var(--sp-3);
+      height: 28px;
+      border-radius: var(--radius-full);
+      font-size: var(--text-xs);
+      font-weight: 600;
+      border: 1px dashed var(--border-strong);
+      color: var(--text-tertiary);
+      cursor: pointer;
+      background: transparent;
+      transition: all var(--transition-fast);
+    }
+    .au-saved-view:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      border-style: solid;
+    }
+
+    /* ── Spacing showcase ── */
+    .ds-spacing-bar {
+      height: 24px;
+      background: var(--accent-subtle);
+      border: 1px solid var(--accent-muted);
+      border-radius: var(--radius-xs);
+      position: relative;
+    }
+
+    .ds-spacing-bar::after {
+      content: attr(data-label);
+      position: absolute;
+      right: var(--sp-2);
+      top: 50%;
+      transform: translateY(-50%);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
+
+    /* ── Showcase containers ── */
+    .ds-showcase {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-lg);
+      padding: var(--sp-6);
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-4);
+    }
+
+    .ds-inline-row {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-3);
+      flex-wrap: wrap;
+    }
+
+    .ds-label {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--text-tertiary);
+      min-width: 90px;
+    }
+
+    /* ── Layout demo ── */
+    .ds-layout-demo {
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      display: flex;
+      height: 480px;
+    }
+
+    .ds-layout-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .ds-layout-content {
+      flex: 1;
+      padding: var(--sp-6);
+      background: var(--bg-app);
+      overflow-y: auto;
+    }
+
+    /* ── Lucide icon placeholders (SVG inline) ── */
+    .icon-sm { width: 16px; height: 16px; }
+    .icon-md { width: 20px; height: 20px; }
+  </style>
+</head>
+<body>
+
+<div class="ds-page">
+
+  <!-- Header -->
+  <div class="ds-header">
+    <h1>Auditor <span>Design System</span></h1>
+    <div class="ds-theme-toggle">
+      <button class="active" onclick="setTheme('light')">Light</button>
+      <button onclick="setTheme('dark')">Dark</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════ COLORS ═══════════════ -->
+  <div class="ds-section">
+    <div class="ds-section-title">Color Tokens</div>
+
+    <div style="margin-bottom: var(--sp-4);">
+      <div style="font-weight:600; margin-bottom: var(--sp-2); font-size: var(--text-sm);">Core</div>
+      <div class="ds-grid ds-grid-6">
+        <div class="ds-swatch">
+          <div class="ds-swatch-color" style="background: var(--bg-app);"></div>
+          <div class="ds-swatch-label"><strong>App BG</strong>--bg-app</div>
+        </div>
+        <div class="ds-swatch">
+          <div class="ds-swatch-color" style="background: var(--bg-surface);"></div>
+          <div class="ds-swatch-label"><strong>Surface</strong>--bg-surface</div>
+        </div>
+        <div class="ds-swatch">
+          <div class="ds-swatch-color" style="background: var(--bg-sidebar);"></div>
+          <div class="ds-swatch-label"><strong>Sidebar</strong>--bg-sidebar</div>
+        </div>
+        <div class="ds-swatch">
+          <div class="ds-swatch-color" style="background: var(--text-primary);"></div>
+          <div class="ds-swatch-label"><strong>Text</strong>--text-primary</div>
+        </div>
+        <div class="ds-swatch">
+          <div class="ds-swatch-color" style="background: var(--accent);"></div>
+          <div class="ds-swatch-label"><strong>Accent</strong>--accent (Alcoa Blue)</div>
+        </div>
+        <div class="ds-swatch">
+          <div class="ds-swatch-color" style="background: var(--accent-gold);"></div>
+          <div class="ds-swatch-label"><strong>Gold</strong>--accent-gold</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-bottom: var(--sp-4);">
+      <div style="font-weight:600; margin-bottom: var(--sp-2); font-size: var(--text-sm);">Semantic</div>
+      <div class="ds-grid ds-grid-4">
+        <div class="ds-swatch">
+          <div class="ds-swatch-color" style="background: var(--success);"></div>
+          <div class="ds-swatch-label"><strong>Success</strong>Pass / Resolved</div>
+        </div>
+        <div class="ds-swatch">
+          <div class="ds-swatch-color" style="background: var(--warning);"></div>
+          <div class="ds-swatch-label"><strong>Warning</strong>WR Raised / Pending</div>
+        </div>
+        <div class="ds-swatch">
+          <div class="ds-swatch-color" style="background: var(--danger);"></div>
+          <div class="ds-swatch-label"><strong>Danger</strong>Fail / Critical</div>
+        </div>
+        <div class="ds-swatch">
+          <div class="ds-swatch-color" style="background: var(--info);"></div>
+          <div class="ds-swatch-label"><strong>Info</strong>Informational</div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div style="font-weight:600; margin-bottom: var(--sp-2); font-size: var(--text-sm);">Text & Borders</div>
+      <div class="ds-grid ds-grid-6">
+        <div class="ds-swatch">
+          <div class="ds-swatch-color" style="background: var(--text-primary);"></div>
+          <div class="ds-swatch-label"><strong>Primary</strong></div>
+        </div>
+        <div class="ds-swatch">
+          <div class="ds-swatch-color" style="background: var(--text-secondary);"></div>
+          <div class="ds-swatch-label"><strong>Secondary</strong></div>
+        </div>
+        <div class="ds-swatch">
+          <div class="ds-swatch-color" style="background: var(--text-tertiary);"></div>
+          <div class="ds-swatch-label"><strong>Tertiary</strong></div>
+        </div>
+        <div class="ds-swatch">
+          <div class="ds-swatch-color" style="background: var(--border-default);"></div>
+          <div class="ds-swatch-label"><strong>Border</strong></div>
+        </div>
+        <div class="ds-swatch">
+          <div class="ds-swatch-color" style="background: var(--border-strong);"></div>
+          <div class="ds-swatch-label"><strong>Border Strong</strong></div>
+        </div>
+        <div class="ds-swatch">
+          <div class="ds-swatch-color" style="background: var(--border-subtle);"></div>
+          <div class="ds-swatch-label"><strong>Border Subtle</strong></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ TYPOGRAPHY ═══════════════ -->
+  <div class="ds-section">
+    <div class="ds-section-title">Typography</div>
+    <div class="ds-showcase">
+      <div class="ds-type-row">
+        <div class="ds-type-meta">36 / 800<br>DM Sans</div>
+        <div style="font-size:var(--text-3xl); font-weight:800; letter-spacing:var(--tracking-tight); line-height:var(--leading-tight);">Display Heading</div>
+      </div>
+      <div class="ds-type-row">
+        <div class="ds-type-meta">28 / 700<br>DM Sans</div>
+        <div style="font-size:var(--text-2xl); font-weight:700; letter-spacing:var(--tracking-tight);">Page Title</div>
+      </div>
+      <div class="ds-type-row">
+        <div class="ds-type-meta">22 / 700<br>DM Sans</div>
+        <div style="font-size:var(--text-xl); font-weight:700; letter-spacing:var(--tracking-tight);">Section Header</div>
+      </div>
+      <div class="ds-type-row">
+        <div class="ds-type-meta">18 / 600<br>DM Sans</div>
+        <div style="font-size:var(--text-lg); font-weight:600;">Card Title</div>
+      </div>
+      <div class="ds-type-row">
+        <div class="ds-type-meta">16 / 400<br>DM Sans</div>
+        <div style="font-size:var(--text-md); font-weight:400; color:var(--text-secondary);">Body large — for descriptions and paragraph text that needs extra presence.</div>
+      </div>
+      <div class="ds-type-row">
+        <div class="ds-type-meta">14.5 / 400<br>DM Sans</div>
+        <div style="font-size:var(--text-base); font-weight:400;">Body default — the standard reading size for all content.</div>
+      </div>
+      <div class="ds-type-row">
+        <div class="ds-type-meta">13 / 500<br>DM Sans</div>
+        <div style="font-size:var(--text-sm); font-weight:500; color:var(--text-secondary);">Small text — metadata, table cells, secondary information.</div>
+      </div>
+      <div class="ds-type-row">
+        <div class="ds-type-meta">11 / 600<br>JetBrains Mono</div>
+        <div style="font-family:var(--font-mono); font-size:var(--text-xs); font-weight:600; text-transform:uppercase; letter-spacing:var(--tracking-caps); color:var(--text-tertiary);">Overline / Label / Caption</div>
+      </div>
+      <div class="ds-type-row">
+        <div class="ds-type-meta">13 / 400<br>JetBrains Mono</div>
+        <div style="font-family:var(--font-mono); font-size:var(--text-sm); font-weight:400; color:var(--text-secondary);">REC-0042 · GRD-CV01-015 · 2026-04-16</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ SPACING ═══════════════ -->
+  <div class="ds-section">
+    <div class="ds-section-title">Spacing Scale (4px base)</div>
+    <div class="ds-showcase" style="gap: var(--sp-2);">
+      <div class="ds-spacing-bar" style="width: 4px;" data-label="sp-1 · 4px"></div>
+      <div class="ds-spacing-bar" style="width: 8px;" data-label="sp-2 · 8px"></div>
+      <div class="ds-spacing-bar" style="width: 12px;" data-label="sp-3 · 12px"></div>
+      <div class="ds-spacing-bar" style="width: 16px;" data-label="sp-4 · 16px"></div>
+      <div class="ds-spacing-bar" style="width: 20px;" data-label="sp-5 · 20px"></div>
+      <div class="ds-spacing-bar" style="width: 24px;" data-label="sp-6 · 24px"></div>
+      <div class="ds-spacing-bar" style="width: 32px;" data-label="sp-8 · 32px"></div>
+      <div class="ds-spacing-bar" style="width: 48px;" data-label="sp-12 · 48px"></div>
+      <div class="ds-spacing-bar" style="width: 64px;" data-label="sp-16 · 64px"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ BUTTONS ═══════════════ -->
+  <div class="ds-section">
+    <div class="ds-section-title">Buttons</div>
+    <div class="ds-showcase">
+      <div class="ds-inline-row">
+        <span class="ds-label">Primary</span>
+        <button class="au-btn au-btn-primary au-btn-lg">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          New Audit
+        </button>
+        <button class="au-btn au-btn-primary">Start Inspection</button>
+        <button class="au-btn au-btn-primary" disabled style="opacity:0.5;cursor:not-allowed;">Disabled</button>
+      </div>
+      <div class="ds-inline-row">
+        <span class="ds-label">Secondary</span>
+        <button class="au-btn au-btn-secondary">Export CSV</button>
+        <button class="au-btn au-btn-secondary">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download
+        </button>
+      </div>
+      <div class="ds-inline-row">
+        <span class="ds-label">Ghost</span>
+        <button class="au-btn au-btn-ghost">Cancel</button>
+        <button class="au-btn au-btn-ghost">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          Back
+        </button>
+      </div>
+      <div class="ds-inline-row">
+        <span class="ds-label">Gold CTA</span>
+        <button class="au-btn au-btn-gold au-btn-lg">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          New Audit
+        </button>
+        <button class="au-btn au-btn-gold">Raise Issue</button>
+      </div>
+      <div class="ds-inline-row">
+        <span class="ds-label">Danger</span>
+        <button class="au-btn au-btn-danger">Delete Record</button>
+      </div>
+      <div class="ds-inline-row">
+        <span class="ds-label">Icon</span>
+        <button class="au-btn au-btn-icon" title="Search">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </button>
+        <button class="au-btn au-btn-icon" title="Notifications">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        </button>
+        <button class="au-btn au-btn-icon" title="Settings">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ INPUTS ═══════════════ -->
+  <div class="ds-section">
+    <div class="ds-section-title">Inputs</div>
+    <div class="ds-showcase">
+      <div class="ds-grid ds-grid-2">
+        <div class="au-field">
+          <label class="au-label">Location</label>
+          <input class="au-input" type="text" placeholder="Select a location...">
+        </div>
+        <div class="au-field">
+          <label class="au-label">Machine</label>
+          <select class="au-select">
+            <option value="">Select machine...</option>
+            <option>Conveyor Belt A1</option>
+            <option>Press Line B2</option>
+          </select>
+        </div>
+        <div class="au-field">
+          <label class="au-label">Search</label>
+          <input class="au-input au-input-lg" type="search" placeholder="Search inspections...">
+        </div>
+        <div class="au-field">
+          <label class="au-label">Due Date</label>
+          <input class="au-input" type="date">
+        </div>
+      </div>
+      <div class="au-field">
+        <label class="au-label">Notes</label>
+        <span class="au-hint">Add any findings or observations</span>
+        <textarea class="au-textarea" placeholder="Describe what was observed during the inspection..."></textarea>
+      </div>
+      <div class="ds-inline-row">
+        <span class="ds-label">Toggle</span>
+        <label class="au-toggle">
+          <input type="checkbox">
+          <span class="au-toggle-track"></span>
+        </label>
+        <span style="font-size:var(--text-sm); color:var(--text-secondary);">Show archived records</span>
+      </div>
+      <div class="ds-inline-row">
+        <span class="ds-label">Toggle On</span>
+        <label class="au-toggle">
+          <input type="checkbox" checked>
+          <span class="au-toggle-track"></span>
+        </label>
+        <span style="font-size:var(--text-sm); color:var(--text-secondary);">Scoring enabled</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ CHIPS & FILTERS ═══════════════ -->
+  <div class="ds-section">
+    <div class="ds-section-title">Chips & Filter Controls</div>
+    <div class="ds-showcase">
+      <div>
+        <div class="ds-label" style="margin-bottom: var(--sp-2);">Basic Chips</div>
+        <div class="ds-inline-row">
+          <span class="au-chip">All</span>
+          <span class="au-chip active">Open</span>
+          <span class="au-chip">In Progress</span>
+          <span class="au-chip">Resolved</span>
+          <span class="au-chip">Closed</span>
+        </div>
+      </div>
+
+      <div>
+        <div class="ds-label" style="margin-bottom: var(--sp-2);">Filter Chips (dropdown trigger)</div>
+        <div style="display:flex; align-items:center; gap:var(--sp-2); flex-wrap:wrap;">
+          <div class="au-filter-chip" onclick="toggleDropdown(this)">
+            Status
+            <span class="chevron">&#9662;</span>
+            <div class="au-filter-dropdown" onclick="event.stopPropagation()">
+              <div class="au-filter-search">
+                <input type="text" placeholder="Search...">
+              </div>
+              <div class="au-filter-options">
+                <label class="au-filter-option"><input type="checkbox"> Open</label>
+                <label class="au-filter-option"><input type="checkbox" checked> In Progress</label>
+                <label class="au-filter-option"><input type="checkbox"> Resolved</label>
+                <label class="au-filter-option"><input type="checkbox"> Closed</label>
+              </div>
+              <div class="au-filter-actions">
+                <button class="au-btn au-btn-ghost" style="height:28px; font-size:var(--text-xs);">Clear</button>
+                <button class="au-btn au-btn-primary" style="height:28px; font-size:var(--text-xs);">Apply</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="au-filter-chip has-value">
+            Location: <strong>West Plant</strong>
+            <button class="au-chip-close" title="Clear filter">&times;</button>
+          </div>
+
+          <div class="au-filter-chip has-value">
+            Result: <strong>FAIL, WR Raised</strong>
+            <button class="au-chip-close" title="Clear filter">&times;</button>
+          </div>
+
+          <div class="au-filter-chip">
+            Risk Rating
+            <span class="chevron">&#9662;</span>
+          </div>
+
+          <div class="au-filter-chip">
+            Date Range
+            <span class="chevron">&#9662;</span>
+          </div>
+
+          <button class="au-filter-clear">Clear all</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="ds-label" style="margin-bottom: var(--sp-2);">Saved Views</div>
+        <div class="ds-inline-row">
+          <button class="au-saved-view">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+            Failed — West Plant
+          </button>
+          <button class="au-saved-view">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+            High Risk — This Month
+          </button>
+          <button class="au-saved-view" style="border-style:dashed;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Save current view
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ BADGES & STATUS ═══════════════ -->
+  <div class="ds-section">
+    <div class="ds-section-title">Badges & Status</div>
+    <div class="ds-showcase">
+      <div class="ds-inline-row">
+        <span class="ds-label">Badges</span>
+        <span class="au-badge au-badge-success">PASS</span>
+        <span class="au-badge au-badge-danger">FAIL</span>
+        <span class="au-badge au-badge-warning">WR RAISED</span>
+        <span class="au-badge au-badge-info">IN PROGRESS</span>
+        <span class="au-badge au-badge-neutral">N/A</span>
+        <span class="au-badge au-badge-danger">12</span>
+      </div>
+      <div class="ds-inline-row">
+        <span class="ds-label">Status</span>
+        <span class="au-status au-status-pass">Pass</span>
+        <span class="au-status au-status-fail">Fail</span>
+        <span class="au-status au-status-pending">Pending</span>
+        <span class="au-status au-status-info">In Progress</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ STAT CARDS ═══════════════ -->
+  <div class="ds-section">
+    <div class="ds-section-title">Stat Cards</div>
+    <div class="ds-grid ds-grid-4">
+      <div class="au-stat">
+        <span class="au-stat-label">Total Inspections</span>
+        <span class="au-stat-value" style="color:var(--text-primary);">247</span>
+        <span class="au-stat-trend" style="color:var(--success);">+12 this week</span>
+      </div>
+      <div class="au-stat">
+        <span class="au-stat-label">Pass Rate</span>
+        <span class="au-stat-value" style="color:var(--success);">84%</span>
+        <span class="au-stat-trend" style="color:var(--success);">+3% vs last month</span>
+      </div>
+      <div class="au-stat">
+        <span class="au-stat-label">Open Issues</span>
+        <span class="au-stat-value" style="color:var(--danger);">18</span>
+        <span class="au-stat-trend" style="color:var(--danger);">5 critical</span>
+      </div>
+      <div class="au-stat">
+        <span class="au-stat-label">Avg Score</span>
+        <span class="au-stat-value" style="color:var(--warning);">72</span>
+        <span class="au-stat-trend" style="color:var(--text-tertiary);">out of 100</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ TABLE ═══════════════ -->
+  <div class="ds-section">
+    <div class="ds-section-title">Table</div>
+
+    <!-- Bulk Action Bar (shown when rows selected) -->
+    <div class="au-bulk-bar" style="margin-bottom: var(--sp-3);">
+      <span class="au-bulk-bar-count">3 selected</span>
+      <button class="au-btn au-btn-primary" style="height:30px; font-size:var(--text-xs);">Send to Planner</button>
+      <button class="au-btn au-btn-secondary" style="height:30px; font-size:var(--text-xs);">Export</button>
+      <button class="au-btn au-btn-ghost" style="height:30px; font-size:var(--text-xs); margin-left:auto;">Cancel</button>
+    </div>
+
+    <div class="au-table-wrap">
+      <table class="au-table">
+        <thead>
+          <tr>
+            <th class="col-check"><input type="checkbox"></th>
+            <th>ID</th>
+            <th>Template</th>
+            <th>Location</th>
+            <th>Result</th>
+            <th>Risk</th>
+            <th>Inspector</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="col-check"><input type="checkbox" checked></td>
+            <td class="mono">INS-0247</td>
+            <td>Machine Guard Audit</td>
+            <td>West Plant — Conveyor A1</td>
+            <td><span class="au-badge au-badge-success">PASS</span></td>
+            <td><span class="au-badge au-badge-neutral">Low</span></td>
+            <td>J. Rodriguez</td>
+            <td class="mono">2026-04-16</td>
+          </tr>
+          <tr>
+            <td class="col-check"><input type="checkbox" checked></td>
+            <td class="mono">INS-0246</td>
+            <td>Gridmesh Inspection</td>
+            <td>East Wing — Press B2</td>
+            <td><span class="au-badge au-badge-danger">FAIL</span></td>
+            <td><span class="au-badge au-badge-danger">High</span></td>
+            <td>S. Nakamura</td>
+            <td class="mono">2026-04-15</td>
+          </tr>
+          <tr>
+            <td class="col-check"><input type="checkbox" checked></td>
+            <td class="mono">INS-0245</td>
+            <td>Machine Guard Audit</td>
+            <td>West Plant — Conveyor A3</td>
+            <td><span class="au-badge au-badge-warning">WR RAISED</span></td>
+            <td><span class="au-badge au-badge-warning">Medium</span></td>
+            <td>T. Okafor</td>
+            <td class="mono">2026-04-14</td>
+          </tr>
+          <tr>
+            <td class="col-check"><input type="checkbox"></td>
+            <td class="mono">INS-0244</td>
+            <td>Safety Valve Check</td>
+            <td>Boiler Room — Unit 7</td>
+            <td><span class="au-badge au-badge-success">PASS</span></td>
+            <td><span class="au-badge au-badge-neutral">Low</span></td>
+            <td>M. Petrov</td>
+            <td class="mono">2026-04-13</td>
+          </tr>
+          <tr>
+            <td class="col-check"><input type="checkbox"></td>
+            <td class="mono">INS-0243</td>
+            <td>Gridmesh Inspection</td>
+            <td>North Block — Walkway 2</td>
+            <td><span class="au-badge au-badge-success">PASS</span></td>
+            <td><span class="au-badge au-badge-neutral">Low</span></td>
+            <td>J. Rodriguez</td>
+            <td class="mono">2026-04-12</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ═══════════════ EMPTY STATE ═══════════════ -->
+  <div class="ds-section">
+    <div class="ds-section-title">Empty States</div>
+    <div class="ds-grid ds-grid-2">
+      <div class="au-card">
+        <div class="au-empty">
+          <div class="au-empty-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          </div>
+          <div class="au-empty-title">No inspections yet</div>
+          <div class="au-empty-desc">Start your first audit to see inspection records appear here.</div>
+          <button class="au-btn au-btn-primary">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            New Audit
+          </button>
+        </div>
+      </div>
+      <div class="au-card">
+        <div class="au-empty">
+          <div class="au-empty-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </div>
+          <div class="au-empty-title">No results match</div>
+          <div class="au-empty-desc">Try adjusting your filters or search terms to find what you're looking for.</div>
+          <button class="au-btn au-btn-secondary">Clear Filters</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ SKELETON LOADERS ═══════════════ -->
+  <div class="ds-section">
+    <div class="ds-section-title">Skeleton Loaders</div>
+    <div class="ds-grid ds-grid-3">
+      <div class="au-card" style="display:flex; flex-direction:column; gap:var(--sp-3);">
+        <div class="au-skeleton au-skeleton-heading"></div>
+        <div class="au-skeleton au-skeleton-text"></div>
+        <div class="au-skeleton au-skeleton-text-sm"></div>
+        <div class="au-skeleton au-skeleton-text" style="width:40%;"></div>
+      </div>
+      <div class="au-card" style="display:flex; flex-direction:column; gap:var(--sp-3);">
+        <div style="display:flex; align-items:center; gap:var(--sp-3);">
+          <div class="au-skeleton au-skeleton-avatar"></div>
+          <div style="flex:1; display:flex; flex-direction:column; gap:var(--sp-2);">
+            <div class="au-skeleton au-skeleton-text" style="width:70%;"></div>
+            <div class="au-skeleton au-skeleton-text-sm" style="width:50%;"></div>
+          </div>
+        </div>
+        <div class="au-skeleton" style="height:100px; border-radius:var(--radius-md);"></div>
+      </div>
+      <div class="au-card" style="display:flex; flex-direction:column; gap:var(--sp-3);">
+        <div class="au-skeleton au-skeleton-heading" style="width:30%;"></div>
+        <div class="au-skeleton" style="height:48px; border-radius:var(--radius-sm);"></div>
+        <div class="au-skeleton" style="height:48px; border-radius:var(--radius-sm);"></div>
+        <div class="au-skeleton" style="height:48px; border-radius:var(--radius-sm);"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ FULL LAYOUT DEMO ═══════════════ -->
+  <div class="ds-section">
+    <div class="ds-section-title">Layout — Sidebar + Topbar + Content</div>
+    <div class="ds-layout-demo">
+
+      <!-- Sidebar -->
+      <div class="au-sidebar-preview">
+        <div class="au-sidebar-logo">
+          <div class="au-sidebar-logo-mark">A</div>
+          <div class="au-sidebar-logo-text">Auditor</div>
+        </div>
+
+        <nav class="au-sidebar-nav">
+          <div class="au-sidebar-section-label">Main</div>
+          <button class="au-sidebar-item active">
+            <span class="icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            </span>
+            Dashboard
+          </button>
+          <button class="au-sidebar-item">
+            <span class="icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            </span>
+            Inspections
+          </button>
+          <button class="au-sidebar-item">
+            <span class="icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </span>
+            Issues
+            <span class="badge-count">12</span>
+          </button>
+          <button class="au-sidebar-item">
+            <span class="icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><polyline points="16 21 16 3 8 3 8 21"/></svg>
+            </span>
+            Assets
+          </button>
+
+          <div class="au-sidebar-section-label">Configure</div>
+          <button class="au-sidebar-item">
+            <span class="icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </span>
+            Templates
+          </button>
+          <button class="au-sidebar-item">
+            <span class="icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            </span>
+            Settings
+          </button>
+        </nav>
+
+        <div class="au-sidebar-footer">
+          <div class="au-avatar">TS</div>
+          <div style="flex:1; min-width:0;">
+            <div style="font-size:var(--text-sm); font-weight:600; color:var(--text-primary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Tom Senior</div>
+            <div style="font-size:var(--text-xs); color:var(--text-tertiary);">Admin</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main area -->
+      <div class="ds-layout-main">
+        <!-- Topbar -->
+        <div class="au-topbar-preview" style="border-radius:0; border-left:none; border-right:none; border-top:none;">
+          <div class="au-topbar-title">Dashboard</div>
+          <div class="au-topbar-search">
+            <span class="search-icon">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            </span>
+            <input type="text" placeholder="Search inspections, assets, issues...">
+          </div>
+          <div class="au-topbar-actions">
+            <button class="au-btn au-btn-icon" title="Notifications" style="position:relative;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+              <span style="position:absolute; top:4px; right:4px; width:8px; height:8px; border-radius:50%; background:var(--danger);"></span>
+            </button>
+            <div class="au-avatar" style="width:28px; height:28px; font-size:10px; cursor:pointer;">TS</div>
+          </div>
+        </div>
+
+        <!-- Content area -->
+        <div class="ds-layout-content">
+          <!-- Page header -->
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--sp-5);">
+            <div>
+              <div style="font-size:var(--text-xl); font-weight:700; letter-spacing:var(--tracking-tight);">Dashboard</div>
+              <div style="font-size:var(--text-sm); color:var(--text-secondary);">Overview of your inspection activity</div>
+            </div>
+            <button class="au-btn au-btn-gold">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              New Audit
+            </button>
+          </div>
+
+          <!-- Stats -->
+          <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:var(--sp-3); margin-bottom:var(--sp-5);">
+            <div class="au-stat" style="padding:var(--sp-4);">
+              <span class="au-stat-label">Pass</span>
+              <span class="au-stat-value" style="color:var(--success); font-size:var(--text-xl);">142</span>
+            </div>
+            <div class="au-stat" style="padding:var(--sp-4);">
+              <span class="au-stat-label">Fail</span>
+              <span class="au-stat-value" style="color:var(--danger); font-size:var(--text-xl);">38</span>
+            </div>
+            <div class="au-stat" style="padding:var(--sp-4);">
+              <span class="au-stat-label">Open Issues</span>
+              <span class="au-stat-value" style="color:var(--warning); font-size:var(--text-xl);">12</span>
+            </div>
+          </div>
+
+          <!-- Recent activity skeleton -->
+          <div style="font-size:var(--text-sm); font-weight:600; margin-bottom:var(--sp-3); color:var(--text-secondary);">Recent Activity</div>
+          <div class="au-card" style="padding:var(--sp-4); display:flex; flex-direction:column; gap:var(--sp-3);">
+            <div style="display:flex; gap:var(--sp-3); align-items:center;">
+              <div class="au-skeleton au-skeleton-avatar" style="width:28px; height:28px;"></div>
+              <div style="flex:1; display:flex; flex-direction:column; gap:var(--sp-1);">
+                <div class="au-skeleton au-skeleton-text" style="width:65%;"></div>
+                <div class="au-skeleton au-skeleton-text-sm" style="width:40%;"></div>
+              </div>
+            </div>
+            <div style="display:flex; gap:var(--sp-3); align-items:center;">
+              <div class="au-skeleton au-skeleton-avatar" style="width:28px; height:28px;"></div>
+              <div style="flex:1; display:flex; flex-direction:column; gap:var(--sp-1);">
+                <div class="au-skeleton au-skeleton-text" style="width:55%;"></div>
+                <div class="au-skeleton au-skeleton-text-sm" style="width:35%;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div style="text-align:center; padding:var(--sp-8) 0; color:var(--text-tertiary); font-size:var(--text-xs);">
+    Auditor Design System &middot; Alcoa Blue #165788 + Gold #FBBA00 &middot; DM Sans + JetBrains Mono &middot; Lucide Icons
+  </div>
+
+</div>
+
+<script>
+  function setTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    document.querySelectorAll('.ds-theme-toggle button').forEach(btn => {
+      btn.classList.toggle('active', btn.textContent.trim().toLowerCase() === theme);
+    });
+  }
+
+  function toggleDropdown(chip) {
+    const dropdown = chip.querySelector('.au-filter-dropdown');
+    const isOpen = dropdown.classList.contains('open');
+
+    // Close all dropdowns first
+    document.querySelectorAll('.au-filter-dropdown.open').forEach(d => {
+      d.classList.remove('open');
+      d.closest('.au-filter-chip')?.classList.remove('open');
+    });
+
+    if (!isOpen) {
+      dropdown.classList.add('open');
+      chip.classList.add('open');
+      const searchInput = dropdown.querySelector('input[type="text"]');
+      if (searchInput) setTimeout(() => searchInput.focus(), 50);
+    }
+  }
+
+  // Close dropdowns on outside click
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.au-filter-chip')) {
+      document.querySelectorAll('.au-filter-dropdown.open').forEach(d => {
+        d.classList.remove('open');
+        d.closest('.au-filter-chip')?.classList.remove('open');
+      });
+    }
+  });
+
+  // Escape closes dropdowns
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.au-filter-dropdown.open').forEach(d => {
+        d.classList.remove('open');
+        d.closest('.au-filter-chip')?.classList.remove('open');
+      });
+    }
+  });
+</script>
+
+</body>
+</html>

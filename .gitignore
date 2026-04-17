@@ -6,6 +6,7 @@ emailConfig.json
 *.log
 .DS_Store
 
+.pdf-cache/
 # local data / secrets
 .session-secret
 roles.json
